@@ -35,7 +35,7 @@ A recent **geometric mean** (last 6 samples) is shown alongside the single-sampl
 ## Features
 
 - Full-screen interactive map of monitoring stations, color-coded by swim status
-- "Can I swim here?" verdict for the nearest station when you tap **📍 Near Me**
+- **📍 Near Me** summary: a single "Safe to swim / Use caution / Avoid water contact" verdict for your location, with a tri-slice status icon (bacteria · algal blooms · physical hazards) and a one-line readout of each category — naming the specific site and the date of the last water-quality data. Only *recent* blooms (within 120 days) count as an active advisory; older reports are shown as historical context
 - Per-station detail: latest result, recent geomean, full sample-history sparkline with threshold lines, and a sortable recent-sample table
 - **Harmful algal bloom (HAB) layer** (teardrop pins) for the Sacramento / American & Sacramento River area, color-coded by advisory level
 - **Drowning-hazard markers** (red diamonds) for locally-known dangerous spots

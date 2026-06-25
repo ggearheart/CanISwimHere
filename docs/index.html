@@ -220,7 +220,7 @@ header{background:var(--ca-blue);color:#fff;padding:0 16px;height:52px;
   <div id="map-wrap">
     <div id="map-canvas" style="position:absolute;inset:0;"></div>
     <div id="tooltip"></div>
-    <div id="swim-hero" style="display:none;position:absolute;top:10px;left:50%;transform:translateX(-50%);z-index:700;background:#fff;border-radius:12px;box-shadow:0 4px 20px rgba(0,0,0,.22);padding:10px 16px;min-width:230px;max-width:88vw;text-align:center;pointer-events:none;"></div>
+    <div id="swim-hero" style="display:none;position:absolute;top:10px;left:50%;transform:translateX(-50%);z-index:700;background:#fff;border-radius:14px;box-shadow:0 6px 24px rgba(0,0,0,.25);padding:11px 14px;width:340px;max-width:92vw;text-align:left;pointer-events:auto;"></div>
     <div class="map-legend-wrap" id="mapLegend"></div>
   </div>
   <div class="map-fabs">
@@ -851,24 +851,92 @@ function locateMe(){
   }, {enableHighAccuracy:true, timeout:12000});
 }
 
-// ── "CAN I SWIM HERE?" HERO (nearest station verdict) ─────────────────────────────
+// ── "CAN I SWIM HERE?" — 3-category nearby summary (Near Me) ──────────────────────
+function milesToKm(mi){ return mi/0.621371; }
+// Tri-slice status icon: slice 0 = bacteria, 1 = algal blooms, 2 = physical hazards
+function triPie(colors, size){
+  const r=size/2, cx=r, cy=r, ir=r*0.34;
+  const seg=i=>{
+    const a0=(-90+i*120)*Math.PI/180, a1=(-90+(i+1)*120)*Math.PI/180;
+    const x0=cx+r*Math.cos(a0), y0=cy+r*Math.sin(a0);
+    const x1=cx+r*Math.cos(a1), y1=cy+r*Math.sin(a1);
+    return `<path d="M${cx},${cy} L${x0.toFixed(2)},${y0.toFixed(2)} A${r},${r} 0 0 1 ${x1.toFixed(2)},${y1.toFixed(2)} Z" fill="${colors[i]}" stroke="#fff" stroke-width="2"/>`;
+  };
+  return `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" style="display:block;">`
+    +[0,1,2].map(seg).join('')
+    +`<circle cx="${cx}" cy="${cy}" r="${ir}" fill="#fff"/>`
+    +`<circle cx="${cx}" cy="${cy}" r="${r-1}" fill="none" stroke="#fff" stroke-width="2"/></svg>`;
+}
+function catRow(icon, label, color, status, site, date, stale){
+  return `<div style="display:flex;align-items:flex-start;gap:6px;font-size:.72rem;line-height:1.35;">
+    <span style="flex-shrink:0;">${icon}</span>
+    <span style="width:10px;height:10px;border-radius:50%;background:${color};flex-shrink:0;border:1px solid rgba(0,0,0,.12);margin-top:3px;"></span>
+    <span style="flex:1;"><span style="font-weight:700;color:#334155;">${label}:</span> <span style="color:#475569;font-weight:600;">${status}</span>${site?` · <span style="color:#64748b;">${site}</span>`:''}${date?` <span style="color:#94a3b8;">(${date}${stale?' ⏳':''})</span>`:''}</span>
+  </div>`;
+}
 function updateSwimHero(){
   const hero=document.getElementById('swim-hero');
   if(!hero || userLat===null || !RAW.length) return;
-  let nearest=null, nd=Infinity;
-  for(const r of RAW){ if(r.lat==null) continue; const d=distKm(userLat,userLon,r.lat,r.lon); if(d<nd){nd=d;nearest=r;} }
-  if(!nearest){ hero.style.display='none'; return; }
-  const m=STATUS[nearest._status];
-  const verdict = nearest._status==='Good' ? (lang==='en'?'Yes — looks good':'Sí — se ve bien')
-    : nearest._status==='Unknown' ? (lang==='en'?'No recent data':'Sin datos')
-    : (lang==='en'?'Use caution':'Tenga precaución');
+  // Bacteria = nearest monitoring station; blooms & hazards are point features,
+  // so they only count when genuinely close.
+  const R_HAB=milesToKm(1.5), R_HAZ=milesToKm(2);
+
+  // ── 1) Fecal pathogens — nearest E. coli station ──
+  let fSt=null,fD=Infinity;
+  for(const r of RAW){ if(r.lat==null) continue; const d=distKm(userLat,userLon,r.lat,r.lon); if(d<fD){fD=d;fSt=r;} }
+  const fStatus=fSt?fSt._status:'Unknown', fM=STATUS[fStatus]||STATUS.Unknown;
+  const fDate=fSt&&fSt.latest?fSt.latest.date:null;
+
+  // ── 2) Harmful algal blooms — within 5 mi. Only blooms observed in the last
+  //    RECENT_DAYS count as an *active* advisory; older ones are historical context. ──
+  const RECENT_DAYS=120, now=Date.now();
+  const isRecent=obs=>obs && (now - new Date(obs).getTime()) <= RECENT_DAYS*24*3600*1000;
+  const ADVISORY=new Set(['Danger','Warning','Caution','Mat']);
+  const habNear=HABS.filter(b=>b.lat!=null && distKm(userLat,userLon,b.lat,b.lon)<=R_HAB)
+    .sort((a,b)=>(b.obs||'').localeCompare(a.obs||''));  // newest first
+  const habRecentAdv=habNear.filter(b=>ADVISORY.has(b.tier) && isRecent(b.obs))
+    .sort((a,b)=>(ADV[a.tier]||ADV.Other).order-(ADV[b.tier]||ADV.Other).order);  // worst first
+  let habColor, habStatus, habDate=null, habName=null;
+  if(habRecentAdv.length){ const w=habRecentAdv[0], m=ADV[w.tier]; habColor=m.color; habStatus=(lang==='en'?m.label+' advisory':m.label_es); habDate=w.obs?w.obs.split('T')[0]:null; habName=w.name; }
+  else if(habNear.length){ habColor='#15803D'; habStatus=lang==='en'?'No active advisory':'Sin aviso activo'; habDate=habNear[0].obs?habNear[0].obs.split('T')[0]:null; habName=lang==='en'?'last reported':'último reporte'; }
+  else { habColor='#15803D'; habStatus=lang==='en'?'None reported nearby':'Ninguna cerca'; }
+
+  // ── 3) Physical hazards — within 2 mi ──
+  let hz=null,hzD=Infinity;
+  for(const h of HAZARDS){ if(h.lat==null) continue; const d=distKm(userLat,userLon,h.lat,h.lon); if(d<=R_HAZ&&d<hzD){hzD=d;hz=h;} }
+  const hazColor=hz?'#7f1d1d':'#15803D';
+  const hazStatus=hz?(lang==='en'?'Known hazard nearby':'Peligro conocido cerca'):(lang==='en'?'None within 2 mi':'Ninguno en 2 mi');
+
+  // ── Overall verdict (0 safe · 1 caution · 2 avoid) ──
+  let level=0;
+  if(fStatus==='Unsafe') level=2; else if(['Warning','Caution','Unknown'].includes(fStatus)) level=Math.max(level,1);
+  if(habRecentAdv.length){ level=['Danger','Mat'].includes(habRecentAdv[0].tier)?2:Math.max(level,1); }
+  if(hz) level=Math.max(level,1);
+  const verdict=level===0?{txt:lang==='en'?'Safe to swim':'Seguro para nadar',icon:'✅',color:'#15803D'}
+    :level===1?{txt:lang==='en'?'Use caution':'Tenga precaución',icon:'⚠️',color:'#A16207'}
+    :{txt:lang==='en'?'Avoid water contact':'Evite el agua',icon:'⛔',color:'#B91C1C'};
+
+  const dates=[fDate,habDate].filter(Boolean).sort();
+  const latestDate=dates.length?dates[dates.length-1]:null;
+  const pie=triPie([fM.color,habColor,hazColor],54);
+
   hero.style.display='block';
   hero.innerHTML=`
-    <div style="font-size:.62rem;font-weight:700;letter-spacing:.08em;color:#64748b;text-transform:uppercase;margin-bottom:3px;">${lang==='en'?'Can I swim here?':'¿Puedo nadar aquí?'}</div>
-    <div style="font-size:1rem;font-weight:800;color:${m.color};margin-bottom:3px;">${m.flag} ${verdict}</div>
-    <div style="display:flex;align-items:center;justify-content:center;gap:6px;font-size:.74rem;color:#334155;">
-      <span style="font-weight:600;">${nearest.name}</span><span style="color:#94a3b8;">· ${fmtDist(nd)}</span>
-    </div>`;
+    <div style="display:flex;align-items:center;gap:11px;">
+      <div style="flex-shrink:0;">${pie}</div>
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:.58rem;font-weight:700;letter-spacing:.08em;color:#64748b;text-transform:uppercase;">${lang==='en'?'Can I swim here?':'¿Puedo nadar aquí?'}</div>
+        <div style="font-size:1.1rem;font-weight:800;color:${verdict.color};line-height:1.05;">${verdict.icon} ${verdict.txt}</div>
+        <div style="font-size:.64rem;color:#64748b;">${lang==='en'?'near':'cerca de'} ${fSt?fSt.name:''} · ${fmtDist(fD)}</div>
+      </div>
+      <button onclick="document.getElementById('swim-hero').style.display='none'" aria-label="Close" style="align-self:flex-start;background:none;border:none;font-size:.95rem;color:#94a3b8;cursor:pointer;line-height:1;padding:2px;">✕</button>
+    </div>
+    <div style="margin-top:8px;border-top:1px solid #e8edf2;padding-top:7px;display:flex;flex-direction:column;gap:6px;">
+      ${catRow('💧', lang==='en'?'Bacteria':'Bacterias', fM.color, lang==='en'?fM.label:fM.label_es, fSt?fSt.name:'', fDate, isStale(fDate))}
+      ${catRow('🦠', lang==='en'?'Algal blooms':'Floraciones', habColor, habStatus, habName||'', habDate, false)}
+      ${catRow('⚠️', lang==='en'?'Hazards':'Peligros', hazColor, hazStatus, hz?hz.name:'', null, false)}
+    </div>
+    ${latestDate?`<div style="margin-top:7px;font-size:.62rem;color:#94a3b8;border-top:1px solid #f1f5f9;padding-top:5px;">${lang==='en'?'Last water-quality data':'Últimos datos'}: <strong style="color:#64748b;">${latestDate}</strong>${isStale(latestDate)?(lang==='en'?' · demo data, over a year old':' · datos demo'):''}</div>`:''}`;
 }
 
 // ── LANGUAGE ─────────────────────────────────────────────────────────────────────
