@@ -43,8 +43,9 @@ EPA 2012 recreational criteria. Defined in `THRESH` (JS) and top of `build_data.
   `{bbox, source, blooms:[{id,name,county,rwb,lat,lon,obs,status,adv,tier,detail,
   size,texture,landmark,drinking_water,illness,lab_verified,lab_toxins}]}`.
 - `tier` ∈ Danger/Warning/Caution/Watch/Mat/Other (advisory colors in `ADV`).
-- index.html renders blooms as SVG teardrop **pins** (`habIcon`/`drawHabs`/`showHabTip`)
-  — distinct from E. coli circles and hazard diamonds. Toggle `#habBtn`.
+- index.html renders blooms as organic cell-cluster **splotches** (`habIcon`/`drawHabs`/
+  `showHabTip`) — filled by advisory color, overall opacity from `habOpacity(obs)`
+  (recent=bold ~0.92, old=faint ~0.22). Distinct from E. coli circles / hazard diamonds. Toggle `#habBtn`.
 - FHAB resources: blooms `c6a36b91-ad38-4611-8750-87ee99e497dd`,
   lab `9d4e1df4-0cd6-4165-9e63-effcafd9dccc`.
 

@@ -38,7 +38,7 @@ A recent **geometric mean** (last 6 samples) is shown alongside the single-sampl
 - **Swim summary** anywhere: tap **📍 Near Me** for your location, or **tap any spot on the map** to check it. Gives one "Safe to swim / Use caution / Avoid water contact" verdict with a tri-slice status icon (bacteria · algal blooms · physical hazards) and a one-line readout of each category — naming the specific site and the date of the last water-quality data. Only *recent* blooms (within 120 days, 1.5 mi) count as an active advisory; older reports are shown as historical context
 - Per-station detail: latest result, recent geomean, full sample-history sparkline with threshold lines, and a sortable recent-sample table
 - **Live river flow** from USGS gage 11446500 (American River at Fair Oaks): current discharge (cfs), gage height, trend, and a 7-day sparkline
-- **Harmful algal bloom (HAB) layer** (teardrop pins) for the Sacramento / American & Sacramento River area, color-coded by advisory level
+- **Harmful algal bloom (HAB) layer** (cell-cluster splotches) for the Sacramento / American & Sacramento River area — colored by advisory level and faded by how recently the bloom was observed
 - **Drowning-hazard markers** (red diamonds) for locally-known dangerous spots
 - Printable bilingual (English / Spanish) advisory signs per status level
 - Download stations or a single station's history as CSV
@@ -55,7 +55,7 @@ Flow categories (cfs, general Lower-American-River guidance, not an official sta
 
 ## Harmful algal blooms
 
-A second hazard layer maps **harmful algal bloom (HAB)** reports from the CA State Water Board **FHAB program** ([dataset](https://data.ca.gov/dataset/surface-water-freshwater-harmful-algal-blooms)), filtered to a Sacramento-area bounding box covering the Lower American River, the Sacramento River, Folsom Lake / Lake Natoma, and local park lakes. Blooms show as teardrop pins colored by advisory level (Danger / Warning / Caution / Watch / Algal Mat / Reported), with lab-confirmed cyanotoxins and illness reports flagged.
+A second hazard layer maps **harmful algal bloom (HAB)** reports from the CA State Water Board **FHAB program** ([dataset](https://data.ca.gov/dataset/surface-water-freshwater-harmful-algal-blooms)), filtered to a Sacramento-area bounding box covering the Lower American River, the Sacramento River, Folsom Lake / Lake Natoma, and local park lakes. Blooms show as organic cell-cluster **splotches** colored by advisory level (Danger / Warning / Caution / Watch / Algal Mat / Reported) and **faded by age** (bold = recently observed, faint = older report), with lab-confirmed cyanotoxins and illness reports flagged.
 
 `build_data.py` builds `docs/blooms.json` (fetched statewide, filtered to the bbox) alongside `stations.json`. Edit `BBOX` in `build_data.py` to change the area.
 
