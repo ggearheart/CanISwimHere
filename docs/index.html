@@ -179,7 +179,6 @@ header{background:var(--ca-blue);color:#fff;padding:0 16px;height:52px;
       <div class="legend" id="legend"></div>
       <button id="hazardBtn" onclick="toggleHazards(this)" style="width:100%;margin-bottom:7px;padding:7px 0;border:1px solid #b91c1c;border-radius:var(--radius);background:#fef2f2;cursor:pointer;font-size:.75rem;font-weight:700;color:#991b1b;touch-action:manipulation;">⚠️ <span id="hazardBtnLbl">Hide drowning hazards</span></button>
       <button id="habBtn" onclick="toggleHabs(this)" style="width:100%;margin-bottom:7px;padding:7px 0;border:1px solid #166534;border-radius:var(--radius);background:#f0fdf4;cursor:pointer;font-size:.75rem;font-weight:700;color:#166534;touch-action:manipulation;">🦠 <span id="habBtnLbl">Hide algal blooms</span></button>
-      <button id="flowBtn" onclick="toggleFlow(this)" style="width:100%;margin-bottom:7px;padding:7px 0;border:1px solid #0e7490;border-radius:var(--radius);background:#ecfeff;cursor:pointer;font-size:.75rem;font-weight:700;color:#0e7490;touch-action:manipulation;">🌊 <span id="flowBtnLbl">Hide flow arrows</span></button>
       <div class="stats-bar" id="statsBar"></div>
       <button id="downloadBtn" onclick="downloadFiltered()" style="width:100%;margin-bottom:7px;padding:6px 0;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg);cursor:pointer;font-size:.75rem;font-weight:600;color:var(--sub);">⬇ Download Stations CSV</button>
 
@@ -199,7 +198,7 @@ header{background:var(--ca-blue);color:#fff;padding:0 16px;height:52px;
           <p style="margin:0 0 8px;">Bacteria levels change quickly with rain, runoff, and flow. A single result is a snapshot, not a guarantee.</p>
           <p style="margin:0 0 8px;padding:7px 9px;background:#f0fdf4;border-left:3px solid #166534;border-radius:0 4px 4px 0;"><strong style="color:#166534;">🦠 Algal blooms</strong> shown as teardrop pins are harmful algal bloom (HAB) reports from the CA State Water Board <strong>FHAB program</strong>, for the Sacramento / American &amp; Sacramento River area. Most are reported by the public; only some are lab-tested, so cyanotoxins may be present even when not confirmed.</p>
           <p style="margin:0 0 8px;padding:7px 9px;background:#fef2f2;border-left:3px solid #b91c1c;border-radius:0 4px 4px 0;"><strong style="color:#991b1b;">⚠️ Drowning hazards</strong> shown as red diamonds (e.g. Clay Banks, the Tiscornia/Discovery Park confluence) are a <strong>curated safety reference</strong> — not from the monitoring data and approximate. Water can be bacteriologically "Good" and still be deadly to swim due to cold water and current.</p>
-          <p style="margin:0 0 8px;padding:7px 9px;background:#ecfeff;border-left:3px solid #0e7490;border-radius:0 4px 4px 0;"><strong style="color:#0e7490;">🌊 River flow</strong> is the live discharge at USGS gage <strong>11446500</strong> (American River at Fair Oaks), in cubic feet per second. Water flows downstream from Folsom/Lake Natoma (east) to the Sacramento River (west) — blue arrows show the direction. Higher flow means colder, faster, more dangerous water; releases from Nimbus Dam can change it quickly.</p>
+          <p style="margin:0 0 8px;padding:7px 9px;background:#ecfeff;border-left:3px solid #0e7490;border-radius:0 4px 4px 0;"><strong style="color:#0e7490;">🌊 River flow</strong> is the live discharge at USGS gage <strong>11446500</strong> (American River at Fair Oaks), in cubic feet per second. Water flows downstream from Folsom/Lake Natoma (east) to the Sacramento River (west). Higher flow means colder, faster, more dangerous water; releases from Nimbus Dam can change it quickly.</p>
           <a href="https://arcg.is/0ea0zq" target="_blank" rel="noopener"
              style="display:block;text-align:center;padding:7px;background:var(--ca-blue);color:#fff;border-radius:var(--radius);font-size:.74rem;font-weight:700;text-decoration:none;margin-bottom:8px;">
             Central Valley Water Board River Map ↗
@@ -473,12 +472,8 @@ function toggleHabs(btn){
 }
 
 // ── RIVER FLOW (live USGS gage 11446500 — American River at Fair Oaks) ────────────
-// Water flows downstream from Folsom/Lake Natoma (east) to the Sacramento River
-// (west). Arrows below point downstream along the corridor.
-const FLOW_ARROWS=[{"lat":38.633,"lon":-121.233,"bearing":270},{"lat":38.633,"lon":-121.271,"bearing":251},{"lat":38.62,"lon":-121.318,"bearing":204},{"lat":38.597,"lon":-121.331,"bearing":232},{"lat":38.566,"lon":-121.381,"bearing":301},{"lat":38.576,"lon":-121.402,"bearing":285},{"lat":38.582,"lon":-121.43,"bearing":283},{"lat":38.588,"lon":-121.462,"bearing":311},{"lat":38.599,"lon":-121.478,"bearing":275},{"lat":38.601,"lon":-121.506,"bearing":208}];
+// Water flows downstream from Folsom/Lake Natoma (east) to the Sacramento River (west).
 let FLOW = null;       // {cfs, gageFt, time, trend, series:[{t,v}]}
-let showFlow = true;
-const flowLayer = L.layerGroup().addTo(map);
 const USGS_SITE = '11446500';
 const USGS_URL = `https://waterservices.usgs.gov/nwis/iv/?sites=${USGS_SITE}&parameterCd=00060,00065&period=P7D&format=json&siteStatus=all`;
 
@@ -489,25 +484,6 @@ function flowCat(cfs){
   if(cfs<3500)   return {key:'moderate',en:'Moderate', es:'Moderado', color:'#A16207'};
   if(cfs<6000)   return {key:'swift',   en:'Swift — strong current', es:'Rápido — corriente fuerte', color:'#C2410C'};
   return                {key:'high',    en:'High — hazardous', es:'Alto — peligroso', color:'#B91C1C'};
-}
-function arrowIcon(deg, color){
-  return L.divIcon({className:'', iconSize:[24,24], iconAnchor:[12,12],
-    html:`<div style="transform:rotate(${deg}deg);width:24px;height:24px;filter:drop-shadow(0 1px 1px rgba(0,0,0,.35));">`
-      +`<svg width="24" height="24" viewBox="0 0 24 24"><path d="M12 2 L18 12 L13.5 12 L13.5 21 L10.5 21 L10.5 12 L6 12 Z" fill="${color}" stroke="#fff" stroke-width="1.1"/></svg></div>`});
-}
-function buildFlowArrows(){
-  flowLayer.clearLayers();
-  if(!showFlow) return;
-  const cat=flowCat(FLOW?FLOW.cfs:null);
-  FLOW_ARROWS.forEach(a=>{
-    L.marker([a.lat,a.lon], {icon:arrowIcon(a.bearing, cat.color), interactive:false, zIndexOffset:80, keyboard:false}).addTo(flowLayer);
-  });
-}
-function toggleFlow(btn){
-  showFlow=!showFlow;
-  document.getElementById('flowBtnLbl').textContent = showFlow ? (lang==='en'?'Hide flow arrows':'Ocultar flechas') : (lang==='en'?'Show flow arrows':'Mostrar flechas');
-  btn.style.opacity = showFlow ? '1' : '.6';
-  buildFlowArrows();
 }
 function flowSpark(series,w,h){
   if(!series||series.length<2) return '';
@@ -553,9 +529,8 @@ function renderFlowChip(){
     <div style="margin-top:3px;">${flowSpark(FLOW.series,150,24)}</div>
     <div style="font-size:.55rem;color:#94a3b8;margin-top:1px;">USGS Fair Oaks · ${t}</div>`;
 }
-fetch(USGS_URL).then(r=>r.json()).then(j=>{ FLOW=parseUSGS(j); renderFlowChip(); buildFlowArrows(); if(summaryAt) updateSwimHero(); })
+fetch(USGS_URL).then(r=>r.json()).then(j=>{ FLOW=parseUSGS(j); renderFlowChip(); if(summaryAt) updateSwimHero(); })
   .catch(()=>{ FLOW=null; renderFlowChip(); });
-buildFlowArrows();
 
 // ── HOVER / TOOLTIP ──────────────────────────────────────────────────────────────
 const tip = document.getElementById('tooltip');
@@ -891,7 +866,6 @@ function buildLegend(){
     Object.entries(STATUS).sort((a,b)=>a[1].order-b[1].order).filter(([k])=>k!=='Unknown')
     .map(([k,m])=>`<div class="map-leg-row"><span class="map-leg-dot" style="background:${m.color}"></span><span>${lang==='en'?m.label:m.label_es} <span style="color:var(--sub)">${ranges[k]}</span></span></div>`).join('')
     + `<div class="map-leg-row" style="margin-top:4px;border-top:1px solid var(--border);padding-top:4px;"><span style="width:10px;height:10px;flex-shrink:0;transform:rotate(45deg);background:#7f1d1d;border-radius:2px;"></span><span>${lang==='en'?'Drowning hazard':'Peligro de ahogamiento'}</span></div>`
-    + `<div class="map-leg-row" style="margin-top:2px;"><span style="width:0;height:0;flex-shrink:0;border-left:5px solid transparent;border-right:5px solid transparent;border-bottom:9px solid #0e7490;transform:rotate(-90deg);"></span><span>${lang==='en'?'Flow direction (downstream)':'Dirección del flujo'}</span></div>`
     + habLegendHTML();
 }
 function habLegendHTML(){
@@ -1082,8 +1056,6 @@ function setLang(l, btn){
   if(hbl) hbl.textContent = showHazards ? (l==='en'?'Hide drowning hazards':'Ocultar peligros') : (l==='en'?'Show drowning hazards':'Mostrar peligros');
   const hab=document.getElementById('habBtnLbl');
   if(hab) hab.textContent = (showHabs ? (l==='en'?'Hide algal blooms':'Ocultar floraciones') : (l==='en'?'Show algal blooms':'Mostrar floraciones')) + (HABS.length?` (${HABS.length})`:'');
-  const fw=document.getElementById('flowBtnLbl');
-  if(fw) fw.textContent = showFlow ? (l==='en'?'Hide flow arrows':'Ocultar flechas') : (l==='en'?'Show flow arrows':'Mostrar flechas');
   renderFlowChip();
   const th=document.getElementById('tap-hint-lbl');
   if(th) th.textContent = l==='en'?'Tap any spot — or 📍 Near Me — for a swim summary':'Toque cualquier lugar — o 📍 — para un resumen';

@@ -37,7 +37,7 @@ A recent **geometric mean** (last 6 samples) is shown alongside the single-sampl
 - Full-screen interactive map of monitoring stations, color-coded by swim status
 - **Swim summary** anywhere: tap **📍 Near Me** for your location, or **tap any spot on the map** to check it. Gives one "Safe to swim / Use caution / Avoid water contact" verdict with a tri-slice status icon (bacteria · algal blooms · physical hazards) and a one-line readout of each category — naming the specific site and the date of the last water-quality data. Only *recent* blooms (within 120 days, 1.5 mi) count as an active advisory; older reports are shown as historical context
 - Per-station detail: latest result, recent geomean, full sample-history sparkline with threshold lines, and a sortable recent-sample table
-- **Live river flow** from USGS gage 11446500 (American River at Fair Oaks): current discharge (cfs), gage height, trend, a 7-day sparkline, and downstream direction arrows on the map
+- **Live river flow** from USGS gage 11446500 (American River at Fair Oaks): current discharge (cfs), gage height, trend, and a 7-day sparkline
 - **Harmful algal bloom (HAB) layer** (teardrop pins) for the Sacramento / American & Sacramento River area, color-coded by advisory level
 - **Drowning-hazard markers** (red diamonds) for locally-known dangerous spots
 - Printable bilingual (English / Spanish) advisory signs per status level
@@ -47,7 +47,7 @@ A recent **geometric mean** (last 6 samples) is shown alongside the single-sampl
 
 ## River flow
 
-Live streamflow is read client-side from the **USGS Instantaneous Values** service for gage **11446500 — American River at Fair Oaks** (`parameterCd=00060` discharge, `00065` gage height, `period=P7D`). The on-map chip shows current discharge in cfs, a coarse safety category, gage height, short-term trend, and a 7-day sparkline; **downstream direction arrows** trace the corridor (water flows east→west, from Folsom/Lake Natoma to the Sacramento River). Flow also feeds the swim summary — *swift* nudges the verdict to caution, *high* to avoid.
+Live streamflow is read client-side from the **USGS Instantaneous Values** service for gage **11446500 — American River at Fair Oaks** (`parameterCd=00060` discharge, `00065` gage height, `period=P7D`). The on-map chip shows current discharge in cfs, a coarse safety category, gage height, short-term trend, a 7-day sparkline, and the downstream direction (water flows east→west, from Folsom/Lake Natoma to the Sacramento River). Flow also feeds the swim summary — *swift* nudges the verdict to caution, *high* to avoid.
 
 Flow categories (cfs, general Lower-American-River guidance, not an official standard): Low/calm < 1,500 · Moderate < 3,500 · Swift < 6,000 · High ≥ 6,000. Releases from Nimbus Dam can change flow quickly.
 

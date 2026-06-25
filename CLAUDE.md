@@ -32,8 +32,7 @@ EPA 2012 recreational criteria. Defined in `THRESH` (JS) and top of `build_data.
   American R at Fair Oaks, params 00060 discharge + 00065 gage, P7D). `parseUSGS`
   → `FLOW={cfs,gageFt,time,trend,series}`. CORS-enabled, so no build step.
 - On-map chip `#flow-chip` (`renderFlowChip`) + `flowCat()` categories
-  (low/moderate/swift/high). `FLOW_ARROWS` = precomputed downstream bearings;
-  `buildFlowArrows`/`arrowIcon` draw arrows colored by current category. Toggle `#flowBtn`.
+  (low/moderate/swift/high) + `flowSpark` 7-day sparkline.
 - Flow feeds the swim summary (`flowOnRiver` when nearest station ≤2 mi): swift→caution, high→avoid.
 - Downstream is east→west (Folsom/Lake Natoma → Sacramento River).
 - NOTE: popular-swim-spot heatmap was removed (awaiting better data); no swim_spots.json.
