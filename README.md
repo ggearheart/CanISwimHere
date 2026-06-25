@@ -4,6 +4,8 @@ A mobile-first web app that answers a simple question for the Lower American Riv
 
 It maps **E. coli** bacteria monitoring results to a plain-language swim-safety status for each monitoring station, using EPA recreational water-quality criteria.
 
+**Live app:** https://ggearheart.github.io/CanISwimHere/
+
 Built on the [CyanoSafe](https://github.com/ggearheart/CyanoSafe_phone_demo) phone-demo framework.
 
 ## Data source
