@@ -383,7 +383,7 @@ const ADV = {
   Warning: {color:'#C2410C', label:'Warning',        label_es:'Advertencia', order:1},
   Caution: {color:'#A16207', label:'Caution',        label_es:'Precaución',  order:2},
   Watch:   {color:'#1D4ED8', label:'Watch/Awareness',label_es:'Vigilancia',  order:3},
-  Mat:     {color:'#7E22CE', label:'Algal Mat',      label_es:'Tapete Algal',order:4},
+  Mat:     {color:'#DC2626', label:'Algal Mat',      label_es:'Tapete Algal',order:4},
   Other:   {color:'#6B7280', label:'Bloom Reported', label_es:'Floración',   order:5},
 };
 const HAB_GUIDE = {
@@ -413,7 +413,7 @@ function habOpacity(obs){
 }
 // Cyanobacteria-cluster marker: the hab-marker.png silhouette filled with the
 // advisory color via CSS mask, overall opacity set by recency.
-const HAB_SIZE = 38;
+const HAB_SIZE = 26;
 function habIcon(color, opacity){
   const o = opacity==null ? 0.85 : opacity;
   const mask = `url(hab-marker.png) center/contain no-repeat`;
