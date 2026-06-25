@@ -1,0 +1,17 @@
+{
+  "name": "Can I Swim Here? — Lower American River",
+  "short_name": "Can I Swim?",
+  "description": "E. coli bacteria results for the Lower American River near Sacramento — swim-safety status by monitoring station.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#005566",
+  "theme_color": "#005566",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ],
+  "categories": ["health", "utilities"],
+  "lang": "en-US"
+}

@@ -1,0 +1,908 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover"/>
+<title>Can I Swim Here? — Lower American River</title>
+<link rel="manifest" href="manifest.json"/>
+<meta name="theme-color" content="#005566"/>
+<meta name="mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<meta name="apple-mobile-web-app-title" content="Can I Swim Here?"/>
+<link rel="apple-touch-icon" href="icon-192.png"/>
+<style>
+:root{
+  /* Swim-safety palette — beach-flag convention, WCAG AA white-text contrast */
+  --good:#15803D;     /* green-700  ~4.8:1 — safe */
+  --caution:#A16207;  /* amber-700  ~7.2:1 — elevated */
+  --warning:#C2410C;  /* orange-700 ~7.8:1 — advisory */
+  --unsafe:#B91C1C;   /* red-700    ~9:1   — exceeds posting threshold */
+  --unknown:#374151;  /* gray-700   ~10:1  — no recent data */
+  --ca-blue:#005566; --ca-gold:#FDB913;
+  --bg:#F0F4F8; --white:#fff; --text:#1a2332; --sub:#4B5563; --border:#d0d8e4;
+  --radius:8px;
+}
+:focus-visible{outline:3px solid var(--ca-blue);outline-offset:2px;border-radius:2px;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Segoe UI',system-ui,Arial,sans-serif;background:var(--bg);
+     color:var(--text);height:100vh;display:flex;flex-direction:column;overflow:hidden;}
+header{background:var(--ca-blue);color:#fff;padding:0 16px;height:52px;
+       display:flex;align-items:center;justify-content:space-between;
+       flex-shrink:0;box-shadow:0 2px 8px rgba(0,0,0,.35);z-index:100;}
+.hdr-brand{display:flex;align-items:center;gap:10px;}
+.hdr-title{font-size:1rem;font-weight:800;line-height:1.1;}
+.hdr-title small{display:block;font-size:.66rem;font-weight:400;opacity:.85;}
+.hdr-right{display:flex;gap:6px;align-items:center;}
+.lang-btn{background:transparent;border:1px solid rgba(255,255,255,.4);color:#fff;
+          padding:4px 11px;border-radius:4px;cursor:pointer;font-size:.78rem;font-weight:500;}
+.lang-btn.active{background:var(--ca-gold);border-color:var(--ca-gold);color:#000;}
+.app-body{display:flex;flex:1;overflow:hidden;}
+.sidebar{width:310px;background:#fff;border-right:1px solid var(--border);
+         display:flex;flex-direction:column;overflow:hidden;flex-shrink:0;}
+.sb-scroll{overflow-y:auto;flex:1;padding:10px 12px;}
+.sb-label{font-size:.67rem;text-transform:uppercase;letter-spacing:.08em;
+          color:var(--sub);margin:12px 0 4px;font-weight:700;}
+.sb-label:first-child{margin-top:0;}
+.search-box{width:100%;padding:6px 9px;border:1px solid var(--border);
+            border-radius:var(--radius);font-size:.83rem;outline:none;
+            margin-bottom:7px;background:var(--bg);}
+.search-box:focus{border-color:var(--ca-blue);}
+.stats-bar{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-bottom:10px;}
+.stat-card{background:var(--bg);border-radius:6px;padding:7px 9px;text-align:center;border:1px solid var(--border);}
+.stat-num{font-size:1.25rem;font-weight:800;color:var(--ca-blue);line-height:1;}
+.stat-lbl{font-size:.64rem;color:var(--sub);margin-top:2px;}
+.legend{display:flex;flex-direction:column;gap:4px;margin-bottom:8px;}
+.leg-row{display:flex;align-items:center;gap:7px;font-size:.75rem;cursor:pointer;
+         padding:3px 5px;border-radius:4px;}
+.leg-row:hover{background:var(--bg);}
+.leg-row.dimmed{opacity:.35;}
+.leg-dot{width:12px;height:12px;border-radius:50%;flex-shrink:0;border:1px solid rgba(0,0,0,.1);}
+.leg-count{margin-left:auto;color:var(--sub);font-size:.7rem;font-weight:600;}
+.leg-thresh{font-size:.62rem;color:var(--sub);margin-left:auto;}
+.st-list{display:flex;flex-direction:column;gap:4px;}
+.st-card{border:1px solid var(--border);border-radius:var(--radius);padding:8px 10px;
+         cursor:pointer;border-left:4px solid var(--unknown);transition:box-shadow .12s;}
+.st-card:hover{box-shadow:0 2px 8px rgba(0,0,0,.1);}
+.st-card.s-Good{border-left-color:var(--good);}
+.st-card.s-Caution{border-left-color:var(--caution);}
+.st-card.s-Warning{border-left-color:var(--warning);}
+.st-card.s-Unsafe{border-left-color:var(--unsafe);}
+.st-name{font-size:.83rem;font-weight:700;}
+.st-meta{font-size:.7rem;color:var(--sub);margin-top:1px;}
+.st-badge{display:inline-block;padding:2px 7px;border-radius:12px;font-size:.66rem;
+          font-weight:700;text-transform:uppercase;color:#fff;margin-top:3px;}
+.no-results{text-align:center;padding:20px 10px;color:var(--sub);font-size:.82rem;}
+/* MAP AREA */
+#map-wrap{flex:1;position:relative;overflow:hidden;background:#e8edf2;}
+#map-canvas{position:absolute;top:0;left:0;cursor:grab;}
+#map-canvas.dragging{cursor:grabbing;}
+/* TOOLTIP */
+#tooltip{position:fixed;background:#fff;border:1px solid var(--border);
+         border-radius:var(--radius);padding:10px 13px;pointer-events:none;
+         display:none;z-index:1000;max-width:300px;box-shadow:0 4px 16px rgba(0,0,0,.15);
+         font-size:.78rem;line-height:1.5;}
+#tooltip h3{font-size:.9rem;font-weight:800;color:var(--ca-blue);margin-bottom:5px;}
+#tooltip .t-badge{display:inline-block;padding:2px 8px;border-radius:12px;
+                  font-size:.68rem;font-weight:700;text-transform:uppercase;
+                  color:#fff;margin-bottom:6px;}
+#tooltip table{border-collapse:collapse;width:100%;}
+#tooltip td{padding:2px 0;vertical-align:top;}
+#tooltip td:first-child{color:var(--sub);padding-right:8px;font-weight:600;width:42%;white-space:nowrap;}
+#tooltip .guidance{margin-top:7px;padding:7px 9px;border-radius:5px;font-size:.74rem;line-height:1.5;}
+.g-Good{background:#F0FDF4;border-left:3px solid var(--good);}
+.g-Caution{background:#FFFBEB;border-left:3px solid var(--caution);}
+.g-Warning{background:#FFF7ED;border-left:3px solid var(--warning);}
+.g-Unsafe{background:#FEF2F2;border-left:3px solid var(--unsafe);}
+.g-Unknown{background:#F9FAFB;border-left:3px solid var(--unknown);}
+#tooltip .guidance strong{display:block;margin-bottom:2px;}
+/* MAP CONTROLS / LEGEND */
+.map-legend-wrap{position:absolute;bottom:10px;left:10px;background:rgba(255,255,255,.94);
+                 border:1px solid var(--border);border-radius:6px;padding:8px 10px;
+                 font-size:.72rem;z-index:40;max-width:230px;}
+.map-leg-row{display:flex;align-items:center;gap:6px;margin-bottom:3px;}
+.map-leg-row:last-child{margin-bottom:0;}
+.map-leg-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;}
+@media print{body>*:not(#sign-overlay){display:none!important;}#sign-overlay{position:static!important;}#sign-backdrop{position:static!important;background:none!important;padding:0!important;display:block!important;}.no-print{display:none!important;}}
+
+/* ── MOBILE FAB ─────────────────────────────────────────────────────────────── */
+.map-fabs{display:none;}
+.map-fabs button{touch-action:manipulation;background:var(--ca-blue);color:#fff;border:none;
+  border-radius:24px;padding:10px 18px;font-size:.85rem;font-weight:700;cursor:pointer;
+  box-shadow:0 4px 16px rgba(0,0,0,.3);white-space:nowrap;display:flex;align-items:center;gap:6px;
+  -webkit-tap-highlight-color:transparent;}
+.map-fabs button:disabled{opacity:.6;cursor:default;}
+#locate-btn.locating{background:#475569;}
+#locate-btn.located{background:#2563EB;}
+.sidebar-handle{display:none;width:36px;height:4px;background:#cbd5e1;
+  border-radius:2px;margin:10px auto 2px;flex-shrink:0;}
+
+/* ── MOBILE LAYOUT ──────────────────────────────────────────────────────────── */
+#map-backdrop{display:none;position:fixed;inset:0;background:rgba(15,23,42,.6);z-index:800;}
+#map-backdrop.visible{display:block;}
+@media(max-width:768px){
+  .app-body{position:relative;}
+  #map-wrap{width:100%;}
+  .sidebar{position:fixed;bottom:0;left:0;right:0;width:100%;height:72vh;border-right:none;
+    border-top:1px solid var(--border);border-radius:14px 14px 0 0;transform:translateY(100%);
+    transition:transform .28s cubic-bezier(.4,0,.2,1);z-index:1000;
+    box-shadow:0 -8px 40px rgba(0,0,0,.35);background:#fff;}
+  .sidebar.mobile-open{transform:translateY(0);}
+  .sidebar-handle{display:block;}
+  .map-fabs{display:flex;position:fixed;bottom:calc(16px + env(safe-area-inset-bottom,0px));
+    left:0;right:0;justify-content:center;gap:10px;z-index:9999;pointer-events:none;}
+  .map-fabs button{pointer-events:auto;}
+  #tooltip{position:fixed!important;bottom:0!important;left:0!important;right:0!important;top:auto!important;
+    max-width:100%!important;width:100%!important;border-radius:14px 14px 0 0;max-height:78vh;overflow-y:auto;
+    border:none;border-top:2px solid var(--border);box-shadow:0 -8px 40px rgba(0,0,0,.35);
+    padding:14px 16px calc(28px + env(safe-area-inset-bottom,0px));background:#fff;}
+  .lang-btn{padding:7px 14px;font-size:.82rem;}
+  .search-box{padding:10px 10px;font-size:1rem;margin-bottom:9px;}
+  .st-card{padding:12px 14px;}
+  .st-name{font-size:.92rem;}
+  .st-meta{font-size:.78rem;}
+  .stat-num{font-size:1.5rem;}
+  .leg-row{padding:6px 5px;}
+  .leg-dot{width:14px;height:14px;}
+  .sb-label{font-size:.72rem;margin:14px 0 5px;}
+  #tooltip h3{font-size:1rem;}
+  #tooltip{font-size:.84rem;}
+  .map-legend-wrap{display:none;}
+}
+</style>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+</head>
+<body>
+<header>
+  <div class="hdr-brand">
+    <a href="https://www.waterboards.ca.gov/centralvalley/" target="_blank" rel="noopener">
+      <img src="waterboards-logo.png" alt="California Water Boards — Central Valley" style="height:36px;object-fit:contain;display:block;">
+    </a>
+    <div class="hdr-title">Can I Swim Here?<small id="hdr-sub">Lower American River · Sacramento</small></div>
+  </div>
+  <div class="hdr-right">
+    <button class="lang-btn active" onclick="setLang('en',this)">EN</button>
+    <button class="lang-btn" onclick="setLang('es',this)">ES</button>
+  </div>
+</header>
+<div class="app-body">
+  <div id="map-backdrop" onclick="closeSidebar()"></div>
+  <div class="sidebar" id="sidebar">
+    <div class="sidebar-handle" id="sidebar-handle"></div>
+    <div id="dataUpdatedBar" style="font-size:.72rem;font-weight:600;color:#fff;background:var(--ca-blue);text-align:center;padding:5px 10px;letter-spacing:.01em;"></div>
+    <div class="sb-scroll">
+      <div class="sb-label" id="lbl-search">Search station</div>
+      <input class="search-box" id="search" type="search" placeholder="Station name or area…" oninput="applyFilters()"/>
+      <div class="sb-label" id="lbl-status">Swim Status <span style="font-weight:400;text-transform:none;letter-spacing:0;">(latest sample)</span></div>
+      <div class="legend" id="legend"></div>
+      <button id="hazardBtn" onclick="toggleHazards(this)" style="width:100%;margin-bottom:7px;padding:7px 0;border:1px solid #b91c1c;border-radius:var(--radius);background:#fef2f2;cursor:pointer;font-size:.75rem;font-weight:700;color:#991b1b;touch-action:manipulation;">⚠️ <span id="hazardBtnLbl">Hide drowning hazards</span></button>
+      <div class="stats-bar" id="statsBar"></div>
+      <button id="downloadBtn" onclick="downloadFiltered()" style="width:100%;margin-bottom:7px;padding:6px 0;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg);cursor:pointer;font-size:.75rem;font-weight:600;color:var(--sub);">⬇ Download Stations CSV</button>
+
+      <details id="about-details" style="margin-bottom:10px;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg);overflow:hidden;">
+        <summary style="padding:8px 12px;cursor:pointer;font-size:.75rem;font-weight:700;color:var(--ca-blue);list-style:none;display:flex;align-items:center;gap:6px;user-select:none;">
+          <span>ℹ️</span><span id="about-title">About this data</span><span style="margin-left:auto;font-size:.85em;opacity:.6;">▾</span>
+        </summary>
+        <div style="padding:10px 12px 12px;border-top:1px solid var(--border);font-size:.72rem;color:var(--sub);line-height:1.5;">
+          <p style="margin:0 0 8px;">This map shows <strong>E. coli</strong> bacteria results for the Lower American River. E. coli indicates fecal pollution and the possible presence of disease-causing organisms.</p>
+          <p style="margin:0 0 8px;">Swim status is based on the most recent sample at each station, using EPA recreational water-quality criteria:</p>
+          <ul style="margin:0 0 8px 16px;padding:0;">
+            <li><strong style="color:var(--good)">Good</strong> — ≤126 MPN/100 mL</li>
+            <li><strong style="color:var(--caution)">Caution</strong> — 127–235</li>
+            <li><strong style="color:var(--warning)">Warning</strong> — 236–410</li>
+            <li><strong style="color:var(--unsafe)">Unsafe</strong> — &gt;410 (STV)</li>
+          </ul>
+          <p style="margin:0 0 8px;">Bacteria levels change quickly with rain, runoff, and flow. A single result is a snapshot, not a guarantee.</p>
+          <p style="margin:0 0 8px;padding:7px 9px;background:#fef2f2;border-left:3px solid #b91c1c;border-radius:0 4px 4px 0;"><strong style="color:#991b1b;">⚠️ Drowning hazards</strong> shown as red diamonds (e.g. Clay Banks, the Tiscornia/Discovery Park confluence) are a <strong>curated safety reference</strong> — not from the monitoring data and approximate. Water can be bacteriologically "Good" and still be deadly to swim due to cold water and current.</p>
+          <a href="https://arcg.is/0ea0zq" target="_blank" rel="noopener"
+             style="display:block;text-align:center;padding:7px;background:var(--ca-blue);color:#fff;border-radius:var(--radius);font-size:.74rem;font-weight:700;text-decoration:none;margin-bottom:8px;">
+            Central Valley Water Board River Map ↗
+          </a>
+          <a href="https://data.ca.gov/dataset/central-valley-water-board-e-coli-monitoring-results" target="_blank" rel="noopener"
+             style="display:block;text-align:center;padding:7px;background:#fff;color:var(--ca-blue);border:1px solid var(--ca-blue);border-radius:var(--radius);font-size:.74rem;font-weight:700;text-decoration:none;margin-bottom:10px;">
+            View Source Dataset ↗
+          </a>
+          <div style="text-align:center;">
+            <div id="about-qr" style="display:inline-block;"></div>
+            <div style="font-size:.65rem;color:var(--sub);margin-top:4px;">Scan to open the river map</div>
+          </div>
+        </div>
+      </details>
+
+      <div class="sb-label">Monitoring Stations <span id="listCount" style="font-weight:400;color:var(--sub)"></span></div>
+      <div class="st-list" id="stationList"></div>
+    </div>
+  </div>
+  <div id="map-wrap">
+    <div id="map-canvas" style="position:absolute;inset:0;"></div>
+    <div id="tooltip"></div>
+    <div id="swim-hero" style="display:none;position:absolute;top:10px;left:50%;transform:translateX(-50%);z-index:700;background:#fff;border-radius:12px;box-shadow:0 4px 20px rgba(0,0,0,.22);padding:10px 16px;min-width:230px;max-width:88vw;text-align:center;pointer-events:none;"></div>
+    <div class="map-legend-wrap" id="mapLegend"></div>
+  </div>
+  <div class="map-fabs">
+    <button id="sidebar-fab" onclick="toggleSidebar()">☰ Stations</button>
+    <button id="locate-btn" onclick="locateMe()">📍 Near Me</button>
+  </div>
+</div>
+<script>
+// ── SUPABASE (optional — alert subscriptions). Leave as placeholder to disable. ─
+const SUPABASE_URL = 'YOUR_SUPABASE_URL';
+const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY';
+
+// ── SWIM-SAFETY THRESHOLDS (E. coli, MPN/100 mL) ───────────────────────────────
+// EPA 2012 recreational water-quality criteria + classic single-sample posting.
+let THRESH = {gm_criterion:126, single_caution:235, stv:410, unit:'MPN/100 mL'};
+
+let RAW = [];        // station objects
+
+// ── CLASSIFY ───────────────────────────────────────────────────────────────────
+function statusFor(v){
+  if(v == null || isNaN(v)) return 'Unknown';
+  if(v <= THRESH.gm_criterion)   return 'Good';
+  if(v <= THRESH.single_caution) return 'Caution';
+  if(v <= THRESH.stv)            return 'Warning';
+  return 'Unsafe';
+}
+const STATUS = {
+  Good:    {color:'#15803D',label:'Good',    label_es:'Bueno',      order:0, r:9, flag:'🟢'},
+  Caution: {color:'#A16207',label:'Caution', label_es:'Precaución', order:1, r:9, flag:'🟡'},
+  Warning: {color:'#C2410C',label:'Warning', label_es:'Aviso',      order:2, r:10,flag:'🟠'},
+  Unsafe:  {color:'#B91C1C',label:'Unsafe',  label_es:'No Seguro',  order:3, r:11,flag:'🔴'},
+  Unknown: {color:'#374151',label:'No Data', label_es:'Sin Datos',  order:4, r:7, flag:'⚪'},
+};
+const GUIDANCE = {
+  en:{
+    Good:    {hdr:'🟢 GOOD — Safe for Water Contact',body:'Bacteria levels are at or below the health criterion. Normal precautions apply — rinse off after swimming and avoid swallowing river water.'},
+    Caution: {hdr:'🟡 CAUTION — Elevated Bacteria',body:'Levels are above the safe criterion. Avoid swallowing water. Young children, elderly, and anyone with a weak immune system should limit contact.'},
+    Warning: {hdr:'🟠 WARNING — Swimming Advisory',body:'Bacteria exceed the single-sample advisory threshold. Avoid full-body contact and keep children and pets out of the water.'},
+    Unsafe:  {hdr:'🔴 UNSAFE — Avoid Water Contact',body:'Bacteria exceed the posting threshold (STV). Do not swim or wade — there is a real risk of gastrointestinal, skin, ear, and eye illness.'},
+    Unknown: {hdr:'⚪ NO RECENT DATA',body:'No recent sample is available for this station. Check conditions and use caution before entering the water.'},
+  },
+  es:{
+    Good:    {hdr:'🟢 BUENO — Seguro para Contacto',body:'Los niveles de bacterias están en o por debajo del criterio de salud. Enjuáguese después de nadar y evite tragar agua del río.'},
+    Caution: {hdr:'🟡 PRECAUCIÓN — Bacterias Elevadas',body:'Los niveles superan el criterio seguro. Evite tragar agua. Niños, ancianos y personas inmunocomprometidas deben limitar el contacto.'},
+    Warning: {hdr:'🟠 AVISO — Advertencia para Nadar',body:'Las bacterias superan el umbral de advertencia. Evite el contacto de cuerpo entero y mantenga a niños y mascotas fuera del agua.'},
+    Unsafe:  {hdr:'🔴 NO SEGURO — Evite el Agua',body:'Las bacterias superan el umbral de cierre (STV). No nade ni vadee — hay riesgo real de enfermedad gastrointestinal, de piel, oídos y ojos.'},
+    Unknown: {hdr:'⚪ SIN DATOS RECIENTES',body:'No hay muestra reciente para esta estación. Verifique las condiciones y tenga precaución antes de entrar al agua.'},
+  }
+};
+
+// ── STATE ──────────────────────────────────────────────────────────────────────
+let lang = 'en';
+let filtered = [];
+let statusFilter = new Set();
+
+// ── MAP ENGINE (Leaflet) ─────────────────────────────────────────────────────────
+const map = L.map('map-canvas', {zoomControl:false}).setView([38.605, -121.39], 12);
+L.tileLayer('https://basemap.nationalmap.gov/arcgis/rest/services/USGSTopo/MapServer/tile/{z}/{y}/{x}', {
+  attribution:'USGS National Map | Central Valley Water Board E. coli Monitoring',
+  opacity:0.5, maxZoom:17, minZoom:9,
+}).addTo(map);
+L.control.zoom({position:'topright'}).addTo(map);
+let markerLayer = L.layerGroup().addTo(map);
+
+function draw(){
+  markerLayer.clearLayers();
+  const sorted = [...filtered].sort((a,b)=>STATUS[a._status].order - STATUS[b._status].order);
+  sorted.forEach(r=>{
+    const m = STATUS[r._status];
+    const circle = L.circleMarker([r.lat, r.lon], {
+      radius:m.r, fillColor:m.color, fillOpacity:0.85, color:'#fff', weight:2, pane:'markerPane'
+    });
+    circle.on('mouseover', e=>{ if(!pinnedTip) showTooltip(r, e.originalEvent.clientX, e.originalEvent.clientY); });
+    circle.on('mouseout', ()=>{ if(!pinnedTip) tip.style.display='none'; });
+    circle.on('click', e=>{
+      L.DomEvent.stopPropagation(e); e.originalEvent.stopPropagation();
+      activeStation = r; pinnedTip = true;
+      showTooltip(r, e.originalEvent.clientX, e.originalEvent.clientY, true);
+    });
+    circle.addTo(markerLayer);
+  });
+}
+map.on('click', ()=>{ if(pinnedTip){ pinnedTip=false; tip.style.display='none'; } });
+function flyTo(lat, lon){ map.setView([lat, lon], Math.max(map.getZoom(), 13)); if(window.innerWidth<=768) closeSidebar(); }
+function resize(){ map.invalidateSize(); }
+
+// ── DROWNING / PHYSICAL HAZARDS (curated, not from monitoring data) ───────────────
+let HAZARDS = [];
+let showHazards = true;
+const hazardLayer = L.layerGroup().addTo(map);
+function hazardIcon(){
+  return L.divIcon({
+    className:'',
+    html:'<div style="width:26px;height:26px;transform:rotate(45deg);background:#7f1d1d;border:2px solid #fff;border-radius:5px;box-shadow:0 2px 6px rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center;">'
+        +'<span style="transform:rotate(-45deg);font-size:13px;line-height:1;">⚠️</span></div>',
+    iconSize:[26,26], iconAnchor:[13,13]
+  });
+}
+function drawHazards(){
+  hazardLayer.clearLayers();
+  if(!showHazards) return;
+  HAZARDS.forEach(h=>{
+    if(h.lat==null||h.lon==null) return;
+    const mk = L.marker([h.lat,h.lon], {icon:hazardIcon(), zIndexOffset:500});
+    mk.on('mouseover', e=>{ if(!pinnedTip) showHazardTip(h, e.originalEvent.clientX, e.originalEvent.clientY); });
+    mk.on('mouseout', ()=>{ if(!pinnedTip) tip.style.display='none'; });
+    mk.on('click', e=>{ L.DomEvent.stopPropagation(e); pinnedTip=true; showHazardTip(h, e.originalEvent.clientX, e.originalEvent.clientY, true); });
+    mk.addTo(hazardLayer);
+  });
+}
+function showHazardTip(h, cx, cy, pinned){
+  tip.innerHTML = `
+    <div style="display:none;" id="tip-close-handle"><div style="width:36px;height:4px;background:#cbd5e1;border-radius:2px;margin:0 auto 10px;"></div></div>
+    <div style="display:inline-block;background:#7f1d1d;color:#fff;font-size:.66rem;font-weight:800;text-transform:uppercase;letter-spacing:.05em;padding:3px 9px;border-radius:12px;margin-bottom:6px;">⚠️ ${lang==='en'?'Drowning Hazard':'Peligro de Ahogamiento'}</div>
+    <h3 style="color:#7f1d1d;">${h.name}</h3>
+    <table>
+      <tr><td>${lang==='en'?'Hazard':'Peligro'}</td><td>${h.type||'—'}</td></tr>
+      <tr><td>${lang==='en'?'Location':'Ubicación'}</td><td>${h.river||'Lower American River'}${h.approx?` <span style="color:#b45309;">(${lang==='en'?'approx.':'aprox.'})</span>`:''}</td></tr>
+    </table>
+    <div class="guidance g-Unsafe" style="margin-top:7px;"><strong>${lang==='en'?'Why this is dangerous':'Por qué es peligroso'}</strong>${h.desc||''}</div>
+    ${h.tips?`<div style="margin-top:7px;padding:7px 9px;background:#fffbeb;border-left:3px solid #A16207;border-radius:0 4px 4px 0;font-size:.73rem;color:#475569;line-height:1.5;"><strong style="display:block;margin-bottom:2px;color:#334155;">${lang==='en'?'Safety tips':'Consejos de seguridad'}</strong>${h.tips}</div>`:''}
+    <div style="margin-top:8px;font-size:.66rem;color:#94a3b8;line-height:1.4;">${lang==='en'?'Curated safety reference — not from the monitoring dataset. Bacteria status and physical danger are independent.':'Referencia de seguridad curada — no proviene del conjunto de datos de monitoreo.'}</div>
+    <a href="https://regionalparks.saccounty.gov/Parks/Pages/AmericanRiverParkway.aspx" target="_blank" rel="noopener" style="pointer-events:auto;display:inline-block;font-size:.72rem;color:var(--ca-blue);text-decoration:none;margin-top:8px;font-weight:700;">${lang==='en'?'River safety info':'Información de seguridad'} ↗</a>
+  `;
+  tip.style.display='block';
+  tip.style.pointerEvents = pinned ? 'auto' : 'none';
+  const handle=document.getElementById('tip-close-handle');
+  if(handle) handle.style.display = window.innerWidth<=768 ? 'block' : 'none';
+  if(window.innerWidth>768){
+    const tw=300, th=240, vw=window.innerWidth, vh=window.innerHeight;
+    tip.style.left=(cx+tw+12>vw?cx-tw-8:cx+12)+'px';
+    tip.style.top=(cy+th+12>vh?Math.max(8,cy-th):cy+12)+'px';
+  }
+}
+function toggleHazards(btn){
+  showHazards = !showHazards;
+  document.getElementById('hazardBtnLbl').textContent = showHazards
+    ? (lang==='en'?'Hide drowning hazards':'Ocultar peligros')
+    : (lang==='en'?'Show drowning hazards':'Mostrar peligros');
+  btn.style.opacity = showHazards ? '1' : '.6';
+  drawHazards();
+}
+
+// ── HOVER / TOOLTIP ──────────────────────────────────────────────────────────────
+const tip = document.getElementById('tooltip');
+let pinnedTip = false;
+let activeStation = null;
+
+function fmtResult(v){ return v==null?'—':(v>=1000?Math.round(v).toLocaleString():v); }
+
+function showTooltip(r, cx, cy, pinned){
+  const m = STATUS[r._status];
+  const g = GUIDANCE[lang][r._status];
+  const gm = STATUS[r._gmStatus] || STATUS.Unknown;
+  const date = r.latest ? r.latest.date : '—';
+  const rows = [
+    [lang==='en'?'Latest sample':'Última muestra', `${fmtResult(r.latest&&r.latest.result)} ${THRESH.unit}`],
+    [lang==='en'?'Sample date':'Fecha', date],
+    [lang==='en'?'Recent geomean':'Media geom.', r.geomean!=null?`${fmtResult(r.geomean)} (n=${r.geomean_n})`:'—'],
+    [lang==='en'?'Total samples':'Muestras', (r.n||0).toLocaleString()],
+  ];
+  const stale = isStale(date);
+  tip.innerHTML = `
+    <div style="display:none;" id="tip-close-handle"><div style="width:36px;height:4px;background:#cbd5e1;border-radius:2px;margin:0 auto 10px;"></div></div>
+    <h3>${r.name||r.code}</h3>
+    <div style="display:flex;align-items:center;flex-wrap:wrap;gap:5px;margin-bottom:5px;">
+      <span class="t-badge" style="background:${m.color};margin:0;">${m.flag} ${lang==='en'?m.label:m.label_es}</span>
+      <span style="font-size:.68rem;color:var(--sub);">${lang==='en'?'geomean':'media'}: <span style="color:${gm.color};font-weight:700;">${lang==='en'?gm.label:gm.label_es}</span></span>
+    </div>
+    ${stale?`<div style="font-size:.66rem;color:#b45309;font-weight:600;margin-bottom:5px;">⏳ ${lang==='en'?'Latest sample is over a year old — for demonstration.':'La última muestra tiene más de un año.'}</div>`:''}
+    <table>${rows.map(([k,v])=>`<tr><td>${k}</td><td>${v}</td></tr>`).join('')}</table>
+    <div class="guidance g-${r._status}"><strong>${g.hdr}</strong>${g.body}</div>
+    <a href="#" id="st-history-link" style="pointer-events:auto;display:inline-block;font-size:.74rem;color:var(--ca-blue);text-decoration:none;margin-top:8px;font-weight:700;">📈 ${lang==='en'?'View sample history':'Ver historial'} →</a>
+    <button onclick="printSign()" style="pointer-events:auto;margin-top:8px;width:100%;padding:6px;border:1px solid var(--ca-blue);border-radius:var(--radius);background:var(--ca-blue);color:#fff;cursor:pointer;font-size:.75rem;font-weight:700;">🖨️ ${lang==='en'?'Print Advisory Sign':'Imprimir Aviso'}</button>
+  `;
+  tip.style.display = 'block';
+  tip.style.pointerEvents = pinned ? 'auto' : 'none';
+  const hist = document.getElementById('st-history-link');
+  if(hist) hist.addEventListener('click', e=>{ e.preventDefault(); e.stopPropagation(); showStationPopup(r.code); });
+  const handle = document.getElementById('tip-close-handle');
+  if(handle) handle.style.display = window.innerWidth<=768 ? 'block' : 'none';
+  if(window.innerWidth > 768){
+    const tw=300, th=240, vw=window.innerWidth, vh=window.innerHeight;
+    tip.style.left = (cx+tw+12>vw ? cx-tw-8 : cx+12)+'px';
+    tip.style.top  = (cy+th+12>vh ? Math.max(8,cy-th) : cy+12)+'px';
+  }
+}
+document.addEventListener('click', e=>{ if(!tip.contains(e.target)){ pinnedTip=false; tip.style.display='none'; } });
+
+function isStale(date){
+  if(!date) return false;
+  const d = new Date(date);
+  return (Date.now() - d.getTime()) > 365*24*3600*1000;
+}
+
+// ── SVG TIME-SERIES (sample history with threshold reference lines) ──────────────
+function sparkline(samples, w, h){
+  // samples newest-first; show oldest→newest left→right, most recent ~40
+  const data = samples.slice(0, 40).slice().reverse();
+  if(!data.length) return '';
+  const pad = 2;
+  const cap = Math.max(THRESH.stv*1.15, ...data.map(s=>s.result));
+  const scale = v => h - Math.max(2, Math.round((Math.min(v,cap)/cap)*(h-4)));
+  const barW = Math.max(2, Math.floor((w - pad*(data.length-1)) / data.length));
+  const bars = data.map((s,i)=>{
+    const lv = STATUS[statusFor(s.result)];
+    const x = i*(barW+pad), y = scale(s.result), bh = h - y;
+    return `<rect x="${x}" y="${y}" width="${barW}" height="${bh}" fill="${lv.color}" opacity="0.9"><title>${s.date}: ${fmtResult(s.result)} ${THRESH.unit}</title></rect>`;
+  }).join('');
+  const lineY = scale(THRESH.stv);
+  const cautY = scale(THRESH.gm_criterion);
+  return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" style="display:block;border-radius:3px;background:#f8fafc;">
+    ${bars}
+    <line x1="0" y1="${cautY}" x2="${w}" y2="${cautY}" stroke="#A16207" stroke-width="1" stroke-dasharray="3,3" opacity="0.7"/>
+    <line x1="0" y1="${lineY}" x2="${w}" y2="${lineY}" stroke="#B91C1C" stroke-width="1" stroke-dasharray="3,3" opacity="0.8"/>
+  </svg>`;
+}
+
+// ── STATION DETAIL POPUP ─────────────────────────────────────────────────────────
+function showStationPopup(code){
+  const r = RAW.find(s=>s.code===code);
+  if(!r) return;
+  _subCtx = {name:r.name, lat:r.lat, lon:r.lon, scope:'station'};
+  const existing = document.getElementById('st-popup-overlay');
+  if(existing) existing.remove();
+  const m = STATUS[r._status];
+  const recent = r.samples.slice(0, 14);
+  const overlay = document.createElement('div');
+  overlay.id = 'st-popup-overlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9999;display:flex;align-items:flex-start;justify-content:center;overflow-y:auto;padding:40px 20px;';
+  overlay.innerHTML = `
+    <div onclick="event.stopPropagation()" style="background:#fff;border-radius:8px;width:100%;max-width:660px;box-shadow:0 8px 32px rgba(0,0,0,.25);overflow:hidden;">
+      <div style="background:var(--ca-blue);color:#fff;padding:14px 18px;display:flex;align-items:center;justify-content:space-between;">
+        <div>
+          <div style="font-weight:700;font-size:1rem;">${r.name||r.code}</div>
+          <div style="font-size:.78rem;opacity:.85;">${r.code} · ${(r.n||0).toLocaleString()} ${lang==='en'?'samples':'muestras'}</div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <button id="st-download-btn" style="background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.5);color:#fff;padding:5px 11px;border-radius:5px;cursor:pointer;font-size:.75rem;font-weight:700;">⬇ CSV</button>
+          <button onclick="document.getElementById('st-popup-overlay').remove()" style="background:none;border:none;color:#fff;font-size:1.3rem;cursor:pointer;line-height:1;">✕</button>
+        </div>
+      </div>
+      <div style="padding:14px 18px 0;display:flex;gap:14px;flex-wrap:wrap;align-items:center;">
+        <div style="text-align:center;">
+          <div style="font-size:.66rem;color:#64748b;margin-bottom:3px;text-transform:uppercase;letter-spacing:.05em;">${lang==='en'?'Current Verdict':'Veredicto'}</div>
+          <span style="display:inline-block;background:${m.color};color:#fff;padding:4px 14px;border-radius:6px;font-size:.95rem;font-weight:800;">${m.flag} ${lang==='en'?m.label:m.label_es}</span>
+        </div>
+        <div style="text-align:center;"><div style="font-size:.66rem;color:#64748b;">${lang==='en'?'Latest':'Última'}</div><div style="font-size:1.05rem;font-weight:800;color:${m.color};">${fmtResult(r.latest&&r.latest.result)}</div><div style="font-size:.62rem;color:#94a3b8;">${THRESH.unit}</div></div>
+        <div style="text-align:center;"><div style="font-size:.66rem;color:#64748b;">${lang==='en'?'Geomean':'Media'}</div><div style="font-size:1.05rem;font-weight:800;color:${(STATUS[r._gmStatus]||STATUS.Unknown).color};">${fmtResult(r.geomean)}</div><div style="font-size:.62rem;color:#94a3b8;">n=${r.geomean_n||0}</div></div>
+        <div style="text-align:center;"><div style="font-size:.66rem;color:#64748b;">${lang==='en'?'Sampled':'Fecha'}</div><div style="font-size:.86rem;font-weight:700;color:#334155;">${r.latest?r.latest.date:'—'}</div></div>
+      </div>
+      <div style="padding:12px 18px 4px;">
+        <div style="font-size:.74rem;font-weight:700;color:#334155;margin-bottom:6px;">📈 ${lang==='en'?'E. coli over time':'E. coli en el tiempo'} <span style="font-weight:400;color:#94a3b8;">(${lang==='en'?'recent 40 samples':'40 muestras recientes'})</span></div>
+        <div id="st-spark">${sparkline(r.samples, 600, 70)}</div>
+        <div style="display:flex;gap:14px;font-size:.62rem;color:#94a3b8;margin-top:4px;">
+          <span><span style="color:#A16207">┄</span> ${lang==='en'?'Good limit':'Límite bueno'} (${THRESH.gm_criterion})</span>
+          <span><span style="color:#B91C1C">┄</span> ${lang==='en'?'Unsafe (STV)':'No seguro'} (${THRESH.stv})</span>
+        </div>
+      </div>
+      <div style="overflow-x:auto;max-height:240px;overflow-y:auto;margin-top:8px;">
+        <table style="width:100%;border-collapse:collapse;font-size:.82rem;">
+          <thead style="position:sticky;top:0;z-index:1;"><tr style="background:#f4f6f8;text-align:left;">
+            <th style="padding:8px 14px;border-bottom:2px solid #dde1e7;">${lang==='en'?'Date':'Fecha'}</th>
+            <th style="padding:8px 14px;border-bottom:2px solid #dde1e7;">E. coli</th>
+            <th style="padding:8px 14px;border-bottom:2px solid #dde1e7;">${lang==='en'?'Status':'Estado'}</th>
+          </tr></thead>
+          <tbody>
+            ${recent.map((s,i)=>{const lv=STATUS[statusFor(s.result)];return `<tr style="background:${i%2?'#fafbfc':'#fff'};">
+              <td style="padding:7px 14px;border-bottom:1px solid #eee;">${s.date}</td>
+              <td style="padding:7px 14px;border-bottom:1px solid #eee;font-weight:700;">${fmtResult(s.result)} <span style="font-weight:400;color:#94a3b8;font-size:.72rem;">${THRESH.unit}</span></td>
+              <td style="padding:7px 14px;border-bottom:1px solid #eee;"><span style="display:inline-block;padding:2px 8px;border-radius:4px;background:${lv.color};color:#fff;font-size:.72rem;font-weight:700;">${lang==='en'?lv.label:lv.label_es}</span></td>
+            </tr>`;}).join('')}
+          </tbody>
+        </table>
+      </div>
+      <div id="st-subscribe-section" style="border-top:2px solid #e2e8f0;padding:16px 18px 18px;">
+        <div style="font-weight:700;font-size:.9rem;color:var(--ca-blue);margin-bottom:4px;">🔔 ${lang==='en'?'Get Water-Quality Alerts':'Reciba Alertas'}</div>
+        <div style="font-size:.75rem;color:#64748b;margin-bottom:12px;line-height:1.45;">${lang==='en'?'Be notified when the swim status changes at this station.':'Reciba avisos cuando cambie el estado de esta estación.'}</div>
+        <input id="st-sub-email" type="email" autocomplete="email" placeholder="📧 ${lang==='en'?'Email address':'Correo electrónico'}" style="width:100%;padding:9px 11px;border:1px solid var(--border);border-radius:6px;font-size:.85rem;margin-bottom:7px;outline:none;"/>
+        <input id="st-sub-phone" type="tel" autocomplete="tel" placeholder="📱 ${lang==='en'?'Phone (optional, for SMS)':'Teléfono (opcional)'}" style="width:100%;padding:9px 11px;border:1px solid var(--border);border-radius:6px;font-size:.85rem;margin-bottom:10px;outline:none;"/>
+        <button id="st-sub-btn" onclick="submitSubscription()" style="width:100%;padding:10px;background:var(--ca-blue);color:#fff;border:none;border-radius:6px;font-size:.85rem;font-weight:700;cursor:pointer;">${lang==='en'?'Subscribe to Alerts':'Suscribirse'}</button>
+        <div id="st-sub-msg" style="display:none;margin-top:9px;padding:9px 12px;border-radius:6px;font-size:.8rem;line-height:1.4;"></div>
+      </div>
+    </div>`;
+  overlay.addEventListener('click', ()=>overlay.remove());
+  document.body.appendChild(overlay);
+  document.getElementById('st-download-btn').addEventListener('click', ()=>{
+    const header = ['date','e_coli_'+THRESH.unit.replace(/[^a-z0-9]/gi,'_'),'status'];
+    const rows = r.samples.map(s=>[s.date, s.result, statusFor(s.result)].map(v=>`"${String(v).replace(/"/g,'""')}"`).join(','));
+    const csv = [header.join(','),...rows].join('\n');
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
+    a.download = `${(r.name||r.code).replace(/[^a-z0-9]/gi,'_')}_ecoli.csv`;
+    a.click();
+  });
+}
+
+// ── ADVISORY SIGN (printable) ────────────────────────────────────────────────────
+const SIGN = {
+  Unsafe:{ color:'#B91C1C', bg:'#FEF2F2', icon:'🚫🏊',
+    en:{level:'UNSAFE — DO NOT SWIM', headline:'HIGH BACTERIA LEVELS',
+      sub:'E. coli exceeds the safe threshold for swimming.',
+      items:[{icon:'🚫🏊',text:'No swimming, wading, or full-body contact'},{icon:'🚫🐕',text:'Keep children and pets out of the water'},{icon:'🤢',text:'Contact can cause stomach, skin, ear, and eye illness'},{icon:'🚱',text:'Do not swallow river water'},{icon:'🚿',text:'Rinse with clean water if contact occurs'}],
+      footer:'Bacteria come from fecal pollution (sewage, animal waste, runoff). If you feel ill after contact, contact your doctor.'},
+    es:{level:'NO SEGURO — NO NADE', headline:'NIVELES ALTOS DE BACTERIAS',
+      sub:'E. coli supera el umbral seguro para nadar.',
+      items:[{icon:'🚫🏊',text:'No nadar, vadear ni contacto de cuerpo entero'},{icon:'🚫🐕',text:'Mantenga niños y mascotas fuera del agua'},{icon:'🤢',text:'El contacto puede causar enfermedades'},{icon:'🚱',text:'No trague agua del río'},{icon:'🚿',text:'Enjuáguese con agua limpia si hay contacto'}],
+      footer:'Las bacterias provienen de contaminación fecal. Si se siente mal después del contacto, consulte a su médico.'}},
+  Warning:{ color:'#C2410C', bg:'#FFF7ED', icon:'⚠️🏊',
+    en:{level:'WARNING — SWIMMING ADVISORY', headline:'ELEVATED BACTERIA',
+      sub:'E. coli is above the swimming advisory threshold.',
+      items:[{icon:'⚠️🏊',text:'Avoid full-body contact and swimming'},{icon:'🚫🐕',text:'Keep small children and pets out of the water'},{icon:'🚱',text:'Do not swallow river water'},{icon:'🚿',text:'Rinse with clean water after any contact'}],
+      footer:'Bacteria levels change with rain and runoff. Check back for updates before water activities.'},
+    es:{level:'AVISO — ADVERTENCIA', headline:'BACTERIAS ELEVADAS',
+      sub:'E. coli supera el umbral de advertencia.',
+      items:[{icon:'⚠️🏊',text:'Evite el contacto de cuerpo entero y nadar'},{icon:'🚫🐕',text:'Mantenga niños pequeños y mascotas fuera'},{icon:'🚱',text:'No trague agua del río'},{icon:'🚿',text:'Enjuáguese después de cualquier contacto'}],
+      footer:'Los niveles cambian con la lluvia. Consulte antes de actividades acuáticas.'}},
+  Caution:{ color:'#A16207', bg:'#FFFBEB', icon:'⚠️',
+    en:{level:'CAUTION — ELEVATED BACTERIA', headline:'USE CARE IN THE WATER',
+      sub:'You can swim, but bacteria are above the safe criterion.',
+      items:[{icon:'🚱',text:'Avoid swallowing river water'},{icon:'👶',text:'Young children and elderly should limit contact'},{icon:'🩹',text:'Keep open cuts and wounds out of the water'},{icon:'🚿',text:'Rinse with clean water after swimming'}],
+      footer:'A single sample is a snapshot. Bacteria rise after rain and runoff — check back for updates.'},
+    es:{level:'PRECAUCIÓN — BACTERIAS', headline:'TENGA CUIDADO EN EL AGUA',
+      sub:'Puede nadar, pero las bacterias superan el criterio seguro.',
+      items:[{icon:'🚱',text:'Evite tragar agua del río'},{icon:'👶',text:'Niños y ancianos deben limitar el contacto'},{icon:'🩹',text:'Mantenga heridas abiertas fuera del agua'},{icon:'🚿',text:'Enjuáguese después de nadar'}],
+      footer:'Una sola muestra es una instantánea. Las bacterias suben tras la lluvia.'}},
+  Good:{ color:'#15803D', bg:'#F0FDF4', icon:'🟢',
+    en:{level:'GOOD — SAFE FOR CONTACT', headline:'LOW BACTERIA LEVELS',
+      sub:'E. coli is at or below the health criterion.',
+      items:[{icon:'🏊',text:'Water contact is generally safe'},{icon:'🚱',text:'Still avoid swallowing river water'},{icon:'🚿',text:'Rinse off after swimming'},{icon:'🌧️',text:'Bacteria can rise quickly after rain — recheck'}],
+      footer:'Conditions change with weather and flow. This reflects the most recent sample at this location.'},
+    es:{level:'BUENO — SEGURO', headline:'BACTERIAS BAJAS',
+      sub:'E. coli está en o por debajo del criterio de salud.',
+      items:[{icon:'🏊',text:'El contacto con el agua es generalmente seguro'},{icon:'🚱',text:'Evite tragar agua del río'},{icon:'🚿',text:'Enjuáguese después de nadar'},{icon:'🌧️',text:'Las bacterias suben tras la lluvia'}],
+      footer:'Las condiciones cambian con el clima. Refleja la muestra más reciente.'}},
+  Unknown:{ color:'#374151', bg:'#F9FAFB', icon:'⚪',
+    en:{level:'NO RECENT DATA', headline:'STATUS UNKNOWN',
+      sub:'No recent sample is available for this station.',
+      items:[{icon:'❓',text:'Swim status cannot be determined'},{icon:'🚿',text:'Use caution and rinse after any contact'}],
+      footer:'Check the Central Valley Water Board river map for the latest conditions.'},
+    es:{level:'SIN DATOS RECIENTES', headline:'ESTADO DESCONOCIDO',
+      sub:'No hay muestra reciente para esta estación.',
+      items:[{icon:'❓',text:'No se puede determinar el estado'},{icon:'🚿',text:'Tenga precaución y enjuáguese'}],
+      footer:'Consulte el mapa del río de la Junta del Valle Central.'}},
+};
+let signOverlay = null;
+function printSign(r){
+  r = r || activeStation;
+  if(!r) return;
+  const s = SIGN[r._status] || SIGN.Unknown;
+  const loc = [r.name, 'Lower American River', 'Sacramento County'].filter(Boolean);
+  const obs = r.latest ? r.latest.date : '';
+  const res = r.latest ? `${fmtResult(r.latest.result)} ${THRESH.unit}` : '';
+  function signHTML(L){
+    const t = s[L];
+    return `
+    <div class="ca-sign" style="border:5px solid ${s.color};border-radius:10px;overflow:hidden;font-family:'Helvetica Neue',Arial,sans-serif;max-width:680px;margin:0 auto;background:#fff;">
+      <div style="background:${s.color};color:#fff;padding:14px 20px;display:flex;align-items:center;justify-content:space-between;gap:12px;">
+        <div>
+          <div style="font-size:.7rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;opacity:.85;">Central Valley Regional Water Quality Control Board</div>
+          <div style="font-size:1.6rem;font-weight:900;letter-spacing:.04em;text-transform:uppercase;line-height:1.1;">${t.level}</div>
+          <div style="font-size:1rem;font-weight:700;margin-top:2px;">${t.headline}</div>
+        </div>
+        <div style="font-size:2.8rem;opacity:.9;">${s.icon}</div>
+      </div>
+      <div style="background:${s.bg};padding:10px 20px;border-bottom:2px solid ${s.color};">
+        <div style="font-size:1rem;font-weight:800;color:${s.color};">${loc[0]||'Monitoring Station'}</div>
+        <div style="font-size:.78rem;color:#555;">${loc.slice(1).join(' · ')}</div>
+      </div>
+      <div style="padding:14px 20px 0;">
+        <div style="font-size:.95rem;font-weight:700;margin-bottom:10px;color:#111;">${t.sub}</div>
+        <div style="display:flex;flex-direction:column;gap:6px;">
+          ${t.items.map(i=>`<div style="display:flex;align-items:flex-start;gap:8px;font-size:.82rem;line-height:1.4;"><span style="font-size:1rem;flex-shrink:0;">${i.icon}</span><span>${i.text}</span></div>`).join('')}
+        </div>
+        <div style="margin-top:10px;padding:8px 10px;background:${s.bg};border-left:3px solid ${s.color};font-size:.72rem;color:#444;line-height:1.45;">${t.footer}</div>
+        ${obs?`<div style="font-size:.68rem;color:#777;margin-top:6px;">📅 ${L==='es'?'Muestra':'Sampled'}: ${obs} · E. coli: ${res}</div>`:''}
+      </div>
+      <div style="margin:10px 20px 0;border-top:1px solid #ddd;padding:8px 0;display:flex;justify-content:space-between;align-items:center;font-size:.62rem;color:#777;">
+        <span>waterboards.ca.gov/centralvalley</span>
+        <span>Can I Swim Here? · E. coli Monitoring</span>
+      </div>
+      <div style="padding:8px 20px 14px;display:flex;justify-content:center;"><div style="width:90%;height:3px;background:${s.color};border-radius:2px;opacity:.25;"></div></div>
+    </div>`;
+  }
+  if(signOverlay) signOverlay.remove();
+  signOverlay = document.createElement('div');
+  signOverlay.id = 'sign-overlay';
+  signOverlay.innerHTML = `
+    <div id="sign-backdrop" onclick="closeSign()" style="position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9999;display:flex;align-items:flex-start;justify-content:center;overflow-y:auto;padding:20px;">
+      <div onclick="event.stopPropagation()" style="width:100%;max-width:720px;">
+        <div class="no-print" style="display:flex;gap:8px;justify-content:flex-end;margin-bottom:10px;">
+          <button onclick="window.print()" style="padding:8px 20px;background:#005566;color:#fff;border:none;border-radius:6px;font-size:.85rem;cursor:pointer;font-weight:700;">🖨️ Print</button>
+          <button onclick="closeSign()" style="padding:8px 16px;background:#fff;color:#333;border:1px solid #ccc;border-radius:6px;font-size:.85rem;cursor:pointer;">✕ Close</button>
+        </div>
+        <div id="sign-content">${signHTML('en')}<div style="margin:16px 0;border-top:2px dashed #ccc;"></div>${signHTML('es')}</div>
+      </div>
+    </div>`;
+  document.body.appendChild(signOverlay);
+}
+function closeSign(){ if(signOverlay){ signOverlay.remove(); signOverlay=null; } }
+
+// ── FILTERS & LIST ───────────────────────────────────────────────────────────────
+function downloadFiltered(){
+  const header = ['station_code','station_name','lat','lon','latest_date','latest_e_coli','unit','recent_geomean','swim_status','total_samples'];
+  const rows = filtered.map(r=>[
+    r.code, r.name||'', r.lat, r.lon,
+    r.latest?r.latest.date:'', r.latest?r.latest.result:'', THRESH.unit,
+    r.geomean!=null?r.geomean:'', r._status, r.n||0
+  ].map(v=>`"${String(v).replace(/"/g,'""')}"`).join(','));
+  const csv = [header.join(','),...rows].join('\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
+  a.download = `CanISwimHere_stations_${new Date().toISOString().slice(0,10)}.csv`;
+  a.click();
+}
+
+function applyFilters(){
+  const q = document.getElementById('search').value.toLowerCase().trim();
+  filtered = RAW.filter(r=>{
+    if(statusFilter.size && !statusFilter.has(r._status)) return false;
+    if(q && !((r.name||'')+' '+(r.code||'')).toLowerCase().includes(q)) return false;
+    return true;
+  });
+  draw();
+  renderList(filtered);
+  renderStats(filtered);
+}
+
+function renderList(data){
+  const list = document.getElementById('stationList');
+  document.getElementById('listCount').textContent = '('+data.length+')';
+  if(!data.length){ list.innerHTML=`<div class="no-results">${lang==='en'?'No stations match.':'Sin resultados.'}</div>`; return; }
+  let sorted = [...data];
+  if(userLat !== null) sorted.sort((a,b)=>distKm(userLat,userLon,a.lat,a.lon)-distKm(userLat,userLon,b.lat,b.lon));
+  else sorted.sort((a,b)=>STATUS[a._status].order-STATUS[b._status].order);
+  list.innerHTML = sorted.map(r=>{
+    const m = STATUS[r._status];
+    const date = r.latest?r.latest.date:'';
+    const distBadge = userLat!==null ? `<span class="st-badge" style="background:#475569;margin-left:3px">${fmtDist(distKm(userLat,userLon,r.lat,r.lon))}</span>` : '';
+    return `<div class="st-card s-${r._status}" onclick="flyTo(${r.lat},${r.lon})">
+      <div class="st-name">${r.name||r.code}</div>
+      <div class="st-meta">${fmtResult(r.latest&&r.latest.result)} ${THRESH.unit}${date?' · '+date:''}</div>
+      <span class="st-badge" style="background:${m.color}">${m.flag} ${lang==='en'?m.label:m.label_es}</span>${distBadge}
+    </div>`;
+  }).join('');
+}
+
+function renderStats(data){
+  const good = data.filter(r=>r._status==='Good').length;
+  const caut = data.filter(r=>r._status==='Caution').length;
+  const bad  = data.filter(r=>r._status==='Warning'||r._status==='Unsafe').length;
+  document.getElementById('statsBar').innerHTML = `
+    <div class="stat-card"><div class="stat-num">${data.length}</div><div class="stat-lbl">${lang==='en'?'Stations':'Estaciones'}</div></div>
+    <div class="stat-card"><div class="stat-num" style="color:var(--good)">${good}</div><div class="stat-lbl">${lang==='en'?'Good':'Bueno'}</div></div>
+    <div class="stat-card"><div class="stat-num" style="color:var(--caution)">${caut}</div><div class="stat-lbl">${lang==='en'?'Caution':'Precaución'}</div></div>
+    <div class="stat-card"><div class="stat-num" style="color:var(--unsafe)">${bad}</div><div class="stat-lbl">${lang==='en'?'Advisory':'Aviso'}</div></div>`;
+}
+
+function buildLegend(){
+  const counts = {};
+  RAW.forEach(r=>counts[r._status]=(counts[r._status]||0)+1);
+  const ranges = {Good:'≤126', Caution:'127–235', Warning:'236–410', Unsafe:'>410', Unknown:'—'};
+  document.getElementById('legend').innerHTML = Object.entries(STATUS)
+    .sort((a,b)=>a[1].order-b[1].order)
+    .filter(([k])=>k!=='Unknown' || counts.Unknown)
+    .map(([k,m])=>`<div class="leg-row" data-key="${k}" onclick="toggleStatus('${k}',this)">
+      <span class="leg-dot" style="background:${m.color}"></span>
+      <span class="leg-lbl">${lang==='en'?m.label:m.label_es}</span>
+      <span class="leg-thresh">${ranges[k]}</span>
+      <span class="leg-count">${counts[k]||0}</span>
+    </div>`).join('');
+  // map legend
+  document.getElementById('mapLegend').innerHTML =
+    `<div style="font-weight:700;margin-bottom:4px;color:#334155;">${lang==='en'?'E. coli (MPN/100 mL)':'E. coli (MPN/100 mL)'}</div>` +
+    Object.entries(STATUS).sort((a,b)=>a[1].order-b[1].order).filter(([k])=>k!=='Unknown')
+    .map(([k,m])=>`<div class="map-leg-row"><span class="map-leg-dot" style="background:${m.color}"></span><span>${lang==='en'?m.label:m.label_es} <span style="color:var(--sub)">${ranges[k]}</span></span></div>`).join('')
+    + `<div class="map-leg-row" style="margin-top:4px;border-top:1px solid var(--border);padding-top:4px;"><span style="width:10px;height:10px;flex-shrink:0;transform:rotate(45deg);background:#7f1d1d;border-radius:2px;"></span><span>${lang==='en'?'Drowning hazard':'Peligro de ahogamiento'}</span></div>`;
+}
+
+function toggleStatus(key, el){
+  if(statusFilter.has(key)) statusFilter.delete(key); else statusFilter.add(key);
+  document.querySelectorAll('.leg-row').forEach(r=>r.classList.toggle('dimmed', statusFilter.size>0 && !statusFilter.has(r.dataset.key)));
+  applyFilters();
+}
+
+// ── SIDEBAR (mobile) ─────────────────────────────────────────────────────────────
+function toggleSidebar(){
+  const sb=document.getElementById('sidebar'), fab=document.getElementById('sidebar-fab'), bd=document.getElementById('map-backdrop');
+  const open = sb.classList.toggle('mobile-open');
+  fab.textContent = open ? '✕ Close' : '☰ Stations';
+  bd.classList.toggle('visible', open);
+}
+function closeSidebar(){
+  const sb=document.getElementById('sidebar'), fab=document.getElementById('sidebar-fab'), bd=document.getElementById('map-backdrop');
+  sb.classList.remove('mobile-open'); bd.classList.remove('visible'); fab.textContent='☰ Stations';
+}
+
+// ── GEOLOCATION ──────────────────────────────────────────────────────────────────
+let userLat=null, userLon=null, userMarker=null;
+function distKm(la1,lo1,la2,lo2){
+  const R=6371,dLa=(la2-la1)*Math.PI/180,dLo=(lo2-lo1)*Math.PI/180;
+  const a=Math.sin(dLa/2)**2+Math.cos(la1*Math.PI/180)*Math.cos(la2*Math.PI/180)*Math.sin(dLo/2)**2;
+  return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+}
+function fmtDist(km){ const mi=km*0.621371; return mi<10?mi.toFixed(1)+' mi':Math.round(mi)+' mi'; }
+function locateMe(){
+  if(!navigator.geolocation){ alert('Geolocation not supported.'); return; }
+  const btn=document.getElementById('locate-btn');
+  btn.textContent='⏳ Locating…'; btn.disabled=true; btn.className='locating';
+  navigator.geolocation.getCurrentPosition(pos=>{
+    userLat=pos.coords.latitude; userLon=pos.coords.longitude;
+    if(userMarker) userMarker.remove();
+    const icon=L.divIcon({className:'',html:'<div style="width:16px;height:16px;background:#2563EB;border:3px solid #fff;border-radius:50%;box-shadow:0 0 0 3px rgba(37,99,235,.35);"></div>',iconSize:[16,16],iconAnchor:[8,8]});
+    userMarker=L.marker([userLat,userLon],{icon,zIndexOffset:1000}).bindTooltip('You are here',{direction:'top',offset:[0,-10]}).addTo(map);
+    map.setView([userLat,userLon],12);
+    btn.textContent='📍 Near Me'; btn.disabled=false; btn.className='located';
+    renderList(filtered); updateSwimHero();
+    if(window.innerWidth<=768){ document.getElementById('sidebar').classList.add('mobile-open'); document.getElementById('sidebar-fab').textContent='✕ Close'; }
+  }, err=>{
+    btn.textContent='📍 Near Me'; btn.disabled=false; btn.className='';
+    alert(err.code===1?'Location permission denied.':'Could not get your location.');
+  }, {enableHighAccuracy:true, timeout:12000});
+}
+
+// ── "CAN I SWIM HERE?" HERO (nearest station verdict) ─────────────────────────────
+function updateSwimHero(){
+  const hero=document.getElementById('swim-hero');
+  if(!hero || userLat===null || !RAW.length) return;
+  let nearest=null, nd=Infinity;
+  for(const r of RAW){ if(r.lat==null) continue; const d=distKm(userLat,userLon,r.lat,r.lon); if(d<nd){nd=d;nearest=r;} }
+  if(!nearest){ hero.style.display='none'; return; }
+  const m=STATUS[nearest._status];
+  const verdict = nearest._status==='Good' ? (lang==='en'?'Yes — looks good':'Sí — se ve bien')
+    : nearest._status==='Unknown' ? (lang==='en'?'No recent data':'Sin datos')
+    : (lang==='en'?'Use caution':'Tenga precaución');
+  hero.style.display='block';
+  hero.innerHTML=`
+    <div style="font-size:.62rem;font-weight:700;letter-spacing:.08em;color:#64748b;text-transform:uppercase;margin-bottom:3px;">${lang==='en'?'Can I swim here?':'¿Puedo nadar aquí?'}</div>
+    <div style="font-size:1rem;font-weight:800;color:${m.color};margin-bottom:3px;">${m.flag} ${verdict}</div>
+    <div style="display:flex;align-items:center;justify-content:center;gap:6px;font-size:.74rem;color:#334155;">
+      <span style="font-weight:600;">${nearest.name}</span><span style="color:#94a3b8;">· ${fmtDist(nd)}</span>
+    </div>`;
+}
+
+// ── LANGUAGE ─────────────────────────────────────────────────────────────────────
+const LABELS = {
+  en:{'lbl-search':'Search station','lbl-status':'Swim Status','about-title':'About this data','hdr-sub':'Lower American River · Sacramento'},
+  es:{'lbl-search':'Buscar estación','lbl-status':'Estado para Nadar','about-title':'Sobre estos datos','hdr-sub':'Río American Bajo · Sacramento'},
+};
+function setLang(l, btn){
+  lang=l;
+  document.querySelectorAll('.lang-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  Object.entries(LABELS[l]).forEach(([id,txt])=>{ const el=document.getElementById(id); if(el) el.textContent=txt; });
+  document.getElementById('search').placeholder = l==='en'?'Station name or area…':'Nombre de estación o área…';
+  const hbl=document.getElementById('hazardBtnLbl');
+  if(hbl) hbl.textContent = showHazards ? (l==='en'?'Hide drowning hazards':'Ocultar peligros') : (l==='en'?'Show drowning hazards':'Mostrar peligros');
+  buildLegend();
+  document.querySelectorAll('.leg-row').forEach(r=>r.classList.toggle('dimmed', statusFilter.size>0 && !statusFilter.has(r.dataset.key)));
+  renderList(filtered); renderStats(filtered); updateSwimHero();
+}
+
+// ── SUBSCRIPTIONS (optional Supabase) ─────────────────────────────────────────────
+let _subCtx = {name:'', lat:null, lon:null, scope:'station'};
+async function submitSubscription(){
+  const email=(document.getElementById('st-sub-email')?.value||'').trim();
+  const phone=(document.getElementById('st-sub-phone')?.value||'').trim();
+  const btn=document.getElementById('st-sub-btn');
+  if(!email && !phone){ showSubMsg('Please enter an email address or phone number.','error'); return; }
+  if(email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){ showSubMsg('Please enter a valid email address.','error'); return; }
+  const configured = SUPABASE_URL !== 'YOUR_SUPABASE_URL';
+  btn.disabled=true; btn.textContent='Subscribing…';
+  if(configured){
+    try{
+      const res=await fetch(`${SUPABASE_URL}/rest/v1/subscriptions`,{method:'POST',headers:{'Content-Type':'application/json','apikey':SUPABASE_ANON_KEY,'Authorization':'Bearer '+SUPABASE_ANON_KEY,'Prefer':'return=minimal'},body:JSON.stringify({type:_subCtx.scope,waterbody_name:_subCtx.name,lat:_subCtx.lat,lon:_subCtx.lon,email:email||null,phone:phone||null})});
+      if(!res.ok) throw new Error('HTTP '+res.status);
+      showSubMsg('✅ Subscribed! You\'ll be notified when the swim status changes for '+_subCtx.name+'.','success');
+      btn.textContent='Subscribed ✓';
+    }catch(e){ btn.disabled=false; btn.textContent='Subscribe to Alerts'; showSubMsg('⚠️ Could not save subscription. Please try again.','error'); }
+  } else {
+    btn.disabled=false; btn.textContent='Subscribe to Alerts';
+    showSubMsg('ℹ️ This is a demo — alert delivery is not configured. Connect a backend to enable notifications.','info');
+  }
+}
+function showSubMsg(text, type){
+  const el=document.getElementById('st-sub-msg'); if(!el) return;
+  const styles={success:'background:#f0fdf4;border:1px solid #86efac;color:#166534;',error:'background:#fef2f2;border:1px solid #fca5a5;color:#991b1b;',info:'background:#eff6ff;border:1px solid #93c5fd;color:#1e40af;'};
+  el.style.cssText=`display:block;margin-top:9px;padding:9px 12px;border-radius:6px;font-size:.8rem;line-height:1.4;${styles[type]||styles.info}`;
+  el.textContent=text;
+}
+
+// ── DATA LOADING — prebuilt stations.json first, live CKAN fallback ────────────────
+const CKAN_RESOURCE = 'fc450fb6-e997-4bcf-b824-1b3ed0f06045';
+const CKAN_API  = `https://data.ca.gov/api/3/action/datastore_search?resource_id=${CKAN_RESOURCE}&limit=5000`;
+const CKAN_META = `https://data.ca.gov/api/3/action/resource_show?id=${CKAN_RESOURCE}`;
+
+function setUpdatedBar(ts, fromCache){
+  const bar=document.getElementById('dataUpdatedBar'); if(!bar||!ts) return;
+  const label=new Date(ts).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+  if(fromCache){ bar.style.background='#b45309'; bar.textContent=`📴 Offline — cached data (${label})`; }
+  else bar.textContent=`Data updated ${label} · CA Open Data`;
+}
+
+function geomean(vals){ const v=vals.filter(x=>x&&x>0); if(!v.length) return null; return Math.exp(v.reduce((a,b)=>a+Math.log(b),0)/v.length); }
+
+function aggregate(records){
+  const byCode={};
+  for(const row of records){
+    if(((row.Analyte||'')+'').trim().toLowerCase()!=='e. coli') continue;
+    const lat=parseFloat(row.Latitude), lon=parseFloat(row.Longitude), result=parseFloat(row.Result);
+    const code=(row.StationCode||'').trim(), date=((row.SampleDate||'')+'').slice(0,10);
+    if(!code||!date||isNaN(lat)||isNaN(lon)||isNaN(result)) continue;
+    const st=byCode[code]||(byCode[code]={code,name:(row.StationName||code).trim(),lat,lon,samples:[]});
+    st.samples.push({date,result:Math.round(result*10)/10});
+  }
+  return Object.values(byCode).map(st=>{
+    st.samples.sort((a,b)=>b.date.localeCompare(a.date));
+    st.latest=st.samples[0];
+    const recent=st.samples.slice(0,6).map(s=>s.result);
+    const gm=geomean(recent);
+    st.geomean=gm!=null?Math.round(gm*10)/10:null;
+    st.geomean_n=recent.length;
+    st.n=st.samples.length;
+    return st;
+  }).sort((a,b)=>(a.name||'').localeCompare(b.name||''));
+}
+
+async function loadData(){
+  document.getElementById('stationList').innerHTML='<div class="no-results">Loading data…</div>';
+  const pre=await fetch('stations.json').catch(()=>null);
+  if(pre){
+    const fromCache=pre.headers.get('X-From-Cache')==='true';
+    if(pre.ok||fromCache){
+      const d=await pre.json();
+      if(d.thresholds) THRESH=Object.assign(THRESH,d.thresholds);
+      if(d.source&&d.source.last_modified) setUpdatedBar(d.source.last_modified, fromCache);
+      return d.stations||d;
+    }
+  }
+  // live fallback
+  const [meta,res]=await Promise.all([fetch(CKAN_META).catch(()=>null), fetch(CKAN_API)]);
+  if(!res.ok) throw new Error('HTTP '+res.status);
+  const json=await res.json();
+  if(meta&&meta.ok){ const md=await meta.json(); setUpdatedBar(md?.result?.last_modified, false); }
+  return aggregate(json.result.records);
+}
+
+loadData().then(data=>{
+  RAW=data;
+  RAW.forEach(r=>{ r._status=statusFor(r.latest?r.latest.result:null); r._gmStatus = r.geomean!=null ? (r.geomean<=THRESH.gm_criterion?'Good':statusFor(r.geomean)) : 'Unknown'; });
+  filtered=[...RAW];
+  buildLegend(); applyFilters();
+  // fit map to stations
+  const pts=RAW.filter(r=>r.lat!=null).map(r=>[r.lat,r.lon]);
+  if(pts.length) map.fitBounds(L.latLngBounds(pts).pad(0.25));
+  // deep link ?station=CODE
+  const urlSt=new URLSearchParams(location.search).get('station');
+  if(urlSt){ const t=RAW.find(r=>r.code===urlSt); if(t){ flyTo(t.lat,t.lon); showStationPopup(t.code); } }
+}).catch(err=>{
+  console.error('Data load error:', err);
+  document.getElementById('stationList').innerHTML=`
+    <div class="no-results" style="padding:20px 12px;">
+      <div style="font-size:1.6rem;margin-bottom:8px;">⚠️</div>
+      <div style="font-weight:700;color:#b91c1c;margin-bottom:4px;">Could not load data</div>
+      <div style="font-size:.75rem;color:#64748b;margin-bottom:14px;">${err.message}</div>
+      <button onclick="location.reload()" style="padding:8px 20px;background:var(--ca-blue);color:#fff;border:none;border-radius:6px;font-weight:700;cursor:pointer;font-size:.8rem;">↺ Retry</button>
+    </div>`;
+});
+new ResizeObserver(resize).observe(document.getElementById('map-wrap'));
+
+// Curated drowning / physical hazards (independent of E. coli data)
+fetch('hazards.json').then(r=>r.json()).then(d=>{ HAZARDS=d.hazards||[]; drawHazards(); }).catch(()=>{});
+
+// QR for the river map
+(function(){
+  const el=document.getElementById('about-qr');
+  if(!el||typeof QRCode==='undefined') return;
+  new QRCode(el,{text:'https://arcg.is/0ea0zq',width:110,height:110,colorDark:'#005566',colorLight:'#ffffff',correctLevel:QRCode.CorrectLevel.M});
+})();
+</script>
+<script>
+if('serviceWorker' in navigator){
+  window.addEventListener('load', ()=>{ navigator.serviceWorker.register('sw.js').catch(err=>console.warn('SW registration failed:', err)); });
+}
+</script>
+</body>
+</html>
