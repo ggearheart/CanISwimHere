@@ -221,6 +221,9 @@ header{background:var(--ca-blue);color:#fff;padding:0 16px;height:52px;
     <div id="map-canvas" style="position:absolute;inset:0;"></div>
     <div id="tooltip"></div>
     <div id="swim-hero" style="display:none;position:absolute;top:10px;left:50%;transform:translateX(-50%);z-index:700;background:#fff;border-radius:14px;box-shadow:0 6px 24px rgba(0,0,0,.25);padding:11px 14px;width:340px;max-width:92vw;text-align:left;pointer-events:auto;"></div>
+    <div id="tap-hint" style="position:absolute;top:12px;left:50%;transform:translateX(-50%);z-index:650;background:rgba(0,85,102,.92);color:#fff;border-radius:20px;padding:7px 15px;font-size:.74rem;font-weight:600;box-shadow:0 3px 12px rgba(0,0,0,.25);pointer-events:none;white-space:nowrap;max-width:92vw;">
+      👆 <span id="tap-hint-lbl">Tap any spot — or 📍 Near Me — for a swim summary</span>
+    </div>
     <div class="map-legend-wrap" id="mapLegend"></div>
   </div>
   <div class="map-fabs">
@@ -303,7 +306,12 @@ function draw(){
     circle.addTo(markerLayer);
   });
 }
-map.on('click', ()=>{ if(pinnedTip){ pinnedTip=false; tip.style.display='none'; } });
+map.on('click', e=>{
+  // If a marker tooltip is pinned open, a map click just dismisses it.
+  if(pinnedTip){ pinnedTip=false; tip.style.display='none'; return; }
+  // Otherwise, tap anywhere to get a swim summary for that spot (not just "near me").
+  if(typeof showSwimSummary==='function') showSwimSummary(e.latlng.lat, e.latlng.lng, {fromUser:false});
+});
 function flyTo(lat, lon){ map.setView([lat, lon], Math.max(map.getZoom(), 13)); if(window.innerWidth<=768) closeSidebar(); }
 function resize(){ map.invalidateSize(); }
 
@@ -843,7 +851,7 @@ function locateMe(){
     userMarker=L.marker([userLat,userLon],{icon,zIndexOffset:1000}).bindTooltip('You are here',{direction:'top',offset:[0,-10]}).addTo(map);
     map.setView([userLat,userLon],12);
     btn.textContent='📍 Near Me'; btn.disabled=false; btn.className='located';
-    renderList(filtered); updateSwimHero();
+    renderList(filtered); showSwimSummary(userLat,userLon,{fromUser:true}); dismissTapHint();
     if(window.innerWidth<=768){ document.getElementById('sidebar').classList.add('mobile-open'); document.getElementById('sidebar-fab').textContent='✕ Close'; }
   }, err=>{
     btn.textContent='📍 Near Me'; btn.disabled=false; btn.className='';
@@ -874,25 +882,44 @@ function catRow(icon, label, color, status, site, date, stale){
     <span style="flex:1;"><span style="font-weight:700;color:#334155;">${label}:</span> <span style="color:#475569;font-weight:600;">${status}</span>${site?` · <span style="color:#64748b;">${site}</span>`:''}${date?` <span style="color:#94a3b8;">(${date}${stale?' ⏳':''})</span>`:''}</span>
   </div>`;
 }
-function updateSwimHero(){
+// Re-render the summary for whatever location is currently selected.
+let summaryAt=null;            // {lat, lon, fromUser} of the active summary
+let summaryMarker=null;        // dropped pin when checking a tapped spot
+function updateSwimHero(){ if(summaryAt) showSwimSummary(summaryAt.lat, summaryAt.lon, {fromUser:summaryAt.fromUser}); }
+
+function showSwimSummary(qLat, qLon, opts){
+  opts = opts || {};
   const hero=document.getElementById('swim-hero');
-  if(!hero || userLat===null || !RAW.length) return;
+  if(!hero || qLat==null || !RAW.length) return;
+  summaryAt={lat:qLat, lon:qLon, fromUser:!!opts.fromUser};
+  dismissTapHint();
+
+  // Drop a pin at the queried spot (unless it's the user's own location, which
+  // already has its own "you are here" marker).
+  if(summaryMarker){ summaryMarker.remove(); summaryMarker=null; }
+  if(!opts.fromUser){
+    summaryMarker=L.marker([qLat,qLon], {zIndexOffset:1500, interactive:false, icon:L.divIcon({
+      className:'', iconSize:[26,26], iconAnchor:[13,13],
+      html:'<div style="width:22px;height:22px;border:3px solid #005566;border-radius:50%;background:rgba(0,85,102,.18);box-shadow:0 0 0 3px rgba(255,255,255,.7);"></div>'
+    })}).addTo(map);
+  }
+
   // Bacteria = nearest monitoring station; blooms & hazards are point features,
   // so they only count when genuinely close.
   const R_HAB=milesToKm(1.5), R_HAZ=milesToKm(2);
 
   // ── 1) Fecal pathogens — nearest E. coli station ──
   let fSt=null,fD=Infinity;
-  for(const r of RAW){ if(r.lat==null) continue; const d=distKm(userLat,userLon,r.lat,r.lon); if(d<fD){fD=d;fSt=r;} }
+  for(const r of RAW){ if(r.lat==null) continue; const d=distKm(qLat,qLon,r.lat,r.lon); if(d<fD){fD=d;fSt=r;} }
   const fStatus=fSt?fSt._status:'Unknown', fM=STATUS[fStatus]||STATUS.Unknown;
   const fDate=fSt&&fSt.latest?fSt.latest.date:null;
 
-  // ── 2) Harmful algal blooms — within 5 mi. Only blooms observed in the last
+  // ── 2) Harmful algal blooms — within 1.5 mi. Only blooms observed in the last
   //    RECENT_DAYS count as an *active* advisory; older ones are historical context. ──
   const RECENT_DAYS=120, now=Date.now();
   const isRecent=obs=>obs && (now - new Date(obs).getTime()) <= RECENT_DAYS*24*3600*1000;
   const ADVISORY=new Set(['Danger','Warning','Caution','Mat']);
-  const habNear=HABS.filter(b=>b.lat!=null && distKm(userLat,userLon,b.lat,b.lon)<=R_HAB)
+  const habNear=HABS.filter(b=>b.lat!=null && distKm(qLat,qLon,b.lat,b.lon)<=R_HAB)
     .sort((a,b)=>(b.obs||'').localeCompare(a.obs||''));  // newest first
   const habRecentAdv=habNear.filter(b=>ADVISORY.has(b.tier) && isRecent(b.obs))
     .sort((a,b)=>(ADV[a.tier]||ADV.Other).order-(ADV[b.tier]||ADV.Other).order);  // worst first
@@ -903,7 +930,7 @@ function updateSwimHero(){
 
   // ── 3) Physical hazards — within 2 mi ──
   let hz=null,hzD=Infinity;
-  for(const h of HAZARDS){ if(h.lat==null) continue; const d=distKm(userLat,userLon,h.lat,h.lon); if(d<=R_HAZ&&d<hzD){hzD=d;hz=h;} }
+  for(const h of HAZARDS){ if(h.lat==null) continue; const d=distKm(qLat,qLon,h.lat,h.lon); if(d<=R_HAZ&&d<hzD){hzD=d;hz=h;} }
   const hazColor=hz?'#7f1d1d':'#15803D';
   const hazStatus=hz?(lang==='en'?'Known hazard nearby':'Peligro conocido cerca'):(lang==='en'?'None within 2 mi':'Ninguno en 2 mi');
 
@@ -925,11 +952,11 @@ function updateSwimHero(){
     <div style="display:flex;align-items:center;gap:11px;">
       <div style="flex-shrink:0;">${pie}</div>
       <div style="flex:1;min-width:0;">
-        <div style="font-size:.58rem;font-weight:700;letter-spacing:.08em;color:#64748b;text-transform:uppercase;">${lang==='en'?'Can I swim here?':'¿Puedo nadar aquí?'}</div>
+        <div style="font-size:.58rem;font-weight:700;letter-spacing:.08em;color:#64748b;text-transform:uppercase;">${opts.fromUser?(lang==='en'?'Can I swim here?':'¿Puedo nadar aquí?'):(lang==='en'?'Can I swim at this spot?':'¿Puedo nadar aquí?')}</div>
         <div style="font-size:1.1rem;font-weight:800;color:${verdict.color};line-height:1.05;">${verdict.icon} ${verdict.txt}</div>
-        <div style="font-size:.64rem;color:#64748b;">${lang==='en'?'near':'cerca de'} ${fSt?fSt.name:''} · ${fmtDist(fD)}</div>
+        <div style="font-size:.64rem;color:#64748b;">${lang==='en'?'nearest':'más cercano'}: ${fSt?fSt.name:''} · ${fmtDist(fD)}</div>
       </div>
-      <button onclick="document.getElementById('swim-hero').style.display='none'" aria-label="Close" style="align-self:flex-start;background:none;border:none;font-size:.95rem;color:#94a3b8;cursor:pointer;line-height:1;padding:2px;">✕</button>
+      <button onclick="closeSwimSummary()" aria-label="Close" style="align-self:flex-start;background:none;border:none;font-size:.95rem;color:#94a3b8;cursor:pointer;line-height:1;padding:2px;">✕</button>
     </div>
     <div style="margin-top:8px;border-top:1px solid #e8edf2;padding-top:7px;display:flex;flex-direction:column;gap:6px;">
       ${catRow('💧', lang==='en'?'Bacteria':'Bacterias', fM.color, lang==='en'?fM.label:fM.label_es, fSt?fSt.name:'', fDate, isStale(fDate))}
@@ -938,6 +965,12 @@ function updateSwimHero(){
     </div>
     ${latestDate?`<div style="margin-top:7px;font-size:.62rem;color:#94a3b8;border-top:1px solid #f1f5f9;padding-top:5px;">${lang==='en'?'Last water-quality data':'Últimos datos'}: <strong style="color:#64748b;">${latestDate}</strong>${isStale(latestDate)?(lang==='en'?' · demo data, over a year old':' · datos demo'):''}</div>`:''}`;
 }
+function closeSwimSummary(){
+  document.getElementById('swim-hero').style.display='none';
+  if(summaryMarker){ summaryMarker.remove(); summaryMarker=null; }
+  summaryAt=null;
+}
+function dismissTapHint(){ const h=document.getElementById('tap-hint'); if(h) h.style.display='none'; }
 
 // ── LANGUAGE ─────────────────────────────────────────────────────────────────────
 const LABELS = {
@@ -954,6 +987,8 @@ function setLang(l, btn){
   if(hbl) hbl.textContent = showHazards ? (l==='en'?'Hide drowning hazards':'Ocultar peligros') : (l==='en'?'Show drowning hazards':'Mostrar peligros');
   const hab=document.getElementById('habBtnLbl');
   if(hab) hab.textContent = (showHabs ? (l==='en'?'Hide algal blooms':'Ocultar floraciones') : (l==='en'?'Show algal blooms':'Mostrar floraciones')) + (HABS.length?` (${HABS.length})`:'');
+  const th=document.getElementById('tap-hint-lbl');
+  if(th) th.textContent = l==='en'?'Tap any spot — or 📍 Near Me — for a swim summary':'Toque cualquier lugar — o 📍 — para un resumen';
   buildLegend();
   document.querySelectorAll('.leg-row').forEach(r=>r.classList.toggle('dimmed', statusFilter.size>0 && !statusFilter.has(r.dataset.key)));
   renderList(filtered); renderStats(filtered); updateSwimHero();
