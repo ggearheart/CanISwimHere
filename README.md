@@ -47,9 +47,11 @@ A recent **geometric mean** (last 6 samples) is shown alongside the single-sampl
 
 ## Popular swim spots (heatmap)
 
-`docs/swim_spots.json` is a hand-curated list of well-documented public swimming / river-access beaches on the Lower American River and at the confluence (Tiscornia, Paradise Beach, Sutter's Landing, River Bend, Sunrise, Sailor Bar, Ancil Hoffman, Clay Banks, Negro Bar…), each with an approximate `intensity` popularity weight. They render as a blue/cyan **heatmap** (via [leaflet.heat](https://github.com/Leaflet/Leaflet.heat)) plus small tappable dots.
+`docs/swim_spots.json` is a curated list of well-documented public swimming / river-access spots on the Lower American River and at the confluence (Tiscornia, Paradise Beach, Sutter's Landing, River Bend, Sunrise, Sailor Bar, Ancil Hoffman, Clay Banks, Nimbus Flat…), each with an approximate `intensity` popularity weight. They render as a blue/cyan **heatmap** (via [leaflet.heat](https://github.com/Leaflet/Leaflet.heat)) plus small tappable dots.
 
-> **This is not Strava data.** Strava's global heatmap is proprietary, aggregated, and gated behind an authenticated session, so its underlying GPS tracks aren't available to ingest. This layer is instead compiled from public park/parkway guides and local knowledge — approximate and freely editable. **Popularity is not safety:** several popular spots (e.g. Clay Banks, the confluence) are also drowning hazards. The "Near Me" / tap summary flags when you're at a known swim area.
+**Coordinates sit on the water.** Spots that coincide with a state monitoring station use that station's on-river coordinate; the rest were geocoded (OpenStreetMap Nominatim) and **projected onto the OSM American/Sacramento River centerline**, so every point lands on the channel (all verified ≤150 m from the river) rather than at a park centroid. (Rebuild logic is ad-hoc in the OSM snap step — see `swim_spots.json`'s `note`/`sources`.)
+
+> **This is not Strava data.** Strava's global heatmap is proprietary, aggregated, and gated behind an authenticated session, so its underlying GPS tracks aren't available to ingest. This layer is compiled from OSM + public park/parkway guides — approximate and freely editable. **Popularity is not safety:** several popular spots (e.g. Clay Banks, the confluence) are also drowning hazards. The "Near Me" / tap summary flags when you're at a known swim area.
 
 ## Harmful algal blooms
 

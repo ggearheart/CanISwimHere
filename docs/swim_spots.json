@@ -1,27 +1,123 @@
 {
-  "note": "CURATED list of well-documented public swimming / river-access spots on the Lower American River and at the Sacramento River confluence. This is NOT the Strava heatmap (that data is proprietary and gated behind an authenticated session) and NOT from the monitoring datasets. Coordinates and the 'intensity' popularity weights (0-1) are approximate, compiled from public park/parkway guides and local knowledge — edit freely. Popularity does NOT imply safety: several popular spots are also dangerous (cold water, currents, drop-offs).",
+  "note": "CURATED public swimming / river-access spots on the Lower American River and at the Sacramento River confluence. Coordinates sit on the water: spots that coincide with a state monitoring station use that station's on-river coordinate; the rest are geocoded (OSM Nominatim) and projected onto the OSM American River centerline. NOT the Strava heatmap (proprietary/auth-gated) and NOT from the monitoring datasets. 'intensity' popularity weights (0-1) are approximate. Popularity does NOT imply safety: several popular spots are also dangerous.",
   "sources": [
-    "Sacramento County Regional Parks — American River Parkway access points",
-    "visitranchocordova.com river guides",
-    "sactoday.6amcity.com swimming-holes guide",
-    "Sacramento local swim-spot guides"
+    "OpenStreetMap (river geometry, beaches, Nominatim geocoding)",
+    "CA Water Board monitoring-station coordinates",
+    "Sacramento County Regional Parks \u2014 American River Parkway",
+    "visitranchocordova.com & sactoday.6amcity.com river/swim guides"
   ],
   "spots": [
-    {"name": "Tiscornia Beach (Confluence)", "lat": 38.6010, "lon": -121.5080, "intensity": 1.0, "note": "Sandy family swim beach where the American meets the Sacramento River. Life jackets on site, no lifeguard. Beware the sudden underwater ledge just offshore."},
-    {"name": "Discovery Park", "lat": 38.6015, "lon": -121.5045, "intensity": 0.7, "note": "Large park at the confluence; waist-deep wading areas popular with families."},
-    {"name": "Sutter's Landing", "lat": 38.5885, "lon": -121.4625, "intensity": 0.7, "note": "River access and beach near downtown; swimming, kayaking and canoeing."},
-    {"name": "Paradise Beach (Glenn Hall Park)", "lat": 38.5820, "lon": -121.4300, "intensity": 1.0, "note": "Oxbow cove near Sac State (Carlson & Sandburg). Very popular with families and students."},
-    {"name": "Howe Avenue Access", "lat": 38.5790, "lon": -121.4015, "intensity": 0.6, "note": "River access point off Howe Ave."},
-    {"name": "Watt Avenue Access", "lat": 38.5860, "lon": -121.3815, "intensity": 0.65, "note": "River access near the Watt Ave bridge."},
-    {"name": "River Bend Park", "lat": 38.5840, "lon": -121.3225, "intensity": 0.85, "note": "Formerly Goethe Park (Rancho Cordova). Beaches plus quiet channels with deeper holes off the equestrian trail."},
-    {"name": "Rossmoor Bar", "lat": 38.6105, "lon": -121.3010, "intensity": 0.6, "note": "Gravel-bar river access in Rancho Cordova."},
-    {"name": "Ancil Hoffman Park", "lat": 38.6235, "lon": -121.3300, "intensity": 0.7, "note": "Large Carmichael park on a river bend; popular beaches."},
-    {"name": "Sacramento Bar", "lat": 38.6270, "lon": -121.2880, "intensity": 0.65, "note": "Gravel-bar access and rafting take-out."},
-    {"name": "Sunrise Recreation Area", "lat": 38.6330, "lon": -121.2710, "intensity": 1.0, "note": "Lower & Upper Sunrise — sandy swim beaches with parking; one of the most popular swimming areas on the Lower American."},
-    {"name": "Sailor Bar", "lat": 38.6330, "lon": -121.2330, "intensity": 0.75, "note": "Fair Oaks river access and beach; rafting put-in."},
-    {"name": "Hagan Community Park", "lat": 38.5915, "lon": -121.2925, "intensity": 0.6, "note": "Pebbled shoreline with small sandy stretches for wading."},
-    {"name": "Clay Banks", "lat": 38.6225, "lon": -121.2897, "intensity": 0.7, "note": "Popular cliff/swim spot — but ALSO a known drowning hazard: steep drop-offs and swift, cold current."},
-    {"name": "Negro Bar (Lake Natoma)", "lat": 38.6350, "lon": -121.1760, "intensity": 0.7, "note": "Folsom; calm Lake Natoma swimming beach above the Lower American River."},
-    {"name": "Camp Pollock", "lat": 38.5990, "lon": -121.4780, "intensity": 0.4, "note": "Riverside access near the Northgate / Del Paso area."}
+    {
+      "name": "Tiscornia Beach (Confluence)",
+      "lat": 38.598,
+      "lon": -121.507,
+      "intensity": 1.0,
+      "note": "Sandy family swim beach where the American meets the Sacramento River. Life jackets on site, no lifeguard. Beware the sudden underwater ledge just offshore."
+    },
+    {
+      "name": "Discovery Park",
+      "lat": 38.601,
+      "lon": -121.506,
+      "intensity": 0.7,
+      "note": "Large park at the confluence; waist-deep wading areas popular with families."
+    },
+    {
+      "name": "Sutter's Landing",
+      "lat": 38.588,
+      "lon": -121.462,
+      "intensity": 0.7,
+      "note": "River access and beach near downtown; swimming, kayaking and canoeing."
+    },
+    {
+      "name": "Paradise Beach (Glenn Hall Park)",
+      "lat": 38.582,
+      "lon": -121.43,
+      "intensity": 1.0,
+      "note": "Oxbow cove near Sac State (Carlson & Sandburg). Very popular with families and students."
+    },
+    {
+      "name": "Howe Avenue Access",
+      "lat": 38.57566,
+      "lon": -121.4019,
+      "intensity": 0.6,
+      "note": "River access along the parkway near the Howe Ave / Cal Expo reach."
+    },
+    {
+      "name": "Watt Avenue Access",
+      "lat": 38.566,
+      "lon": -121.381,
+      "intensity": 0.65,
+      "note": "River access at the Watt Ave bridge."
+    },
+    {
+      "name": "River Bend Park",
+      "lat": 38.597,
+      "lon": -121.331,
+      "intensity": 0.85,
+      "note": "Formerly Goethe Park (Rancho Cordova). Beaches plus quiet channels with deeper holes off the equestrian trail."
+    },
+    {
+      "name": "Rossmoor Bar",
+      "lat": 38.60873,
+      "lon": -121.29928,
+      "intensity": 0.6,
+      "note": "Gravel-bar river access in Rancho Cordova."
+    },
+    {
+      "name": "Ancil Hoffman Park",
+      "lat": 38.62038,
+      "lon": -121.31794,
+      "intensity": 0.7,
+      "note": "Large Carmichael park on a river bend; popular beaches."
+    },
+    {
+      "name": "Sacramento Bar",
+      "lat": 38.62746,
+      "lon": -121.28909,
+      "intensity": 0.65,
+      "note": "Gravel-bar access and rafting take-out."
+    },
+    {
+      "name": "Sunrise Recreation Area",
+      "lat": 38.633,
+      "lon": -121.271,
+      "intensity": 1.0,
+      "note": "Lower & Upper Sunrise \u2014 sandy swim beaches with parking; one of the most popular swimming areas on the Lower American."
+    },
+    {
+      "name": "Sailor Bar",
+      "lat": 38.63291,
+      "lon": -121.23296,
+      "intensity": 0.75,
+      "note": "Fair Oaks river access and beach; rafting put-in."
+    },
+    {
+      "name": "Hagan Community Park",
+      "lat": 38.60315,
+      "lon": -121.30871,
+      "intensity": 0.6,
+      "note": "Pebbled shoreline with small sandy stretches for wading."
+    },
+    {
+      "name": "Clay Banks",
+      "lat": 38.62263,
+      "lon": -121.28938,
+      "intensity": 0.7,
+      "note": "Popular cliff/swim spot \u2014 but ALSO a known drowning hazard: steep drop-offs and swift, cold current."
+    },
+    {
+      "name": "Camp Pollock",
+      "lat": 38.599,
+      "lon": -121.478,
+      "intensity": 0.4,
+      "note": "Riverside access near the Northgate / Del Paso area."
+    },
+    {
+      "name": "Nimbus Flat (Lake Natoma)",
+      "lat": 38.63639,
+      "lon": -121.21614,
+      "intensity": 0.7,
+      "note": "Calm Lake Natoma swimming/aquatic area at Nimbus Flat (Folsom end), above the Lower American River."
+    }
   ]
 }
