@@ -1,12 +1,13 @@
 // Service worker for "Can I Swim Here?" — uses relative URLs so it works under
 // any base path (local dev or GitHub Pages project subfolder).
-const CACHE = 'caniswim-v5';
+const CACHE = 'caniswim-v6';
 const DATA_CACHE = 'caniswim-data-v1';
 const SHELL = [
   './',
   './index.html',
   './manifest.json',
   './waterboards-logo.png',
+  './hab-marker.png',
   './icon-192.png',
   './icon-512.png',
   'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css',

@@ -196,7 +196,7 @@ header{background:var(--ca-blue);color:#fff;padding:0 16px;height:52px;
             <li><strong style="color:var(--unsafe)">Unsafe</strong> — &gt;410 (STV)</li>
           </ul>
           <p style="margin:0 0 8px;">Bacteria levels change quickly with rain, runoff, and flow. A single result is a snapshot, not a guarantee.</p>
-          <p style="margin:0 0 8px;padding:7px 9px;background:#f0fdf4;border-left:3px solid #166534;border-radius:0 4px 4px 0;"><strong style="color:#166534;">🦠 Algal blooms</strong> shown as cell-cluster splotches are harmful algal bloom (HAB) reports from the CA State Water Board <strong>FHAB program</strong>, for the Sacramento / American &amp; Sacramento River area. Each splotch is <strong>colored by advisory level</strong> and <strong>fades with age</strong> — bold means recently observed, faint means an older report. Most are reported by the public; only some are lab-tested, so cyanotoxins may be present even when not confirmed.</p>
+          <p style="margin:0 0 8px;padding:7px 9px;background:#f0fdf4;border-left:3px solid #166534;border-radius:0 4px 4px 0;"><strong style="color:#166534;">🦠 Algal blooms</strong> shown as cyanobacteria-cluster markers are harmful algal bloom (HAB) reports from the CA State Water Board <strong>FHAB program</strong>, for the Sacramento / American &amp; Sacramento River area. Each splotch is <strong>colored by advisory level</strong> and <strong>fades with age</strong> — bold means recently observed, faint means an older report. Most are reported by the public; only some are lab-tested, so cyanotoxins may be present even when not confirmed.</p>
           <p style="margin:0 0 8px;padding:7px 9px;background:#fef2f2;border-left:3px solid #b91c1c;border-radius:0 4px 4px 0;"><strong style="color:#991b1b;">⚠️ Drowning hazards</strong> shown as red diamonds (e.g. Clay Banks, the Tiscornia/Discovery Park confluence) are a <strong>curated safety reference</strong> — not from the monitoring data and approximate. Water can be bacteriologically "Good" and still be deadly to swim due to cold water and current.</p>
           <p style="margin:0 0 8px;padding:7px 9px;background:#ecfeff;border-left:3px solid #0e7490;border-radius:0 4px 4px 0;"><strong style="color:#0e7490;">🌊 River flow</strong> is the live discharge at USGS gage <strong>11446500</strong> (American River at Fair Oaks), in cubic feet per second. Water flows downstream from Folsom/Lake Natoma (east) to the Sacramento River (west). Higher flow means colder, faster, more dangerous water; releases from Nimbus Dam can change it quickly.</p>
           <a href="https://arcg.is/0ea0zq" target="_blank" rel="noopener"
@@ -411,23 +411,18 @@ function habOpacity(obs){
   if(age <= 60) return 0.92;
   return Math.max(0.22, Math.min(0.92, 0.92 - ((age-60)/1400)*0.7));  // fade to ~0.22 over ~4 yrs
 }
-// Organic "splotch" / cyanobacterial-colony marker: blobby cell cluster, filled by
-// advisory color, overall opacity set by recency.
+// Cyanobacteria-cluster marker: the hab-marker.png silhouette filled with the
+// advisory color via CSS mask, overall opacity set by recency.
+const HAB_SIZE = 38;
 function habIcon(color, opacity){
   const o = opacity==null ? 0.85 : opacity;
+  const mask = `url(hab-marker.png) center/contain no-repeat`;
   return L.divIcon({
     className:'',
-    html:`<svg width="30" height="30" viewBox="0 0 30 30" xmlns="http://www.w3.org/2000/svg" style="display:block;overflow:visible;filter:drop-shadow(0 1px 1.5px rgba(0,0,0,.3));">`
-        +`<g opacity="${o.toFixed(2)}">`
-        // irregular blobby colony outline
-        +`<path d="M15 3.2c3.1-.7 6 .6 7.7 2.9 1 1.4 1 2.7 2.2 3.9 1.6 1.6 2.2 3.7 1.2 5.8-.8 1.7-2.4 2.2-3.3 3.7-1 1.7-1.3 3.7-3.3 4.8-2.2 1.2-4.4.6-6.7 1-2 .4-3.9 1-5.7-.2-1.8-1.2-1.9-3.2-3.2-4.9-1.2-1.6-3-2.6-3.2-4.8-.2-2.1 1.2-3.5 2.1-5.2.8-1.6.7-3.4 2.3-4.7C8.9 4 11.8 3.9 15 3.2Z" fill="${color}" stroke="#ffffff" stroke-width="1.3" stroke-linejoin="round"/>`
-        // suggested internal cells
-        +`<circle cx="11.5" cy="13" r="2.4" fill="#fff" opacity="0.5"/>`
-        +`<circle cx="17.5" cy="16" r="1.9" fill="#fff" opacity="0.4"/>`
-        +`<circle cx="16.5" cy="10.5" r="1.4" fill="#fff" opacity="0.42"/>`
-        +`<circle cx="12" cy="18" r="1.2" fill="#fff" opacity="0.32"/>`
-        +`</g></svg>`,
-    iconSize:[30,30], iconAnchor:[15,15]
+    html:`<div style="width:${HAB_SIZE}px;height:${HAB_SIZE}px;opacity:${o.toFixed(2)};`
+        +`background-color:${color};-webkit-mask:${mask};mask:${mask};`
+        +`filter:drop-shadow(0 1px 1.5px rgba(0,0,0,.35));"></div>`,
+    iconSize:[HAB_SIZE,HAB_SIZE], iconAnchor:[HAB_SIZE/2,HAB_SIZE/2]
   });
 }
 function drawHabs(){
@@ -889,11 +884,12 @@ function habLegendHTML(){
   if(!HABS.length) return '';
   const present = {};
   HABS.forEach(b=>{ const t=ADV[b.tier]?b.tier:'Other'; present[t]=(present[t]||0)+1; });
+  const swatch = c => `<span style="width:14px;height:14px;flex-shrink:0;background-color:${c};-webkit-mask:url(hab-marker.png) center/contain no-repeat;mask:url(hab-marker.png) center/contain no-repeat;"></span>`;
   const rows = Object.entries(ADV).sort((a,b)=>a[1].order-b[1].order).filter(([k])=>present[k])
-    .map(([k,m])=>`<div class="map-leg-row"><span style="width:12px;height:11px;flex-shrink:0;background:${m.color};border:1px solid #fff;border-radius:60% 40% 55% 45% / 50% 60% 40% 55%;"></span><span>${lang==='en'?m.label:m.label_es} <span style="color:var(--sub)">${present[k]}</span></span></div>`).join('');
+    .map(([k,m])=>`<div class="map-leg-row">${swatch(m.color)}<span>${lang==='en'?m.label:m.label_es} <span style="color:var(--sub)">${present[k]}</span></span></div>`).join('');
   return `<div class="map-leg-row" style="margin-top:5px;border-top:1px solid var(--border);padding-top:4px;font-weight:700;color:#166534;">🦠 ${lang==='en'?'Algal blooms':'Floraciones'}</div>`
     + rows
-    + `<div class="map-leg-row" style="font-size:.62rem;color:var(--sub);"><span style="display:flex;gap:2px;flex-shrink:0;"><span style="width:8px;height:8px;background:#166534;border-radius:60% 40% 55% 45%;opacity:.92;"></span><span style="width:8px;height:8px;background:#166534;border-radius:60% 40% 55% 45%;opacity:.3;"></span></span><span>${lang==='en'?'bold = recent · faded = older':'reciente / antiguo'}</span></div>`;
+    + `<div class="map-leg-row" style="font-size:.62rem;color:var(--sub);"><span style="display:flex;gap:2px;flex-shrink:0;"><span style="width:11px;height:11px;background-color:#166534;-webkit-mask:url(hab-marker.png) center/contain no-repeat;mask:url(hab-marker.png) center/contain no-repeat;opacity:.92;"></span><span style="width:11px;height:11px;background-color:#166534;-webkit-mask:url(hab-marker.png) center/contain no-repeat;mask:url(hab-marker.png) center/contain no-repeat;opacity:.3;"></span></span><span>${lang==='en'?'bold = recent · faded = older':'reciente / antiguo'}</span></div>`;
 }
 
 function toggleStatus(key, el){
