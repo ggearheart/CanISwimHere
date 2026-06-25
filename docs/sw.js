@@ -1,6 +1,6 @@
 // Service worker for "Can I Swim Here?" — uses relative URLs so it works under
 // any base path (local dev or GitHub Pages project subfolder).
-const CACHE = 'caniswim-v1';
+const CACHE = 'caniswim-v2';
 const DATA_CACHE = 'caniswim-data-v1';
 const SHELL = [
   './',
@@ -30,7 +30,7 @@ self.addEventListener('activate', e => {
 
 self.addEventListener('fetch', e => {
   const url = e.request.url;
-  const isData = url.includes('stations.json') || url.includes('data.ca.gov');
+  const isData = url.includes('stations.json') || url.includes('hazards.json') || url.includes('data.ca.gov');
   const isShell = url.includes('index.html') || url.endsWith('/');
 
   if (isData) {
