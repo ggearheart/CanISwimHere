@@ -37,12 +37,19 @@ A recent **geometric mean** (last 6 samples) is shown alongside the single-sampl
 - Full-screen interactive map of monitoring stations, color-coded by swim status
 - **Swim summary** anywhere: tap **📍 Near Me** for your location, or **tap any spot on the map** to check it. Gives one "Safe to swim / Use caution / Avoid water contact" verdict with a tri-slice status icon (bacteria · algal blooms · physical hazards) and a one-line readout of each category — naming the specific site and the date of the last water-quality data. Only *recent* blooms (within 120 days, 1.5 mi) count as an active advisory; older reports are shown as historical context
 - Per-station detail: latest result, recent geomean, full sample-history sparkline with threshold lines, and a sortable recent-sample table
+- **Popular swim-spot heatmap** (blue/cyan) of well-known river-access beaches, with tappable spot details
 - **Harmful algal bloom (HAB) layer** (teardrop pins) for the Sacramento / American & Sacramento River area, color-coded by advisory level
 - **Drowning-hazard markers** (red diamonds) for locally-known dangerous spots
 - Printable bilingual (English / Spanish) advisory signs per status level
 - Download stations or a single station's history as CSV
 - Installable PWA with offline caching of the last-loaded data
 - Loads a pre-built `stations.json` for speed, with a live CA Open Data (CKAN) fallback
+
+## Popular swim spots (heatmap)
+
+`docs/swim_spots.json` is a hand-curated list of well-documented public swimming / river-access beaches on the Lower American River and at the confluence (Tiscornia, Paradise Beach, Sutter's Landing, River Bend, Sunrise, Sailor Bar, Ancil Hoffman, Clay Banks, Negro Bar…), each with an approximate `intensity` popularity weight. They render as a blue/cyan **heatmap** (via [leaflet.heat](https://github.com/Leaflet/Leaflet.heat)) plus small tappable dots.
+
+> **This is not Strava data.** Strava's global heatmap is proprietary, aggregated, and gated behind an authenticated session, so its underlying GPS tracks aren't available to ingest. This layer is instead compiled from public park/parkway guides and local knowledge — approximate and freely editable. **Popularity is not safety:** several popular spots (e.g. Clay Banks, the confluence) are also drowning hazards. The "Near Me" / tap summary flags when you're at a known swim area.
 
 ## Harmful algal blooms
 

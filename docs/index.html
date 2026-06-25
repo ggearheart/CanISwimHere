@@ -152,6 +152,7 @@ header{background:var(--ca-blue);color:#fff;padding:0 16px;height:52px;
 </style>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 </head>
 <body>
@@ -179,6 +180,7 @@ header{background:var(--ca-blue);color:#fff;padding:0 16px;height:52px;
       <div class="legend" id="legend"></div>
       <button id="hazardBtn" onclick="toggleHazards(this)" style="width:100%;margin-bottom:7px;padding:7px 0;border:1px solid #b91c1c;border-radius:var(--radius);background:#fef2f2;cursor:pointer;font-size:.75rem;font-weight:700;color:#991b1b;touch-action:manipulation;">⚠️ <span id="hazardBtnLbl">Hide drowning hazards</span></button>
       <button id="habBtn" onclick="toggleHabs(this)" style="width:100%;margin-bottom:7px;padding:7px 0;border:1px solid #166534;border-radius:var(--radius);background:#f0fdf4;cursor:pointer;font-size:.75rem;font-weight:700;color:#166534;touch-action:manipulation;">🦠 <span id="habBtnLbl">Hide algal blooms</span></button>
+      <button id="swimBtn" onclick="toggleSwim(this)" style="width:100%;margin-bottom:7px;padding:7px 0;border:1px solid #0e7490;border-radius:var(--radius);background:#ecfeff;cursor:pointer;font-size:.75rem;font-weight:700;color:#0e7490;touch-action:manipulation;">🏊 <span id="swimBtnLbl">Hide popular swim spots</span></button>
       <div class="stats-bar" id="statsBar"></div>
       <button id="downloadBtn" onclick="downloadFiltered()" style="width:100%;margin-bottom:7px;padding:6px 0;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg);cursor:pointer;font-size:.75rem;font-weight:600;color:var(--sub);">⬇ Download Stations CSV</button>
 
@@ -197,6 +199,7 @@ header{background:var(--ca-blue);color:#fff;padding:0 16px;height:52px;
           </ul>
           <p style="margin:0 0 8px;">Bacteria levels change quickly with rain, runoff, and flow. A single result is a snapshot, not a guarantee.</p>
           <p style="margin:0 0 8px;padding:7px 9px;background:#f0fdf4;border-left:3px solid #166534;border-radius:0 4px 4px 0;"><strong style="color:#166534;">🦠 Algal blooms</strong> shown as teardrop pins are harmful algal bloom (HAB) reports from the CA State Water Board <strong>FHAB program</strong>, for the Sacramento / American &amp; Sacramento River area. Most are reported by the public; only some are lab-tested, so cyanotoxins may be present even when not confirmed.</p>
+          <p style="margin:0 0 8px;padding:7px 9px;background:#ecfeff;border-left:3px solid #0e7490;border-radius:0 4px 4px 0;"><strong style="color:#0e7490;">🏊 Popular swim spots</strong> are shown as a blue heatmap of well-known river-access beaches (Tiscornia, Paradise Beach, Sunrise, River Bend…). This is a <strong>curated reference</strong> compiled from public parkway guides — not Strava data (which is proprietary) and not from monitoring. <strong>Popularity is not safety</strong> — some popular spots are also drowning hazards.</p>
           <p style="margin:0 0 8px;padding:7px 9px;background:#fef2f2;border-left:3px solid #b91c1c;border-radius:0 4px 4px 0;"><strong style="color:#991b1b;">⚠️ Drowning hazards</strong> shown as red diamonds (e.g. Clay Banks, the Tiscornia/Discovery Park confluence) are a <strong>curated safety reference</strong> — not from the monitoring data and approximate. Water can be bacteriologically "Good" and still be deadly to swim due to cold water and current.</p>
           <a href="https://arcg.is/0ea0zq" target="_blank" rel="noopener"
              style="display:block;text-align:center;padding:7px;background:var(--ca-blue);color:#fff;border-radius:var(--radius);font-size:.74rem;font-weight:700;text-decoration:none;margin-bottom:8px;">
@@ -467,6 +470,59 @@ function toggleHabs(btn){
   document.getElementById('habBtnLbl').textContent = base + (HABS.length?` (${HABS.length})`:'');
   btn.style.opacity = showHabs ? '1' : '.6';
   drawHabs();
+}
+
+// ── POPULAR SWIM SPOTS (curated heatmap — where people actually swim) ─────────────
+let SWIM_SPOTS = [];
+let showSwim = true;
+let swimHeat = null;                          // leaflet.heat layer (renders below markers)
+const swimDots = L.layerGroup().addTo(map);   // small clickable identity dots
+// Blue/cyan "water" gradient — deliberately NOT the green/red safety colors.
+const SWIM_GRADIENT = {0.2:'#1e3a8a',0.4:'#2563eb',0.6:'#0891b2',0.8:'#22d3ee',1.0:'#a5f3fc'};
+function buildSwim(){
+  if(swimHeat){ map.removeLayer(swimHeat); swimHeat=null; }
+  swimDots.clearLayers();
+  if(!showSwim || !SWIM_SPOTS.length) return;
+  if(typeof L.heatLayer==='function'){
+    const pts = SWIM_SPOTS.filter(s=>s.lat!=null).map(s=>[s.lat,s.lon,s.intensity||0.5]);
+    swimHeat = L.heatLayer(pts, {radius:34, blur:26, minOpacity:0.28, max:1.0, gradient:SWIM_GRADIENT});
+    swimHeat.addTo(map);
+  }
+  SWIM_SPOTS.forEach(s=>{
+    if(s.lat==null) return;
+    const mk = L.circleMarker([s.lat,s.lon], {radius:4, fillColor:'#0e7490', fillOpacity:0.9, color:'#fff', weight:1.5, pane:'markerPane'});
+    mk.on('mouseover', e=>{ if(!pinnedTip) showSwimTip(s, e.originalEvent.clientX, e.originalEvent.clientY); });
+    mk.on('mouseout', ()=>{ if(!pinnedTip) tip.style.display='none'; });
+    mk.on('click', e=>{ L.DomEvent.stopPropagation(e); e.originalEvent.stopPropagation(); pinnedTip=true; showSwimTip(s, e.originalEvent.clientX, e.originalEvent.clientY, true); });
+    mk.addTo(swimDots);
+  });
+}
+function showSwimTip(s, cx, cy, pinned){
+  const pct = Math.round((s.intensity||0)*100);
+  tip.innerHTML = `
+    <div style="display:none;" id="tip-close-handle"><div style="width:36px;height:4px;background:#cbd5e1;border-radius:2px;margin:0 auto 10px;"></div></div>
+    <div style="display:inline-block;background:#0e7490;color:#fff;font-size:.66rem;font-weight:800;text-transform:uppercase;letter-spacing:.05em;padding:3px 9px;border-radius:12px;margin-bottom:6px;">🏊 ${lang==='en'?'Popular Swim Spot':'Lugar Popular'}</div>
+    <h3 style="color:#0e7490;">${s.name}</h3>
+    <div style="font-size:.7rem;color:#64748b;margin-bottom:6px;">${lang==='en'?'Popularity':'Popularidad'}: <strong style="color:#0e7490;">${pct}%</strong> <span style="color:#94a3b8;">(${lang==='en'?'curated estimate':'estimado'})</span></div>
+    ${s.note?`<div style="font-size:.74rem;color:#475569;line-height:1.5;">${s.note}</div>`:''}
+    <div style="margin-top:8px;font-size:.66rem;color:#94a3b8;line-height:1.4;">${lang==='en'?'Curated reference — popularity is not safety. Tap the water nearby for a swim-safety summary.':'Referencia curada — la popularidad no es seguridad.'}</div>`;
+  tip.style.display='block';
+  tip.style.pointerEvents = pinned ? 'auto' : 'none';
+  const handle=document.getElementById('tip-close-handle');
+  if(handle) handle.style.display = window.innerWidth<=768 ? 'block' : 'none';
+  if(window.innerWidth>768){
+    const tw=300, th=200, vw=window.innerWidth, vh=window.innerHeight;
+    tip.style.left=(cx+tw+12>vw?cx-tw-8:cx+12)+'px';
+    tip.style.top=(cy+th+12>vh?Math.max(8,cy-th):cy+12)+'px';
+  }
+}
+function toggleSwim(btn){
+  showSwim = !showSwim;
+  document.getElementById('swimBtnLbl').textContent = showSwim
+    ? (lang==='en'?'Hide popular swim spots':'Ocultar lugares')
+    : (lang==='en'?'Show popular swim spots':'Mostrar lugares');
+  btn.style.opacity = showSwim ? '1' : '.6';
+  buildSwim();
 }
 
 // ── HOVER / TOOLTIP ──────────────────────────────────────────────────────────────
@@ -803,6 +859,7 @@ function buildLegend(){
     Object.entries(STATUS).sort((a,b)=>a[1].order-b[1].order).filter(([k])=>k!=='Unknown')
     .map(([k,m])=>`<div class="map-leg-row"><span class="map-leg-dot" style="background:${m.color}"></span><span>${lang==='en'?m.label:m.label_es} <span style="color:var(--sub)">${ranges[k]}</span></span></div>`).join('')
     + `<div class="map-leg-row" style="margin-top:4px;border-top:1px solid var(--border);padding-top:4px;"><span style="width:10px;height:10px;flex-shrink:0;transform:rotate(45deg);background:#7f1d1d;border-radius:2px;"></span><span>${lang==='en'?'Drowning hazard':'Peligro de ahogamiento'}</span></div>`
+    + (SWIM_SPOTS.length?`<div class="map-leg-row" style="margin-top:2px;"><span style="width:11px;height:11px;flex-shrink:0;border-radius:50%;background:radial-gradient(circle,#22d3ee,#2563eb);"></span><span>${lang==='en'?'Popular swim spot':'Lugar popular para nadar'}</span></div>`:'')
     + habLegendHTML();
 }
 function habLegendHTML(){
@@ -934,6 +991,11 @@ function showSwimSummary(qLat, qLon, opts){
   const hazColor=hz?'#7f1d1d':'#15803D';
   const hazStatus=hz?(lang==='en'?'Known hazard nearby':'Peligro conocido cerca'):(lang==='en'?'None within 2 mi':'Ninguno en 2 mi');
 
+  // Popular swim spot at this location? (context only — popularity ≠ safety)
+  let swimNear=null,swimD=Infinity;
+  for(const s of SWIM_SPOTS){ if(s.lat==null) continue; const d=distKm(qLat,qLon,s.lat,s.lon); if(d<swimD){swimD=d;swimNear=s;} }
+  const atSwimSpot = swimNear && swimD<=milesToKm(0.4);
+
   // ── Overall verdict (0 safe · 1 caution · 2 avoid) ──
   let level=0;
   if(fStatus==='Unsafe') level=2; else if(['Warning','Caution','Unknown'].includes(fStatus)) level=Math.max(level,1);
@@ -963,6 +1025,7 @@ function showSwimSummary(qLat, qLon, opts){
       ${catRow('🦠', lang==='en'?'Algal blooms':'Floraciones', habColor, habStatus, habName||'', habDate, false)}
       ${catRow('⚠️', lang==='en'?'Hazards':'Peligros', hazColor, hazStatus, hz?hz.name:'', null, false)}
     </div>
+    ${atSwimSpot?`<div style="margin-top:7px;font-size:.68rem;color:#0e7490;background:#ecfeff;border-radius:6px;padding:5px 8px;">🏊 <strong>${lang==='en'?'Popular swim area':'Zona popular para nadar'}:</strong> ${swimNear.name}</div>`:''}
     ${latestDate?`<div style="margin-top:7px;font-size:.62rem;color:#94a3b8;border-top:1px solid #f1f5f9;padding-top:5px;">${lang==='en'?'Last water-quality data':'Últimos datos'}: <strong style="color:#64748b;">${latestDate}</strong>${isStale(latestDate)?(lang==='en'?' · demo data, over a year old':' · datos demo'):''}</div>`:''}`;
 }
 function closeSwimSummary(){
@@ -987,6 +1050,8 @@ function setLang(l, btn){
   if(hbl) hbl.textContent = showHazards ? (l==='en'?'Hide drowning hazards':'Ocultar peligros') : (l==='en'?'Show drowning hazards':'Mostrar peligros');
   const hab=document.getElementById('habBtnLbl');
   if(hab) hab.textContent = (showHabs ? (l==='en'?'Hide algal blooms':'Ocultar floraciones') : (l==='en'?'Show algal blooms':'Mostrar floraciones')) + (HABS.length?` (${HABS.length})`:'');
+  const sw=document.getElementById('swimBtnLbl');
+  if(sw) sw.textContent = showSwim ? (l==='en'?'Hide popular swim spots':'Ocultar lugares') : (l==='en'?'Show popular swim spots':'Mostrar lugares');
   const th=document.getElementById('tap-hint-lbl');
   if(th) th.textContent = l==='en'?'Tap any spot — or 📍 Near Me — for a swim summary':'Toque cualquier lugar — o 📍 — para un resumen';
   buildLegend();
@@ -1113,6 +1178,9 @@ fetch('blooms.json').then(r=>r.json()).then(d=>{
   if(lbl) lbl.textContent = (lang==='en'?'Hide algal blooms':'Ocultar floraciones') + (HABS.length?` (${HABS.length})`:'');
   buildLegend();
 }).catch(()=>{});
+
+// Popular swim spots (curated heatmap)
+fetch('swim_spots.json').then(r=>r.json()).then(d=>{ SWIM_SPOTS=d.spots||[]; buildSwim(); buildLegend(); }).catch(()=>{});
 
 // QR for the river map
 (function(){
