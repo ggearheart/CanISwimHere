@@ -37,11 +37,20 @@ A recent **geometric mean** (last 6 samples) is shown alongside the single-sampl
 - Full-screen interactive map of monitoring stations, color-coded by swim status
 - "Can I swim here?" verdict for the nearest station when you tap **📍 Near Me**
 - Per-station detail: latest result, recent geomean, full sample-history sparkline with threshold lines, and a sortable recent-sample table
+- **Harmful algal bloom (HAB) layer** (teardrop pins) for the Sacramento / American & Sacramento River area, color-coded by advisory level
 - **Drowning-hazard markers** (red diamonds) for locally-known dangerous spots
 - Printable bilingual (English / Spanish) advisory signs per status level
 - Download stations or a single station's history as CSV
 - Installable PWA with offline caching of the last-loaded data
 - Loads a pre-built `stations.json` for speed, with a live CA Open Data (CKAN) fallback
+
+## Harmful algal blooms
+
+A second hazard layer maps **harmful algal bloom (HAB)** reports from the CA State Water Board **FHAB program** ([dataset](https://data.ca.gov/dataset/surface-water-freshwater-harmful-algal-blooms)), filtered to a Sacramento-area bounding box covering the Lower American River, the Sacramento River, Folsom Lake / Lake Natoma, and local park lakes. Blooms show as teardrop pins colored by advisory level (Danger / Warning / Caution / Watch / Algal Mat / Reported), with lab-confirmed cyanotoxins and illness reports flagged.
+
+`build_data.py` builds `docs/blooms.json` (fetched statewide, filtered to the bbox) alongside `stations.json`. Edit `BBOX` in `build_data.py` to change the area.
+
+> HABs and E. coli are **different hazards** — a site can be clear of one and not the other. Most blooms are reported by the public and only some are lab-tested, so cyanotoxins may be present even when not confirmed.
 
 ## Drowning hazards
 

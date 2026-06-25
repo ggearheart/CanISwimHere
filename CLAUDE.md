@@ -27,6 +27,17 @@ EPA 2012 recreational criteria. Defined in `THRESH` (JS) and top of `build_data.
 - Good `#15803D` · Caution `#A16207` · Warning `#C2410C` · Unsafe `#B91C1C` · No Data `#374151`
 - CA Blue `#005566` · CA Gold `#FDB913`
 
+## Harmful algal blooms (HABs)
+- `build_data.py:build_habs()` fetches the statewide FHAB bloom + lab resources,
+  filters to `BBOX` (Sacramento area), writes `docs/blooms.json`
+  `{bbox, source, blooms:[{id,name,county,rwb,lat,lon,obs,status,adv,tier,detail,
+  size,texture,landmark,drinking_water,illness,lab_verified,lab_toxins}]}`.
+- `tier` ∈ Danger/Warning/Caution/Watch/Mat/Other (advisory colors in `ADV`).
+- index.html renders blooms as SVG teardrop **pins** (`habIcon`/`drawHabs`/`showHabTip`)
+  — distinct from E. coli circles and hazard diamonds. Toggle `#habBtn`.
+- FHAB resources: blooms `c6a36b91-ad38-4611-8750-87ee99e497dd`,
+  lab `9d4e1df4-0cd6-4165-9e63-effcafd9dccc`.
+
 ## Drowning hazards
 - `docs/hazards.json` is a hand-curated list of physical hazards (NOT from the
   monitoring data), rendered as red ⚠️ diamond markers via `drawHazards()` /

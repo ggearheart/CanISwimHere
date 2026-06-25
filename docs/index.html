@@ -178,6 +178,7 @@ header{background:var(--ca-blue);color:#fff;padding:0 16px;height:52px;
       <div class="sb-label" id="lbl-status">Swim Status <span style="font-weight:400;text-transform:none;letter-spacing:0;">(latest sample)</span></div>
       <div class="legend" id="legend"></div>
       <button id="hazardBtn" onclick="toggleHazards(this)" style="width:100%;margin-bottom:7px;padding:7px 0;border:1px solid #b91c1c;border-radius:var(--radius);background:#fef2f2;cursor:pointer;font-size:.75rem;font-weight:700;color:#991b1b;touch-action:manipulation;">⚠️ <span id="hazardBtnLbl">Hide drowning hazards</span></button>
+      <button id="habBtn" onclick="toggleHabs(this)" style="width:100%;margin-bottom:7px;padding:7px 0;border:1px solid #166534;border-radius:var(--radius);background:#f0fdf4;cursor:pointer;font-size:.75rem;font-weight:700;color:#166534;touch-action:manipulation;">🦠 <span id="habBtnLbl">Hide algal blooms</span></button>
       <div class="stats-bar" id="statsBar"></div>
       <button id="downloadBtn" onclick="downloadFiltered()" style="width:100%;margin-bottom:7px;padding:6px 0;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg);cursor:pointer;font-size:.75rem;font-weight:600;color:var(--sub);">⬇ Download Stations CSV</button>
 
@@ -195,6 +196,7 @@ header{background:var(--ca-blue);color:#fff;padding:0 16px;height:52px;
             <li><strong style="color:var(--unsafe)">Unsafe</strong> — &gt;410 (STV)</li>
           </ul>
           <p style="margin:0 0 8px;">Bacteria levels change quickly with rain, runoff, and flow. A single result is a snapshot, not a guarantee.</p>
+          <p style="margin:0 0 8px;padding:7px 9px;background:#f0fdf4;border-left:3px solid #166534;border-radius:0 4px 4px 0;"><strong style="color:#166534;">🦠 Algal blooms</strong> shown as teardrop pins are harmful algal bloom (HAB) reports from the CA State Water Board <strong>FHAB program</strong>, for the Sacramento / American &amp; Sacramento River area. Most are reported by the public; only some are lab-tested, so cyanotoxins may be present even when not confirmed.</p>
           <p style="margin:0 0 8px;padding:7px 9px;background:#fef2f2;border-left:3px solid #b91c1c;border-radius:0 4px 4px 0;"><strong style="color:#991b1b;">⚠️ Drowning hazards</strong> shown as red diamonds (e.g. Clay Banks, the Tiscornia/Discovery Park confluence) are a <strong>curated safety reference</strong> — not from the monitoring data and approximate. Water can be bacteriologically "Good" and still be deadly to swim due to cold water and current.</p>
           <a href="https://arcg.is/0ea0zq" target="_blank" rel="noopener"
              style="display:block;text-align:center;padding:7px;background:var(--ca-blue);color:#fff;border-radius:var(--radius);font-size:.74rem;font-weight:700;text-decoration:none;margin-bottom:8px;">
@@ -360,6 +362,103 @@ function toggleHazards(btn){
     : (lang==='en'?'Show drowning hazards':'Mostrar peligros');
   btn.style.opacity = showHazards ? '1' : '.6';
   drawHazards();
+}
+
+// ── HARMFUL ALGAL BLOOMS (FHAB program — Sacramento-area subset) ──────────────────
+let HABS = [];
+let showHabs = true;
+const habLayer = L.layerGroup().addTo(map);
+const ADV = {
+  Danger:  {color:'#B91C1C', label:'Danger',         label_es:'Peligro',     order:0},
+  Warning: {color:'#C2410C', label:'Warning',        label_es:'Advertencia', order:1},
+  Caution: {color:'#A16207', label:'Caution',        label_es:'Precaución',  order:2},
+  Watch:   {color:'#1D4ED8', label:'Watch/Awareness',label_es:'Vigilancia',  order:3},
+  Mat:     {color:'#7E22CE', label:'Algal Mat',      label_es:'Tapete Algal',order:4},
+  Other:   {color:'#6B7280', label:'Bloom Reported', label_es:'Floración',   order:5},
+};
+const HAB_GUIDE = {
+  en:{
+    Danger:'⛔ Danger advisory — stay out of the water. Keep children and pets away; cyanotoxins can be fatal to pets within minutes.',
+    Warning:'⚠️ Warning advisory — avoid all water contact. No swimming or wading, and keep pets away from the water.',
+    Caution:'🟡 Caution advisory — avoid algae and scum. Don’t swallow water; rinse off after any contact.',
+    Watch:'🟢 Watch — a bloom was observed. Avoid contact with visible scum or discolored water.',
+    Mat:'🟤 Toxic algal mat — do not touch mat material. Keep children and pets away from bottom sediment and detached mats.',
+    Other:'ℹ️ Bloom reported — monitoring may be in progress. Avoid visible scum and discolored water as a precaution.',
+  },
+  es:{
+    Danger:'⛔ Aviso de peligro — no entre al agua. Mantenga a niños y mascotas alejados; las cianotoxinas pueden ser fatales en minutos.',
+    Warning:'⚠️ Aviso de advertencia — evite todo contacto. No nade ni vadee, y mantenga a las mascotas fuera del agua.',
+    Caution:'🟡 Aviso de precaución — evite algas y espuma. No trague agua; enjuáguese después del contacto.',
+    Watch:'🟢 Vigilancia — se observó una floración. Evite el contacto con espuma o agua decolorada.',
+    Mat:'🟤 Tapete algal tóxico — no toque el material. Mantenga a niños y mascotas lejos del sedimento y los tapetes desprendidos.',
+    Other:'ℹ️ Floración reportada — puede haber monitoreo en curso. Evite la espuma visible y el agua decolorada por precaución.',
+  }
+};
+function habIcon(color){
+  return L.divIcon({
+    className:'',
+    html:`<svg width="22" height="30" viewBox="0 0 22 30" xmlns="http://www.w3.org/2000/svg" style="filter:drop-shadow(0 1px 2px rgba(0,0,0,.4));display:block;">`
+        +`<path d="M11 0C5 0 0 4.6 0 10.4 0 18 11 30 11 30s11-12 11-19.6C22 4.6 17 0 11 0z" fill="${color}" stroke="#fff" stroke-width="1.5"/>`
+        +`<circle cx="11" cy="10.5" r="3.6" fill="#fff" opacity="0.95"/></svg>`,
+    iconSize:[22,30], iconAnchor:[11,30]
+  });
+}
+function drawHabs(){
+  habLayer.clearLayers();
+  if(!showHabs) return;
+  // draw least-severe first so Danger/Warning pins land on top
+  [...HABS].sort((a,b)=>(ADV[b.tier]||ADV.Other).order-(ADV[a.tier]||ADV.Other).order).forEach(b=>{
+    if(b.lat==null||b.lon==null) return;
+    const m = ADV[b.tier]||ADV.Other;
+    const mk = L.marker([b.lat,b.lon], {icon:habIcon(m.color), zIndexOffset:300});
+    mk.on('mouseover', e=>{ if(!pinnedTip) showHabTip(b, e.originalEvent.clientX, e.originalEvent.clientY); });
+    mk.on('mouseout', ()=>{ if(!pinnedTip) tip.style.display='none'; });
+    mk.on('click', e=>{ L.DomEvent.stopPropagation(e); pinnedTip=true; showHabTip(b, e.originalEvent.clientX, e.originalEvent.clientY, true); });
+    mk.addTo(habLayer);
+  });
+}
+function showHabTip(b, cx, cy, pinned){
+  const m = ADV[b.tier]||ADV.Other;
+  const g = HAB_GUIDE[lang][b.tier]||HAB_GUIDE[lang].Other;
+  const obs = b.obs ? b.obs.split('T')[0] : '—';
+  const rows = [
+    [lang==='en'?'Observed':'Observado', obs],
+    [lang==='en'?'Status':'Estado', b.status||'—'],
+    b.county?[lang==='en'?'County':'Condado', b.county]:null,
+    b.size?[lang==='en'?'Size':'Tamaño', b.size]:null,
+  ].filter(Boolean);
+  const toxBadge = b.lab_verified
+    ? `<span style="display:inline-flex;align-items:center;gap:4px;background:#0e7490;color:#fff;font-size:.68rem;font-weight:700;padding:2px 7px;border-radius:4px;">🔬 ${b.lab_toxins&&b.lab_toxins.length?b.lab_toxins.join(', '):(lang==='en'?'Lab-confirmed':'Confirmado')}</span>` : '';
+  const illBadge = b.illness
+    ? `<span style="display:inline-flex;align-items:center;gap:4px;background:#b91c1c;color:#fff;font-size:.68rem;font-weight:700;padding:2px 7px;border-radius:4px;">🤒 ${lang==='en'?'Illness reported':'Enfermedad'}</span>` : '';
+  tip.innerHTML = `
+    <div style="display:none;" id="tip-close-handle"><div style="width:36px;height:4px;background:#cbd5e1;border-radius:2px;margin:0 auto 10px;"></div></div>
+    <div style="display:inline-block;background:#166534;color:#fff;font-size:.66rem;font-weight:800;text-transform:uppercase;letter-spacing:.05em;padding:3px 9px;border-radius:12px;margin-bottom:6px;">🦠 ${lang==='en'?'Algal Bloom':'Floración de Algas'}</div>
+    <h3>${b.name||(lang==='en'?'Unnamed water body':'Cuerpo de agua')}</h3>
+    <div style="display:flex;align-items:center;flex-wrap:wrap;gap:5px;margin-bottom:5px;">
+      <span class="t-badge" style="background:${m.color};margin:0;">${lang==='en'?m.label:m.label_es}</span>${toxBadge}${illBadge}
+    </div>
+    <table>${rows.map(([k,v])=>`<tr><td>${k}</td><td>${v}</td></tr>`).join('')}</table>
+    <div class="guidance g-${b.tier==='Danger'||b.tier==='Mat'?'Unsafe':(b.tier==='Warning'?'Warning':(b.tier==='Caution'?'Caution':'Good'))}" style="margin-top:7px;"><strong>${lang==='en'?'Advisory guidance':'Recomendación'}</strong>${g}</div>
+    ${b.detail?`<div style="margin-top:7px;padding:7px 9px;background:#f8fafc;border-left:3px solid #cbd5e1;border-radius:0 4px 4px 0;font-size:.72rem;color:#475569;line-height:1.5;"><strong style="display:block;margin-bottom:2px;color:#334155;">${lang==='en'?'Details':'Detalles'}</strong>${b.detail}</div>`:''}
+    <div style="margin-top:8px;font-size:.66rem;color:#94a3b8;line-height:1.4;">${lang==='en'?'Source: CA State Water Board FHAB program. Most blooms are reported by the public; only some are lab-tested for toxins, so toxins may be present even when not confirmed.':'Fuente: programa FHAB de la Junta de Aguas de CA.'}</div>
+  `;
+  tip.style.display='block';
+  tip.style.pointerEvents = pinned ? 'auto' : 'none';
+  const handle=document.getElementById('tip-close-handle');
+  if(handle) handle.style.display = window.innerWidth<=768 ? 'block' : 'none';
+  if(window.innerWidth>768){
+    const tw=300, th=240, vw=window.innerWidth, vh=window.innerHeight;
+    tip.style.left=(cx+tw+12>vw?cx-tw-8:cx+12)+'px';
+    tip.style.top=(cy+th+12>vh?Math.max(8,cy-th):cy+12)+'px';
+  }
+}
+function toggleHabs(btn){
+  showHabs = !showHabs;
+  const base = showHabs ? (lang==='en'?'Hide algal blooms':'Ocultar floraciones') : (lang==='en'?'Show algal blooms':'Mostrar floraciones');
+  document.getElementById('habBtnLbl').textContent = base + (HABS.length?` (${HABS.length})`:'');
+  btn.style.opacity = showHabs ? '1' : '.6';
+  drawHabs();
 }
 
 // ── HOVER / TOOLTIP ──────────────────────────────────────────────────────────────
@@ -695,7 +794,16 @@ function buildLegend(){
     `<div style="font-weight:700;margin-bottom:4px;color:#334155;">${lang==='en'?'E. coli (MPN/100 mL)':'E. coli (MPN/100 mL)'}</div>` +
     Object.entries(STATUS).sort((a,b)=>a[1].order-b[1].order).filter(([k])=>k!=='Unknown')
     .map(([k,m])=>`<div class="map-leg-row"><span class="map-leg-dot" style="background:${m.color}"></span><span>${lang==='en'?m.label:m.label_es} <span style="color:var(--sub)">${ranges[k]}</span></span></div>`).join('')
-    + `<div class="map-leg-row" style="margin-top:4px;border-top:1px solid var(--border);padding-top:4px;"><span style="width:10px;height:10px;flex-shrink:0;transform:rotate(45deg);background:#7f1d1d;border-radius:2px;"></span><span>${lang==='en'?'Drowning hazard':'Peligro de ahogamiento'}</span></div>`;
+    + `<div class="map-leg-row" style="margin-top:4px;border-top:1px solid var(--border);padding-top:4px;"><span style="width:10px;height:10px;flex-shrink:0;transform:rotate(45deg);background:#7f1d1d;border-radius:2px;"></span><span>${lang==='en'?'Drowning hazard':'Peligro de ahogamiento'}</span></div>`
+    + habLegendHTML();
+}
+function habLegendHTML(){
+  if(!HABS.length) return '';
+  const present = {};
+  HABS.forEach(b=>{ const t=ADV[b.tier]?b.tier:'Other'; present[t]=(present[t]||0)+1; });
+  const rows = Object.entries(ADV).sort((a,b)=>a[1].order-b[1].order).filter(([k])=>present[k])
+    .map(([k,m])=>`<div class="map-leg-row"><span style="width:9px;height:12px;flex-shrink:0;background:${m.color};border-radius:50% 50% 50% 50%/60% 60% 40% 40%;border:1px solid #fff;"></span><span>${lang==='en'?m.label:m.label_es} <span style="color:var(--sub)">${present[k]}</span></span></div>`).join('');
+  return `<div class="map-leg-row" style="margin-top:5px;border-top:1px solid var(--border);padding-top:4px;font-weight:700;color:#166534;">🦠 ${lang==='en'?'Algal blooms':'Floraciones'}</div>` + rows;
 }
 
 function toggleStatus(key, el){
@@ -776,6 +884,8 @@ function setLang(l, btn){
   document.getElementById('search').placeholder = l==='en'?'Station name or area…':'Nombre de estación o área…';
   const hbl=document.getElementById('hazardBtnLbl');
   if(hbl) hbl.textContent = showHazards ? (l==='en'?'Hide drowning hazards':'Ocultar peligros') : (l==='en'?'Show drowning hazards':'Mostrar peligros');
+  const hab=document.getElementById('habBtnLbl');
+  if(hab) hab.textContent = (showHabs ? (l==='en'?'Hide algal blooms':'Ocultar floraciones') : (l==='en'?'Show algal blooms':'Mostrar floraciones')) + (HABS.length?` (${HABS.length})`:'');
   buildLegend();
   document.querySelectorAll('.leg-row').forEach(r=>r.classList.toggle('dimmed', statusFilter.size>0 && !statusFilter.has(r.dataset.key)));
   renderList(filtered); renderStats(filtered); updateSwimHero();
@@ -891,6 +1001,15 @@ new ResizeObserver(resize).observe(document.getElementById('map-wrap'));
 
 // Curated drowning / physical hazards (independent of E. coli data)
 fetch('hazards.json').then(r=>r.json()).then(d=>{ HAZARDS=d.hazards||[]; drawHazards(); }).catch(()=>{});
+
+// Harmful algal blooms (FHAB program, Sacramento-area subset)
+fetch('blooms.json').then(r=>r.json()).then(d=>{
+  HABS = d.blooms||[];
+  drawHabs();
+  const lbl=document.getElementById('habBtnLbl');
+  if(lbl) lbl.textContent = (lang==='en'?'Hide algal blooms':'Ocultar floraciones') + (HABS.length?` (${HABS.length})`:'');
+  buildLegend();
+}).catch(()=>{});
 
 // QR for the river map
 (function(){

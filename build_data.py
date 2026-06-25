@@ -14,12 +14,27 @@ Source dataset:
 import json
 import math
 import os
+import re
 import urllib.request
+
+
+def clean(v):
+    s = str(v if v is not None else "").strip()
+    return None if s in ("", "None", "null", "nan") else s
 
 # CKAN datastore resource: "Draft - Lower American River E. coli Monitoring Results"
 RESOURCE_ID = "fc450fb6-e997-4bcf-b824-1b3ed0f06045"
 PACKAGE_ID = "central-valley-water-board-e-coli-monitoring-results"
 BASE = "https://data.ca.gov/api/3/action"
+
+# ── HAB (harmful algal bloom) sources — statewide FHAB program ──────────────────
+# We fetch statewide and filter to the Sacramento / American & Sacramento River area.
+BLOOM_RES = "c6a36b91-ad38-4611-8750-87ee99e497dd"   # FHAB bloom reports
+LAB_RES = "9d4e1df4-0cd6-4165-9e63-effcafd9dccc"      # FHAB lab results (toxins)
+# Sacramento-area bounding box (Lower American River, Sacramento River, local lakes)
+BBOX = {"lat_min": 38.3, "lat_max": 38.85, "lon_min": -121.9, "lon_max": -121.0}
+
+HABS_OUT = os.path.join(os.path.dirname(__file__), "docs", "blooms.json")
 
 # ── EPA / CA recreational water-quality thresholds for E. coli (MPN/100 mL) ──
 # 2012 EPA RWQC: geometric-mean criterion 126, statistical threshold value 410.
@@ -44,13 +59,13 @@ def status_for(result):
     return "Unsafe"
 
 
-def fetch_all():
-    """Page through the CKAN datastore and return all records."""
+def fetch_all(resource_id=RESOURCE_ID):
+    """Page through the CKAN datastore and return all records for a resource."""
     records = []
     offset = 0
     limit = 1000
     while True:
-        url = (f"{BASE}/datastore_search?resource_id={RESOURCE_ID}"
+        url = (f"{BASE}/datastore_search?resource_id={resource_id}"
                f"&limit={limit}&offset={offset}")
         with urllib.request.urlopen(url, timeout=60) as resp:
             data = json.load(resp)
@@ -63,8 +78,8 @@ def fetch_all():
     return records
 
 
-def fetch_last_modified():
-    url = f"{BASE}/resource_show?id={RESOURCE_ID}"
+def fetch_last_modified(resource_id=RESOURCE_ID):
+    url = f"{BASE}/resource_show?id={resource_id}"
     try:
         with urllib.request.urlopen(url, timeout=30) as resp:
             d = json.load(resp)
@@ -78,6 +93,103 @@ def geomean(values):
     if not vals:
         return None
     return math.exp(sum(math.log(v) for v in vals) / len(vals))
+
+
+def in_bbox(lat, lon):
+    return (BBOX["lat_min"] <= lat <= BBOX["lat_max"]
+            and BBOX["lon_min"] <= lon <= BBOX["lon_max"])
+
+
+def classify_adv(adv):
+    """Map an FHAB advisory string to a tier used by the app."""
+    a = (adv or "").lower()
+    if "danger" in a:
+        return "Danger"
+    if "warning" in a:
+        return "Warning"
+    if "caution" in a:
+        return "Caution"
+    if "mat" in a or "benthic" in a:
+        return "Mat"
+    if "awareness" in a or "watch" in a:
+        return "Watch"
+    return "Other"
+
+
+def build_habs():
+    """Fetch statewide FHAB blooms + lab toxins, filter to the Sacramento-area
+    bounding box, and write docs/blooms.json."""
+    print("Fetching FHAB bloom reports…")
+    blooms = fetch_all(BLOOM_RES)
+    print(f"  {len(blooms)} statewide bloom records")
+    try:
+        lab = fetch_all(LAB_RES)
+    except Exception:
+        lab = []
+    print(f"  {len(lab)} lab result rows")
+
+    # Lab toxin lookup: Bloom_Report_ID -> sorted list of toxin classes
+    lab_by_bloom = {}
+    for row in lab:
+        bid = row.get("Bloom_Report_ID")
+        ac = (row.get("Analyte_Class") or "").strip()
+        if not bid or not ac or ac in ("Taxa_Dominance", "Other"):
+            continue
+        if (row.get("Sample_Type") or "") != "Lab":
+            continue
+        lab_by_bloom.setdefault(bid, set()).add(ac)
+
+    out = []
+    for row in blooms:
+        try:
+            lat = float(row.get("Bloom_Latitude"))
+            lon = float(row.get("Bloom_Longitude") or row.get("Bloom Longitude"))
+        except (TypeError, ValueError):
+            continue
+        if math.isnan(lat) or math.isnan(lon) or not in_bbox(lat, lon):
+            continue
+        detail = (row.get("Advisory_Detail_Description") or "") + (row.get("AdvisoryDetail") or "")
+        bid = row.get("Bloom_Report_ID")
+        lab_linked = (row.get("Lab_Data_Linked_to_Bloom") or "").upper() == "YES"
+        lab_toxins = sorted(lab_by_bloom.get(bid, set()))
+        adv = clean(row.get("Reported_Advisory_Types"))
+        out.append({
+            "id": clean(row.get("Bloom_Report_ID")),
+            "name": clean(row.get("Water_Body_Name")) or clean(row.get("Official_Water_Body_Name")),
+            "county": clean(row.get("County")),
+            "rwb": clean(row.get("Regional_Water_Board")),
+            "lat": lat, "lon": lon,
+            "obs": clean(row.get("Observation_Date")),
+            "status": clean(row.get("Case_Status")),
+            "adv": adv,
+            "tier": classify_adv(adv if (adv and "refer" not in adv.lower()) else detail),
+            "detail": clean(row.get("Advisory_Detail_Description")) or clean(row.get("AdvisoryDetail")),
+            "size": clean(row.get("Bloom_Size")),
+            "texture": clean(row.get("Bloom_Texture")),
+            "landmark": clean(row.get("Landmark")),
+            "wtype": clean(row.get("Water_Body_Type")),
+            "drinking_water": (row.get("Drinking_Water_Source") or "").strip().lower() == "yes",
+            "illness": bool(re.search(r"illness|sick", detail, re.I)),
+            "lab_verified": lab_linked or len(lab_toxins) > 0,
+            "lab_toxins": lab_toxins,
+        })
+
+    out.sort(key=lambda b: (b.get("obs") or ""), reverse=True)
+    payload = {
+        "bbox": BBOX,
+        "source": {
+            "name": "CA State Water Board — Freshwater & Estuarine HAB (FHAB) Program",
+            "url": "https://data.ca.gov/dataset/surface-water-freshwater-harmful-algal-blooms",
+            "last_modified": fetch_last_modified(BLOOM_RES),
+        },
+        "blooms": out,
+    }
+    os.makedirs(os.path.dirname(HABS_OUT), exist_ok=True)
+    with open(HABS_OUT, "w") as f:
+        json.dump(payload, f, separators=(",", ":"))
+    from collections import Counter
+    print(f"Wrote {len(out)} blooms -> {HABS_OUT}")
+    print("Bloom tiers:", dict(Counter(b["tier"] for b in out)))
 
 
 def main():
@@ -153,6 +265,9 @@ def main():
     from collections import Counter
     c = Counter(s["status"] for s in out)
     print("Current status:", dict(c))
+
+    # Also build the Sacramento-area HAB layer.
+    build_habs()
 
 
 if __name__ == "__main__":
