@@ -27,14 +27,16 @@ EPA 2012 recreational criteria. Defined in `THRESH` (JS) and top of `build_data.
 - Good `#15803D` · Caution `#A16207` · Warning `#C2410C` · Unsafe `#B91C1C` · No Data `#374151`
 - CA Blue `#005566` · CA Gold `#FDB913`
 
-## Popular swim spots (heatmap)
-- `docs/swim_spots.json` — hand-curated public swim/river-access beaches
-  `{note,sources,spots:[{name,lat,lon,intensity,note}]}`. NOT Strava (proprietary),
-  NOT from monitoring; approximate + editable. Popularity ≠ safety.
-- index.html renders via `L.heatLayer` (leaflet.heat CDN) + small `swimDots`
-  circle markers (`buildSwim`/`showSwimTip`, toggle `#swimBtn`). Blue/cyan
-  gradient on purpose — never the green/red safety palette.
-- Summary card flags `atSwimSpot` (within 0.4 mi) as context only.
+## River flow (live USGS)
+- `index.html` fetches USGS IV service client-side (`USGS_URL`, gage `11446500`
+  American R at Fair Oaks, params 00060 discharge + 00065 gage, P7D). `parseUSGS`
+  → `FLOW={cfs,gageFt,time,trend,series}`. CORS-enabled, so no build step.
+- On-map chip `#flow-chip` (`renderFlowChip`) + `flowCat()` categories
+  (low/moderate/swift/high). `FLOW_ARROWS` = precomputed downstream bearings;
+  `buildFlowArrows`/`arrowIcon` draw arrows colored by current category. Toggle `#flowBtn`.
+- Flow feeds the swim summary (`flowOnRiver` when nearest station ≤2 mi): swift→caution, high→avoid.
+- Downstream is east→west (Folsom/Lake Natoma → Sacramento River).
+- NOTE: popular-swim-spot heatmap was removed (awaiting better data); no swim_spots.json.
 
 ## Harmful algal blooms (HABs)
 - `build_data.py:build_habs()` fetches the statewide FHAB bloom + lab resources,

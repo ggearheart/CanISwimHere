@@ -37,7 +37,7 @@ A recent **geometric mean** (last 6 samples) is shown alongside the single-sampl
 - Full-screen interactive map of monitoring stations, color-coded by swim status
 - **Swim summary** anywhere: tap **📍 Near Me** for your location, or **tap any spot on the map** to check it. Gives one "Safe to swim / Use caution / Avoid water contact" verdict with a tri-slice status icon (bacteria · algal blooms · physical hazards) and a one-line readout of each category — naming the specific site and the date of the last water-quality data. Only *recent* blooms (within 120 days, 1.5 mi) count as an active advisory; older reports are shown as historical context
 - Per-station detail: latest result, recent geomean, full sample-history sparkline with threshold lines, and a sortable recent-sample table
-- **Popular swim-spot heatmap** (blue/cyan) of well-known river-access beaches, with tappable spot details
+- **Live river flow** from USGS gage 11446500 (American River at Fair Oaks): current discharge (cfs), gage height, trend, a 7-day sparkline, and downstream direction arrows on the map
 - **Harmful algal bloom (HAB) layer** (teardrop pins) for the Sacramento / American & Sacramento River area, color-coded by advisory level
 - **Drowning-hazard markers** (red diamonds) for locally-known dangerous spots
 - Printable bilingual (English / Spanish) advisory signs per status level
@@ -45,13 +45,13 @@ A recent **geometric mean** (last 6 samples) is shown alongside the single-sampl
 - Installable PWA with offline caching of the last-loaded data
 - Loads a pre-built `stations.json` for speed, with a live CA Open Data (CKAN) fallback
 
-## Popular swim spots (heatmap)
+## River flow
 
-`docs/swim_spots.json` is a curated list of well-documented public swimming / river-access spots on the Lower American River and at the confluence (Tiscornia, Paradise Beach, Sutter's Landing, River Bend, Sunrise, Sailor Bar, Ancil Hoffman, Clay Banks, Nimbus Flat…), each with an approximate `intensity` popularity weight. They render as a blue/cyan **heatmap** (via [leaflet.heat](https://github.com/Leaflet/Leaflet.heat)) plus small tappable dots.
+Live streamflow is read client-side from the **USGS Instantaneous Values** service for gage **11446500 — American River at Fair Oaks** (`parameterCd=00060` discharge, `00065` gage height, `period=P7D`). The on-map chip shows current discharge in cfs, a coarse safety category, gage height, short-term trend, and a 7-day sparkline; **downstream direction arrows** trace the corridor (water flows east→west, from Folsom/Lake Natoma to the Sacramento River). Flow also feeds the swim summary — *swift* nudges the verdict to caution, *high* to avoid.
 
-**Coordinates sit on the water.** Spots that coincide with a state monitoring station use that station's on-river coordinate; the rest were geocoded (OpenStreetMap Nominatim) and **projected onto the OSM American/Sacramento River centerline**, so every point lands on the channel (all verified ≤150 m from the river) rather than at a park centroid. (Rebuild logic is ad-hoc in the OSM snap step — see `swim_spots.json`'s `note`/`sources`.)
+Flow categories (cfs, general Lower-American-River guidance, not an official standard): Low/calm < 1,500 · Moderate < 3,500 · Swift < 6,000 · High ≥ 6,000. Releases from Nimbus Dam can change flow quickly.
 
-> **This is not Strava data.** Strava's global heatmap is proprietary, aggregated, and gated behind an authenticated session, so its underlying GPS tracks aren't available to ingest. This layer is compiled from OSM + public park/parkway guides — approximate and freely editable. **Popularity is not safety:** several popular spots (e.g. Clay Banks, the confluence) are also drowning hazards. The "Near Me" / tap summary flags when you're at a known swim area.
+> Note: popular-swim-spot data was removed pending a higher-quality source (the previous list was approximate and not all points sat on the water).
 
 ## Harmful algal blooms
 

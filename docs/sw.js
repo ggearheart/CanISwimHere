@@ -1,6 +1,6 @@
 // Service worker for "Can I Swim Here?" — uses relative URLs so it works under
 // any base path (local dev or GitHub Pages project subfolder).
-const CACHE = 'caniswim-v4';
+const CACHE = 'caniswim-v5';
 const DATA_CACHE = 'caniswim-data-v1';
 const SHELL = [
   './',
@@ -11,7 +11,6 @@ const SHELL = [
   './icon-512.png',
   'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css',
   'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js',
-  'https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js',
   'https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js',
 ];
 
@@ -31,7 +30,7 @@ self.addEventListener('activate', e => {
 
 self.addEventListener('fetch', e => {
   const url = e.request.url;
-  const isData = url.includes('stations.json') || url.includes('hazards.json') || url.includes('blooms.json') || url.includes('swim_spots.json') || url.includes('data.ca.gov');
+  const isData = url.includes('stations.json') || url.includes('hazards.json') || url.includes('blooms.json') || url.includes('data.ca.gov') || url.includes('waterservices.usgs.gov');
   const isShell = url.includes('index.html') || url.endsWith('/');
 
   if (isData) {
