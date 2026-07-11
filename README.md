@@ -43,6 +43,7 @@ A recent **geometric mean** (last 6 samples) is shown alongside the single-sampl
 - **Live river flow** from USGS gage 11446500 (American River at Fair Oaks): current discharge (cfs), gage height, trend, and a 7-day sparkline
 - **Harmful algal bloom (HAB) layer** (cyanobacteria-cluster markers) for the Sacramento / American & Sacramento River area — colored by advisory level and faded by how recently the bloom was observed
 - **Drowning-hazard markers** (red diamonds) for locally-known dangerous spots
+- **Report a hazard** — an in-app form (algal bloom, scum, pollution, etc.) that POSTs to the CA State Water Board FHAB Modernized public intake API
 - Printable bilingual (English / Spanish) advisory signs per status level
 - Download stations or a single station's history as CSV
 - Installable PWA with offline caching of the last-loaded data

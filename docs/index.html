@@ -48,6 +48,8 @@ header{background:var(--ca-blue);color:#fff;padding:0 16px;height:52px;
             border-radius:var(--radius);font-size:.83rem;outline:none;
             margin-bottom:7px;background:var(--bg);}
 .search-box:focus{border-color:var(--ca-blue);}
+.hr-field{width:100%;padding:7px 9px;border:1px solid var(--border);border-radius:var(--radius);font-size:.8rem;background:#fff;outline:none;font-family:inherit;}
+.hr-field:focus{border-color:var(--ca-blue);}
 .stats-bar{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-bottom:10px;}
 .stat-card{background:var(--bg);border-radius:6px;padding:7px 9px;text-align:center;border:1px solid var(--border);}
 .stat-num{font-size:1.25rem;font-weight:800;color:var(--ca-blue);line-height:1;}
@@ -211,6 +213,49 @@ header{background:var(--ca-blue);color:#fff;padding:0 16px;height:52px;
             <div id="about-qr" style="display:inline-block;"></div>
             <div style="font-size:.65rem;color:var(--sub);margin-top:4px;">Scan to open the river map</div>
           </div>
+        </div>
+      </details>
+
+      <details id="report-details" style="margin-bottom:10px;border:1px solid #b91c1c;border-radius:var(--radius);background:#fef2f2;overflow:hidden;">
+        <summary style="padding:8px 12px;cursor:pointer;font-size:.75rem;font-weight:700;color:#991b1b;list-style:none;display:flex;align-items:center;gap:6px;user-select:none;">
+          <span>🚩</span><span id="report-title">Report a hazard</span><span style="margin-left:auto;font-size:.85em;opacity:.6;">▾</span>
+        </summary>
+        <div style="padding:10px 12px 12px;border-top:1px solid #fecaca;">
+          <p style="margin:0 0 8px;font-size:.72rem;color:var(--sub);line-height:1.5;" id="report-intro">
+            Saw an algal bloom, scum, pollution, or other water hazard? Send it to the <strong>CA State Water Board FHAB Program</strong> for review — reports help protect public health. Required field marked *.
+          </p>
+          <form id="hazardForm" onsubmit="return submitHazardReport(event)" style="display:flex;flex-direction:column;gap:6px;">
+            <input id="hr_wb" required placeholder="Water body / location *" class="hr-field">
+            <select id="hr_type" class="hr-field">
+              <option value="">Hazard type…</option>
+              <option>Algal bloom / green scum</option>
+              <option>Discolored or foamy water</option>
+              <option>Sewage or pollution smell</option>
+              <option>Dead fish or wildlife</option>
+              <option>Trash or debris</option>
+              <option>Other water hazard</option>
+            </select>
+            <input id="hr_county" list="hr_counties" placeholder="County" class="hr-field" value="Sacramento">
+            <datalist id="hr_counties"></datalist>
+            <input id="hr_landmark" placeholder="Landmark / nearest access" class="hr-field">
+            <div style="display:flex;gap:5px;align-items:center;">
+              <button type="button" onclick="hrLocate()" style="flex:1;padding:7px;border:1px solid var(--border);border-radius:var(--radius);background:#fff;cursor:pointer;font-size:.72rem;font-weight:600;color:var(--ca-blue);">📍 Use my location</button>
+              <span id="hr_loc" style="font-size:.66rem;color:var(--sub);flex:1;">no location</span>
+            </div>
+            <input type="hidden" id="hr_lat"><input type="hidden" id="hr_lon">
+            <input id="hr_date" type="date" class="hr-field">
+            <textarea id="hr_desc" placeholder="What did you see? (color, scum, smell, conditions…)" rows="2" class="hr-field" style="resize:vertical;"></textarea>
+            <input id="hr_name" placeholder="Your name (optional)" class="hr-field">
+            <input id="hr_email" type="email" placeholder="Your email (optional)" class="hr-field">
+            <label style="font-size:.68rem;color:var(--sub);">Photo (optional)
+              <input id="hr_photo" type="file" accept="image/*" capture="environment" style="font-size:.68rem;margin-top:3px;width:100%;">
+            </label>
+            <input id="hr_website" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0;">
+            <button type="submit" style="padding:9px;background:#b91c1c;color:#fff;border:0;border-radius:var(--radius);font-size:.78rem;font-weight:700;cursor:pointer;touch-action:manipulation;">Submit report</button>
+            <div id="hr_status" style="font-size:.7rem;line-height:1.4;"></div>
+          </form>
+          <p style="margin:8px 0 0;font-size:.66rem;color:var(--sub);">Or use the official
+            <a href="https://mywaterquality.ca.gov/habs/bloom-report/" target="_blank" rel="noopener" style="color:var(--ca-blue);">Report a HAB</a> form.</p>
         </div>
       </details>
 
@@ -1058,8 +1103,8 @@ function dismissTapHint(){ const h=document.getElementById('tap-hint'); if(h) h.
 
 // ── LANGUAGE ─────────────────────────────────────────────────────────────────────
 const LABELS = {
-  en:{'lbl-search':'Search station','lbl-status':'Swim Status','about-title':'About this data','hdr-sub':'Lower American River · Sacramento'},
-  es:{'lbl-search':'Buscar estación','lbl-status':'Estado para Nadar','about-title':'Sobre estos datos','hdr-sub':'Río American Bajo · Sacramento'},
+  en:{'lbl-search':'Search station','lbl-status':'Swim Status','about-title':'About this data','hdr-sub':'Lower American River · Sacramento','report-title':'Report a hazard'},
+  es:{'lbl-search':'Buscar estación','lbl-status':'Estado para Nadar','about-title':'Sobre estos datos','hdr-sub':'Río American Bajo · Sacramento','report-title':'Reportar un peligro'},
 };
 function setLang(l, btn){
   lang=l;
@@ -1221,6 +1266,71 @@ fetch('blooms.json').then(r=>r.json()).then(d=>{
   if(!el||typeof QRCode==='undefined') return;
   new QRCode(el,{text:'https://arcg.is/0ea0zq',width:110,height:110,colorDark:'#005566',colorLight:'#ffffff',correctLevel:QRCode.CorrectLevel.M});
 })();
+
+// ── REPORT A HAZARD — POSTs to the FHAB Modernized public intake API ──────────────
+// Endpoint is configurable: window.FHAB_INTAKE_URL / localStorage 'fhab_intake_url'.
+// Optional shared key (server PUBLIC_INTAKE_KEY) via window.FHAB_INTAKE_KEY.
+const FHAB_INTAKE_URL = (window.FHAB_INTAKE_URL || localStorage.getItem('fhab_intake_url') || 'https://fhab-web.onrender.com');
+const FHAB_INTAKE_KEY = (window.FHAB_INTAKE_KEY || localStorage.getItem('fhab_intake_key') || '');
+const HR_COUNTIES = ["Sacramento","Placer","El Dorado","Yolo","Sutter","Amador","Nevada"];
+(function(){
+  const dl=document.getElementById('hr_counties');
+  if(dl) dl.innerHTML=HR_COUNTIES.map(c=>`<option value="${c}">`).join('');
+  const d=document.getElementById('hr_date');
+  if(d){ const t=new Date(); d.value=`${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,'0')}-${String(t.getDate()).padStart(2,'0')}`; }
+})();
+function hrVal(id){ const el=document.getElementById(id); return el?el.value.trim():''; }
+function hrLocate(){
+  const out=document.getElementById('hr_loc');
+  if(!navigator.geolocation){ out.textContent='geolocation unavailable'; return; }
+  out.textContent='locating…';
+  navigator.geolocation.getCurrentPosition(
+    p=>{ document.getElementById('hr_lat').value=p.coords.latitude.toFixed(5);
+         document.getElementById('hr_lon').value=p.coords.longitude.toFixed(5);
+         out.textContent='📍 '+p.coords.latitude.toFixed(4)+', '+p.coords.longitude.toFixed(4); },
+    ()=>{ out.textContent='location denied'; }, {enableHighAccuracy:true, timeout:8000});
+}
+function hrReadFile(file){
+  return new Promise(res=>{ if(!file) return res(null);
+    const r=new FileReader(); r.onload=()=>res(r.result); r.onerror=()=>res(null); r.readAsDataURL(file); });
+}
+async function submitHazardReport(e){
+  e.preventDefault();
+  const st=document.getElementById('hr_status');
+  st.style.color='var(--sub)'; st.textContent=lang==='en'?'Sending…':'Enviando…';
+  const file=document.getElementById('hr_photo').files[0];
+  const photo=await hrReadFile(file);
+  const htype=hrVal('hr_type'), desc=hrVal('hr_desc');
+  const payload={
+    water_body_name: hrVal('hr_wb'), county: hrVal('hr_county'), landmark: hrVal('hr_landmark'),
+    latitude: hrVal('hr_lat')||null, longitude: hrVal('hr_lon')||null,
+    observation_date: hrVal('hr_date'),
+    hazard_type: htype||null,
+    description: (htype?`[${htype}] `:'')+desc,
+    reporter_name: hrVal('hr_name'), reporter_email: hrVal('hr_email'),
+    website: hrVal('hr_website'), source: 'caniswimhere'
+  };
+  if(photo){ payload.photo_base64=photo; payload.photo_content_type=(file&&file.type)||'image/jpeg'; }
+  try{
+    const headers={'Content-Type':'application/json'};
+    if(FHAB_INTAKE_KEY) headers['X-API-Key']=FHAB_INTAKE_KEY;
+    const r=await fetch(FHAB_INTAKE_URL.replace(/\/$/,'')+'/api/public/reports',
+      {method:'POST', headers, body:JSON.stringify(payload)});
+    const j=await r.json().catch(()=>({}));
+    if(r.ok && j.ok){
+      st.style.color='#166534';
+      st.textContent=j.message||(lang==='en'?'Thank you — your report was received for review.':'Gracias — su reporte fue recibido.');
+      document.getElementById('hazardForm').reset();
+      document.getElementById('hr_loc').textContent='no location';
+      document.getElementById('hr_county').value='Sacramento';
+      const dd=document.getElementById('hr_date'); const t=new Date();
+      dd.value=`${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,'0')}-${String(t.getDate()).padStart(2,'0')}`;
+    } else {
+      st.style.color='#b00020'; st.textContent=(lang==='en'?'Could not submit':'No se pudo enviar')+(j.error?': '+j.error:'.');
+    }
+  }catch(err){ st.style.color='#b00020'; st.textContent=lang==='en'?'Network error — please try again.':'Error de red — intente de nuevo.'; }
+  return false;
+}
 </script>
 <script>
 if('serviceWorker' in navigator){

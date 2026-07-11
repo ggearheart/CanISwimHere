@@ -30,6 +30,15 @@ EPA 2012 recreational criteria. Defined in `THRESH` (JS) and top of `build_data.
 - Good `#15803D` · Caution `#A16207` · Warning `#C2410C` · Unsafe `#B91C1C` · No Data `#374151`
 - CA Blue `#005566` · CA Gold `#FDB913`
 
+## Report a hazard (FHAB intake)
+- Sidebar form `#hazardForm` → `submitHazardReport()` POSTs JSON to the FHAB
+  Modernized public intake API `${FHAB_INTAKE_URL}/api/public/reports` (default
+  `https://fhab-web.onrender.com`, overridable via window/localStorage; optional
+  `X-API-Key`). Same pattern as the CyanoSafe demo. Payload: water_body_name,
+  county, landmark, lat/lon, observation_date, hazard_type, description (type
+  prepended), reporter_name/email, honeypot `website`, `source:'caniswimhere'`,
+  optional photo_base64. Verify with a stubbed `fetch` — do NOT POST test data to the live API.
+
 ## River flow (live USGS)
 - `index.html` fetches USGS IV service client-side (`USGS_URL`, gage `11446500`
   American R at Fair Oaks, params 00060 discharge + 00065 gage, P7D). `parseUSGS`
