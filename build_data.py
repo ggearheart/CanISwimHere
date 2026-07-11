@@ -22,10 +22,26 @@ def clean(v):
     s = str(v if v is not None else "").strip()
     return None if s in ("", "None", "null", "nan") else s
 
-# CKAN datastore resource: "Draft - Lower American River E. coli Monitoring Results"
-RESOURCE_ID = "fc450fb6-e997-4bcf-b824-1b3ed0f06045"
-PACKAGE_ID = "central-valley-water-board-e-coli-monitoring-results"
+
+def num(v):
+    try:
+        f = float(v)
+        return None if math.isnan(f) else f
+    except (TypeError, ValueError):
+        return None
+
+# CKAN datastore resource: statewide "Surface Water - Fecal Indicator Bacteria
+# Monitoring Results" (2020 to present). We pull E. coli within the American River
+# bounding box and consolidate to ongoing swim-monitoring stations.
+RESOURCE_ID = "15a63495-8d9f-4a49-b43a-3092ef3106b9"
+PACKAGE_ID = "surface-water-fecal-indicator-bacteria-results"
 BASE = "https://data.ca.gov/api/3/action"
+
+# American River corridor + Lake Natoma bounding box (for E. coli stations).
+STATION_BBOX = {"lat_min": 38.55, "lat_max": 38.72, "lon_min": -121.53, "lon_max": -121.15}
+# Only keep river/lake swim sites with monitoring since this date (drops one-off
+# study points, stormwater sumps, and discontinued sites).
+STATION_MIN_LATEST = "2024-01-01"
 
 # ── HAB (harmful algal bloom) sources — statewide FHAB program ──────────────────
 # We fetch statewide and filter to the Sacramento / American & Sacramento River area.
@@ -86,6 +102,33 @@ def fetch_last_modified(resource_id=RESOURCE_ID):
         return d.get("result", {}).get("last_modified")
     except Exception:
         return None
+
+
+def fetch_sql(sql):
+    """Run a CKAN datastore SQL query and return the record list."""
+    import urllib.parse
+    url = f"{BASE}/datastore_search_sql?" + urllib.parse.urlencode({"sql": sql})
+    with urllib.request.urlopen(url, timeout=120) as resp:
+        return json.load(resp)["result"]["records"]
+
+
+def fetch_ecoli_stations():
+    """Fetch E. coli records within the American River bounding box (paged)."""
+    b = STATION_BBOX
+    cols = ('"StationCode" c,"StationName" n,"TargetLatitude" lat,"TargetLongitude" lon,'
+            '"SampleDate" d,"Result" r,"Unit" u,"6WeekGeoMean" gm,"6WeekCount" gmn')
+    where = (f"\"Analyte\"='E. coli' "
+             f"AND CAST(\"TargetLatitude\" AS FLOAT) BETWEEN {b['lat_min']} AND {b['lat_max']} "
+             f"AND CAST(\"TargetLongitude\" AS FLOAT) BETWEEN {b['lon_min']} AND {b['lon_max']}")
+    records, offset, page = [], 0, 20000
+    while True:
+        rows = fetch_sql(f'SELECT {cols} FROM "{RESOURCE_ID}" WHERE {where} '
+                         f'LIMIT {page} OFFSET {offset}')
+        records.extend(rows)
+        offset += len(rows)
+        if len(rows) < page:
+            break
+    return records
 
 
 def geomean(values):
@@ -193,54 +236,66 @@ def build_habs():
 
 
 def main():
-    records = fetch_all()
-    print(f"Fetched {len(records)} records")
+    from collections import Counter, defaultdict
+    records = fetch_ecoli_stations()
+    print(f"Fetched {len(records)} E. coli records in bbox")
 
-    stations = {}
+    # Group by station code (a code can appear under bank/name variants + replicates).
+    by_code = defaultdict(list)
     for row in records:
-        if (row.get("Analyte") or "").strip().lower() != "e. coli":
+        code = (row.get("c") or "").strip()
+        lat, lon, result = num(row.get("lat")), num(row.get("lon")), num(row.get("r"))
+        date = (row.get("d") or "")[:10]
+        if not code or not date or None in (lat, lon, result):
             continue
-        code = (row.get("StationCode") or "").strip()
-        try:
-            lat = float(row["Latitude"])
-            lon = float(row["Longitude"])
-            result = float(row["Result"])
-        except (TypeError, ValueError, KeyError):
-            continue
-        date = (row.get("SampleDate") or "").strip()[:10]
-        if not code or not date:
-            continue
-        st = stations.setdefault(code, {
-            "code": code,
-            "name": (row.get("StationName") or code).strip(),
-            "lat": lat,
-            "lon": lon,
-            "unit": (row.get("Unit") or "MPN/100 mL").strip(),
-            "program": (row.get("Program") or "").strip(),
-            "samples": [],
-        })
-        st["samples"].append({"date": date, "result": round(result, 1)})
+        row["_lat"], row["_lon"], row["_r"], row["_d"] = lat, lon, result, date
+        by_code[code].append(row)
 
-    out = []
-    for st in stations.values():
-        # newest first
-        st["samples"].sort(key=lambda s: s["date"], reverse=True)
-        for s in st["samples"]:
-            s["status"] = status_for(s["result"])
-        latest = st["samples"][0]
-        # geometric mean of the 6 most recent samples (EPA uses a rolling window)
-        recent = [s["result"] for s in st["samples"][:6]]
-        gm = geomean(recent)
-        st["latest"] = latest
-        st["geomean"] = round(gm, 1) if gm is not None else None
-        st["geomean_n"] = len(recent)
-        st["n"] = len(st["samples"])
-        st["status"] = status_for(latest["result"])
-        st["geomean_status"] = "Good" if (gm is not None and gm <= GM_CRITERION) else (
-            status_for(gm) if gm is not None else "Unknown")
-        out.append(st)
+    out, dropped = [], 0
+    for code, rows in by_code.items():
+        name = Counter((r.get("n") or "").strip() for r in rows).most_common(1)[0][0] or code
+        coord_rows = [r for r in rows if (r.get("n") or "").strip() == name] or rows
+        rlat = round(sum(r["_lat"] for r in coord_rows) / len(coord_rows), 5)
+        rlon = round(sum(r["_lon"] for r in coord_rows) / len(coord_rows), 5)
+        # one sample per date (keep the row with the fullest 6-week window)
+        by_date = {}
+        for r in rows:
+            d = r["_d"]
+            if d not in by_date or (num(r.get("gmn")) or 0) > (num(by_date[d].get("gmn")) or 0):
+                by_date[d] = r
+        srows = sorted(by_date.values(), key=lambda r: r["_d"], reverse=True)
+        latest = srows[0]
+        nm = name.lower()
+        # keep only ongoing river/lake swim sites
+        if not (latest["_d"] >= STATION_MIN_LATEST and ("american river" in nm or "lake natoma" in nm)):
+            dropped += 1
+            continue
+        samples = [{"date": r["_d"], "result": round(r["_r"], 1), "status": status_for(r["_r"])}
+                   for r in srows]
+        # geomean: prefer the dataset's official 6-week geomean on the latest sample
+        official_gm, official_n = num(latest.get("gm")), num(latest.get("gmn"))
+        if official_gm:
+            gm, gmn = official_gm, int(official_n or 0)
+        else:
+            recent = [s["result"] for s in samples[:6]]
+            gm, gmn = geomean(recent), len(recent)
+        out.append({
+            "code": code,
+            "name": name,
+            "lat": rlat, "lon": rlon,
+            "unit": "MPN/100 mL",
+            "samples": samples,
+            "latest": samples[0],
+            "geomean": round(gm, 1) if gm is not None else None,
+            "geomean_n": gmn,
+            "n": len(samples),
+            "status": samples[0]["status"],
+            "geomean_status": "Good" if (gm is not None and gm <= GM_CRITERION) else (
+                status_for(gm) if gm is not None else "Unknown"),
+        })
 
     out.sort(key=lambda s: s["name"])
+    print(f"Consolidated to {len(out)} stations ({dropped} non-swim sites dropped)")
 
     payload = {
         "thresholds": {
@@ -250,7 +305,7 @@ def main():
             "unit": "MPN/100 mL",
         },
         "source": {
-            "name": "Central Valley Water Board — Lower American River E. coli Monitoring",
+            "name": "CA State Water Board — Surface Water Fecal Indicator Bacteria (E. coli)",
             "url": "https://data.ca.gov/dataset/" + PACKAGE_ID,
             "last_modified": fetch_last_modified(),
         },

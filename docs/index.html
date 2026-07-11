@@ -203,7 +203,7 @@ header{background:var(--ca-blue);color:#fff;padding:0 16px;height:52px;
              style="display:block;text-align:center;padding:7px;background:var(--ca-blue);color:#fff;border-radius:var(--radius);font-size:.74rem;font-weight:700;text-decoration:none;margin-bottom:8px;">
             Central Valley Water Board River Map ↗
           </a>
-          <a href="https://data.ca.gov/dataset/central-valley-water-board-e-coli-monitoring-results" target="_blank" rel="noopener"
+          <a href="https://data.ca.gov/dataset/surface-water-fecal-indicator-bacteria-results" target="_blank" rel="noopener"
              style="display:block;text-align:center;padding:7px;background:#fff;color:var(--ca-blue);border:1px solid var(--ca-blue);border-radius:var(--radius);font-size:.74rem;font-weight:700;text-decoration:none;margin-bottom:10px;">
             View Source Dataset ↗
           </a>
@@ -284,7 +284,7 @@ let statusFilter = new Set();
 // ── MAP ENGINE (Leaflet) ─────────────────────────────────────────────────────────
 const map = L.map('map-canvas', {zoomControl:false}).setView([38.605, -121.39], 12);
 L.tileLayer('https://basemap.nationalmap.gov/arcgis/rest/services/USGSTopo/MapServer/tile/{z}/{y}/{x}', {
-  attribution:'USGS National Map | Central Valley Water Board E. coli Monitoring',
+  attribution:'USGS National Map | CA Water Board Fecal Indicator Bacteria',
   opacity:0.5, maxZoom:17, minZoom:9,
 }).addTo(map);
 L.control.zoom({position:'topright'}).addTo(map);
@@ -1109,8 +1109,12 @@ function showSubMsg(text, type){
 }
 
 // ── DATA LOADING — prebuilt stations.json first, live CKAN fallback ────────────────
-const CKAN_RESOURCE = 'fc450fb6-e997-4bcf-b824-1b3ed0f06045';
-const CKAN_API  = `https://data.ca.gov/api/3/action/datastore_search?resource_id=${CKAN_RESOURCE}&limit=5000`;
+// Statewide Surface Water Fecal Indicator Bacteria results; pull E. coli in the
+// American River bbox and consolidate the same way build_data.py does.
+const CKAN_RESOURCE = '15a63495-8d9f-4a49-b43a-3092ef3106b9';
+const STATION_BBOX = {lat_min:38.55, lat_max:38.72, lon_min:-121.53, lon_max:-121.15};
+const CKAN_SQL = `SELECT "StationCode" c,"StationName" n,"TargetLatitude" lat,"TargetLongitude" lon,"SampleDate" d,"Result" r,"6WeekGeoMean" gm,"6WeekCount" gmn FROM "${CKAN_RESOURCE}" WHERE "Analyte"='E. coli' AND CAST("TargetLatitude" AS FLOAT) BETWEEN ${STATION_BBOX.lat_min} AND ${STATION_BBOX.lat_max} AND CAST("TargetLongitude" AS FLOAT) BETWEEN ${STATION_BBOX.lon_min} AND ${STATION_BBOX.lon_max} LIMIT 40000`;
+const CKAN_API  = `https://data.ca.gov/api/3/action/datastore_search_sql?sql=${encodeURIComponent(CKAN_SQL)}`;
 const CKAN_META = `https://data.ca.gov/api/3/action/resource_show?id=${CKAN_RESOURCE}`;
 
 function setUpdatedBar(ts, fromCache){
@@ -1123,25 +1127,36 @@ function setUpdatedBar(ts, fromCache){
 function geomean(vals){ const v=vals.filter(x=>x&&x>0); if(!v.length) return null; return Math.exp(v.reduce((a,b)=>a+Math.log(b),0)/v.length); }
 
 function aggregate(records){
+  const MIN_LATEST='2024-01-01';
   const byCode={};
   for(const row of records){
-    if(((row.Analyte||'')+'').trim().toLowerCase()!=='e. coli') continue;
-    const lat=parseFloat(row.Latitude), lon=parseFloat(row.Longitude), result=parseFloat(row.Result);
-    const code=(row.StationCode||'').trim(), date=((row.SampleDate||'')+'').slice(0,10);
+    const code=(row.c||'').trim(), name=(row.n||'').trim();
+    const lat=parseFloat(row.lat), lon=parseFloat(row.lon), result=parseFloat(row.r);
+    const date=((row.d||'')+'').slice(0,10);
     if(!code||!date||isNaN(lat)||isNaN(lon)||isNaN(result)) continue;
-    const st=byCode[code]||(byCode[code]={code,name:(row.StationName||code).trim(),lat,lon,samples:[]});
-    st.samples.push({date,result:Math.round(result*10)/10});
+    const g=byCode[code]||(byCode[code]={code,names:{},byDate:{}});
+    g.names[name]=(g.names[name]||0)+1;
+    const gmn=parseFloat(row.gmn)||0, ex=g.byDate[date];
+    if(!ex || gmn>(ex._gmn||0)) g.byDate[date]={date,result:Math.round(result*10)/10,status:statusFor(result),_gm:parseFloat(row.gm)||null,_gmn:gmn,lat,lon,name};
   }
-  return Object.values(byCode).map(st=>{
-    st.samples.sort((a,b)=>b.date.localeCompare(a.date));
-    st.latest=st.samples[0];
-    const recent=st.samples.slice(0,6).map(s=>s.result);
-    const gm=geomean(recent);
-    st.geomean=gm!=null?Math.round(gm*10)/10:null;
-    st.geomean_n=recent.length;
-    st.n=st.samples.length;
-    return st;
-  }).sort((a,b)=>(a.name||'').localeCompare(b.name||''));
+  const out=[];
+  for(const g of Object.values(byCode)){
+    const name=Object.entries(g.names).sort((a,b)=>b[1]-a[1])[0][0]||g.code;
+    const samples=Object.values(g.byDate).sort((a,b)=>b.date.localeCompare(a.date));
+    const latest=samples[0], nm=name.toLowerCase();
+    if(!(latest.date>=MIN_LATEST && (nm.includes('american river')||nm.includes('lake natoma')))) continue;
+    const base=samples.filter(s=>s.name===name); const cr=base.length?base:samples;
+    const rlat=+(cr.reduce((a,s)=>a+s.lat,0)/cr.length).toFixed(5);
+    const rlon=+(cr.reduce((a,s)=>a+s.lon,0)/cr.length).toFixed(5);
+    let gm, gmn;
+    if(latest._gm){ gm=latest._gm; gmn=latest._gmn; }
+    else { const recent=samples.slice(0,6).map(s=>s.result); gm=geomean(recent); gmn=recent.length; }
+    out.push({code:g.code, name, lat:rlat, lon:rlon,
+      samples:samples.map(s=>({date:s.date,result:s.result,status:s.status})),
+      latest:{date:latest.date,result:latest.result,status:latest.status},
+      geomean:gm!=null?Math.round(gm*10)/10:null, geomean_n:gmn, n:samples.length});
+  }
+  return out.sort((a,b)=>(a.name||'').localeCompare(b.name||''));
 }
 
 async function loadData(){

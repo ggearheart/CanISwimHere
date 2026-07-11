@@ -9,13 +9,16 @@ Mobile-first swim-safety map for the Lower American River (Sacramento), built on
 - All asset/SW URLs are **relative** so it runs under any base path
 
 ## Data
-- Source: Central Valley Water Board E. coli monitoring, CA Open Data
-  - Dataset: https://data.ca.gov/dataset/central-valley-water-board-e-coli-monitoring-results
-  - CKAN resource id: `fc450fb6-e997-4bcf-b824-1b3ed0f06045`
-- `build_data.py` groups raw samples by `StationCode`, computes latest result,
-  recent 6-sample geometric mean, and a swim status; writes `docs/stations.json`.
+- Source: statewide "Surface Water — Fecal Indicator Bacteria Monitoring Results", CA Open Data
+  - Dataset: https://data.ca.gov/dataset/surface-water-fecal-indicator-bacteria-results
+  - CKAN resource id: `15a63495-8d9f-4a49-b43a-3092ef3106b9` (2020-present); datastore-active (SQL).
+- `build_data.py` (`fetch_ecoli_stations`) pulls E. coli within `STATION_BBOX` via
+  `datastore_search_sql`, groups by `StationCode` (dedup by date, keep fullest
+  6-week window; representative name/coords), keeps ongoing river/lake swim sites
+  (`STATION_MIN_LATEST` 2024-01-01 + name contains "american river"/"lake natoma"),
+  uses the dataset's official `6WeekGeoMean` (fallback computes). Writes `docs/stations.json`.
 - The app loads `stations.json` first; if missing it falls back to a live CKAN
-  fetch and aggregates client-side (`aggregate()` in index.html).
+  SQL fetch and aggregates client-side (`aggregate()` in index.html, mirrors the pipeline).
 - `stations.json` shape: `{thresholds, source, stations:[{code,name,lat,lon,
   samples:[{date,result,status}],latest,geomean,geomean_n,n,status,geomean_status}]}`
 

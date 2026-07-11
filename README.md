@@ -10,12 +10,15 @@ Built on the [CyanoSafe](https://github.com/ggearheart/CyanoSafe_phone_demo) pho
 
 ## Data source
 
-E. coli monitoring results from the **Central Valley Regional Water Quality Control Board**, published on the California Open Data portal:
+E. coli monitoring results from the CA State Water Resources Control Board's statewide **Surface Water — Fecal Indicator Bacteria Monitoring Results** dataset (the maintained, regularly-refreshed source), published on the California Open Data portal:
 
-- Dataset: https://data.ca.gov/dataset/central-valley-water-board-e-coli-monitoring-results
+- Dataset: https://data.ca.gov/dataset/surface-water-fecal-indicator-bacteria-results
+  (resource `15a63495-8d9f-4a49-b43a-3092ef3106b9`, "2020 to present")
 - River map: https://arcg.is/0ea0zq (Lower American River Recreational Water Quality)
 
-E. coli is a bacteria used to indicate **fecal pollution** and the possible presence of disease-causing organisms. All data are **draft** unless otherwise noted.
+`build_data.py` pulls E. coli records within an American River bounding box, consolidates them by monitoring station (collapsing bank/replicate variants, dropping one-off study points, stormwater sumps, and discontinued sites), and keeps ongoing river/lake swim sites (last sampled since 2024). It uses the dataset's official **6-week geometric mean** where available. This yields the core Lower American River stations plus Howe Ave and the Lake Natoma swim beaches (Nimbus Flat, Black Miners Bar).
+
+E. coli is a bacteria used to indicate **fecal pollution** and the possible presence of disease-causing organisms.
 
 ## Swim-safety thresholds
 
