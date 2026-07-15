@@ -1,0 +1,16 @@
+{
+  "note": "Life-jacket / personal flotation device (PFD) loaner-board locations along the American River Parkway and nearby Sacramento parks, from the Sacramento County Regional Parks 'Kids Don't Float' water-safety program. Free to borrow on site; each board typically stocks 8-12 vests. Coordinates are approximate (access-point locations). Verify seasonal availability with the program.",
+  "program_url": "https://regionalparks.saccounty.gov/us/en/rangers/water-safety.html",
+  "program_name": "Sacramento County Regional Parks — Kids Don't Float",
+  "sites": [
+    {"name": "Discovery Park", "lat": 38.6015, "lon": -121.5045, "sizes": "kids & adults", "note": "Two loaner boards at the confluence park."},
+    {"name": "El Manto Access", "lat": 38.6180, "lon": -121.2820, "sizes": "kids & adults", "note": "River access at the end of El Manto Dr (Gold River).", "approx": true},
+    {"name": "Sunrise River Access", "lat": 38.6330, "lon": -121.2710, "sizes": "kids"},
+    {"name": "Ancil Hoffman Park", "lat": 38.6155, "lon": -121.3145, "sizes": "kids"},
+    {"name": "River Bend Park", "lat": 38.5970, "lon": -121.3310, "sizes": "kids"},
+    {"name": "Watt Avenue River Access", "lat": 38.5660, "lon": -121.3810, "sizes": "kids"},
+    {"name": "Howe Avenue River Access", "lat": 38.5601, "lon": -121.4053, "sizes": "kids"},
+    {"name": "Paradise Beach", "lat": 38.5820, "lon": -121.4300, "sizes": "kids"},
+    {"name": "Sand Cove Park", "lat": 38.5997, "lon": -121.5438, "sizes": "kids", "note": "City of Sacramento park on the Sacramento River."}
+  ]
+}

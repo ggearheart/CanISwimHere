@@ -30,6 +30,13 @@ EPA 2012 recreational criteria. Defined in `THRESH` (JS) and top of `build_data.
 - Good `#15803D` · Caution `#A16207` · Warning `#C2410C` · Unsafe `#B91C1C` · No Data `#374151`
 - CA Blue `#005566` · CA Gold `#FDB913`
 
+## Life-vest loaner sites (Kids Don't Float)
+- `docs/pfd_stations.json` — curated free life-jacket loaner boards (Sacramento
+  County Regional Parks) `{note,program_url,program_name,sites:[{name,lat,lon,
+  sizes,note,approx}]}`. Rendered as orange-ringed 🦺 markers (`pfdIcon`/`drawPfd`/
+  `showPfdTip`, toggle `#pfdBtn`); tooltip links to `PFD_URL` (Kids Don't Float
+  program page). Coords approximate (access points). Independent overlay, not from monitoring.
+
 ## Report a hazard (FHAB intake)
 - Sidebar form `#hazardForm` → `submitHazardReport()` POSTs JSON to the FHAB
   Modernized public intake API `${FHAB_INTAKE_URL}/api/public/reports` (default
