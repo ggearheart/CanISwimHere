@@ -20,20 +20,21 @@ E. coli monitoring results from the CA State Water Resources Control Board's sta
 
 E. coli is a bacteria used to indicate **fecal pollution** and the possible presence of disease-causing organisms.
 
-## Swim-safety thresholds
+## Swim-risk assessment (not a single reading)
 
-Each station's status reflects its **most recent sample**, classified using EPA 2012 recreational water-quality criteria for E. coli (MPN/100 mL):
+A single sample older than a week or two — especially at a different flow — no longer predicts today's risk. So a station is **not** colored by its last reading. Instead:
 
-| Status | E. coli (MPN/100 mL) | Basis |
-|--------|----------------------|-------|
-| 🟢 **Good** | ≤ 126 | At/below the geometric-mean health criterion |
-| 🟡 **Caution** | 127 – 235 | Above the safe criterion |
-| 🟠 **Warning** | 236 – 410 | Above the single-sample advisory threshold |
-| 🔴 **Unsafe** | > 410 | Exceeds the Statistical Threshold Value (STV) — posting threshold |
+- **Recent data (≤ 14 days):** the *measured* status is shown, from EPA 2012 E. coli criteria (≤126 good · 127–235 caution · 236–410 warning · >410 STV unsafe, MPN/100 mL).
+- **Older data:** a **probabilistic estimate from the station's whole history** — its all-time geometric mean and how often it exceeded thresholds:
+  - 🟢 **Probably safe** — history typically at/below the criterion (all-time geomean ≤126, <20% of samples over the advisory)
+  - 🟡 **Uncertain** — sometimes elevated (geomean >126, or ≥20% over advisory / ≥12% over STV)
+  - 🔴 **Probably unsafe** — *most* samples and the geomean exceed thresholds (geomean >235, or ≥50% over advisory / ≥33% over STV)
+  - ⚪ **Unknown** — too few samples, or no station within 3 miles of the spot
+- **Flow modifier:** today's American River flow (USGS Fair Oaks) is surfaced as a transparent note — higher flow (faster, colder, more dilution) generally *lowers* bacteria risk; lower flow *raises* it.
 
-A recent **geometric mean** (last 6 samples) is shown alongside the single-sample verdict, since EPA criteria are based on a rolling geomean.
+This keeps a lone year-old high reading from painting a chronically-clean site red, while genuinely chronic sites (e.g. the Tiscornia/Discovery confluence) still read unsafe. When you tap a spot or use **Near Me**, the tooltip/summary explains the basis (sample count, span, geomean, % over threshold, latest date + age).
 
-> ⚠️ Bacteria levels change quickly with rain, runoff, and flow. A single result is a snapshot, not a guarantee. This is a demonstration app — always check official sources before recreating in any water body.
+> ⚠️ Estimates, not guarantees — bacteria change quickly with rain and runoff. This is a demonstration app; always check official sources before recreating.
 
 ## Features
 

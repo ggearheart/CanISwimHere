@@ -177,7 +177,7 @@ header{background:var(--ca-blue);color:#fff;padding:0 16px;height:52px;
     <div class="sb-scroll">
       <div class="sb-label" id="lbl-search">Search station</div>
       <input class="search-box" id="search" type="search" placeholder="Station name or area…" oninput="applyFilters()"/>
-      <div class="sb-label" id="lbl-status">Swim Status <span style="font-weight:400;text-transform:none;letter-spacing:0;">(latest sample)</span></div>
+      <div class="sb-label" id="lbl-status">Swim Risk <span style="font-weight:400;text-transform:none;letter-spacing:0;">(from history &amp; flow)</span></div>
       <div class="legend" id="legend"></div>
       <button id="hazardBtn" onclick="toggleHazards(this)" style="width:100%;margin-bottom:7px;padding:7px 0;border:1px solid #b91c1c;border-radius:var(--radius);background:#fef2f2;cursor:pointer;font-size:.75rem;font-weight:700;color:#991b1b;touch-action:manipulation;">⚠️ <span id="hazardBtnLbl">Hide drowning hazards</span></button>
       <button id="habBtn" onclick="toggleHabs(this)" style="width:100%;margin-bottom:7px;padding:7px 0;border:1px solid #166534;border-radius:var(--radius);background:#f0fdf4;cursor:pointer;font-size:.75rem;font-weight:700;color:#166534;touch-action:manipulation;">🦠 <span id="habBtnLbl">Hide algal blooms</span></button>
@@ -191,14 +191,14 @@ header{background:var(--ca-blue);color:#fff;padding:0 16px;height:52px;
         </summary>
         <div style="padding:10px 12px 12px;border-top:1px solid var(--border);font-size:.72rem;color:var(--sub);line-height:1.5;">
           <p style="margin:0 0 8px;">This map shows <strong>E. coli</strong> bacteria results for the Lower American River. E. coli indicates fecal pollution and the possible presence of disease-causing organisms.</p>
-          <p style="margin:0 0 8px;">Swim status is based on the most recent sample at each station, using EPA recreational water-quality criteria:</p>
+          <p style="margin:0 0 8px;">A single sample older than a week or two — especially at a different flow — no longer predicts today's risk. So each station is shown as a <strong>risk estimate from its whole history</strong>, not its last reading:</p>
           <ul style="margin:0 0 8px 16px;padding:0;">
-            <li><strong style="color:var(--good)">Good</strong> — ≤126 MPN/100 mL</li>
-            <li><strong style="color:var(--caution)">Caution</strong> — 127–235</li>
-            <li><strong style="color:var(--warning)">Warning</strong> — 236–410</li>
-            <li><strong style="color:var(--unsafe)">Unsafe</strong> — &gt;410 (STV)</li>
+            <li><strong style="color:var(--good)">Probably safe</strong> — history typically at or below the health criterion</li>
+            <li><strong style="color:var(--caution)">Uncertain</strong> — sometimes elevated in the record</li>
+            <li><strong style="color:var(--unsafe)">Probably unsafe</strong> — most samples &amp; the all-time geomean exceed thresholds</li>
+            <li><strong style="color:#6B7280">Unknown</strong> — too few samples, or no station nearby</li>
           </ul>
-          <p style="margin:0 0 8px;">Bacteria levels change quickly with rain, runoff, and flow. A single result is a snapshot, not a guarantee.</p>
+          <p style="margin:0 0 8px;">Where a sample is recent (within ~2 weeks) the <strong>measured</strong> status is shown instead. Today's <strong>flow</strong> is a decent predictor and is folded in as a note: higher flow (faster, colder, more dilution) generally <em>lowers</em> bacteria risk; lower flow generally <em>raises</em> it. Thresholds: ≤126 good · 127–235 caution · 236–410 warning · &gt;410 (STV) unsafe MPN/100 mL.</p>
           <p style="margin:0 0 8px;padding:7px 9px;background:#f0fdf4;border-left:3px solid #166534;border-radius:0 4px 4px 0;"><strong style="color:#166534;">🦠 Algal blooms</strong> shown as cyanobacteria-cluster markers are harmful algal bloom (HAB) reports from the CA State Water Board <strong>FHAB program</strong>, for the Sacramento / American &amp; Sacramento River area. Each splotch is <strong>colored by advisory level</strong> and <strong>fades with age</strong> — bold means recently observed, faint means an older report. Most are reported by the public; only some are lab-tested, so cyanotoxins may be present even when not confirmed.</p>
           <p style="margin:0 0 8px;padding:7px 9px;background:#fef2f2;border-left:3px solid #b91c1c;border-radius:0 4px 4px 0;"><strong style="color:#991b1b;">⚠️ Drowning hazards</strong> shown as red diamonds (e.g. Clay Banks, the Tiscornia/Discovery Park confluence) are a <strong>curated safety reference</strong> — not from the monitoring data and approximate. Water can be bacteriologically "Good" and still be deadly to swim due to cold water and current.</p>
           <p style="margin:0 0 8px;padding:7px 9px;background:#ecfeff;border-left:3px solid #0e7490;border-radius:0 4px 4px 0;"><strong style="color:#0e7490;">🌊 River flow</strong> is the live discharge at USGS gage <strong>11446500</strong> (American River at Fair Oaks), in cubic feet per second. Water flows downstream from Folsom/Lake Natoma (east) to the Sacramento River (west). Higher flow means colder, faster, more dangerous water; releases from Nimbus Dam can change it quickly.</p>
@@ -303,8 +303,81 @@ const STATUS = {
   Caution: {color:'#A16207',label:'Caution', label_es:'Precaución', order:1, r:9, flag:'🟡'},
   Warning: {color:'#C2410C',label:'Warning', label_es:'Aviso',      order:2, r:10,flag:'🟠'},
   Unsafe:  {color:'#B91C1C',label:'Unsafe',  label_es:'No Seguro',  order:3, r:11,flag:'🔴'},
-  Unknown: {color:'#374151',label:'No Data', label_es:'Sin Datos',  order:4, r:7, flag:'⚪'},
+  Unknown: {color:'#6B7280',label:'Unknown', label_es:'Sin Datos',  order:4, r:8, flag:'⚪'},
 };
+
+// ── FECAL-RISK ASSESSMENT ────────────────────────────────────────────────────────
+// A single old sample doesn't predict today's risk. For fresh data (≤14 days) we
+// report the measured status; for older data we estimate the *probability* a sample
+// today would be problematic from the station's whole history — its all-time
+// geometric mean and how often it exceeded thresholds — rather than the last reading.
+// Today's flow is surfaced as a transparent modifier (higher flow ≈ lower bacteria risk).
+const FRESH_DAYS = 14;
+function riskAssess(r){
+  const S = r.samples || [];
+  const res = S.map(s=>s.result).filter(v=>v>0);
+  const n = res.length, latest = r.latest;
+  if(!n || !latest) return {key:'Unknown', measured:false, n:0};
+  const ageDays = (Date.now() - new Date(latest.date).getTime())/86400000;
+  const allGeo = geomean(res);
+  const pAdv = res.filter(v=>v>THRESH.single_caution).length / n;
+  const pStv = res.filter(v=>v>THRESH.stv).length / n;
+  const dates = S.map(s=>s.date).slice().sort();
+  let key, measured;
+  if(ageDays <= FRESH_DAYS){
+    measured = true; key = statusFor(latest.result);   // recent, direct measurement
+  } else {
+    measured = false;                                   // estimate from history
+    if(n < 4) key = 'Unknown';
+    else if(allGeo > THRESH.single_caution || pAdv >= 0.5  || pStv >= 0.33) key = 'Unsafe';
+    else if(allGeo > THRESH.gm_criterion   || pAdv >= 0.20 || pStv >= 0.12) key = 'Caution';
+    else key = 'Good';
+  }
+  return {key, measured, n, allGeo: allGeo!=null?Math.round(allGeo*10)/10:null,
+          pAdv, pStv, ageDays, spanFrom: dates[0].slice(0,4), spanTo: dates[dates.length-1].slice(0,4),
+          latest, onAR: /american river/i.test(r.name||'')};
+}
+function agoText(days){
+  const d=Math.round(days);
+  if(d<21) return lang==='en'?`${d} days ago`:`hace ${d} días`;
+  const mo=Math.round(d/30.4);
+  if(mo<18) return lang==='en'?`${mo} mo ago`:`hace ${mo} meses`;
+  return lang==='en'?`${(d/365).toFixed(1)} yr ago`:`hace ${(d/365).toFixed(1)} años`;
+}
+function riskLabel(r){
+  const k=r._risk||{}, key=k.key||'Unknown';
+  const M={en:{Good:'Good — recent sample',Caution:'Elevated now',Warning:'High now',Unsafe:'High now'},
+           es:{Good:'Bueno — reciente',Caution:'Elevado ahora',Warning:'Alto ahora',Unsafe:'Alto ahora'}};
+  const E={en:{Good:'Probably safe',Caution:'Uncertain — sometimes elevated',Unsafe:'Probably unsafe',Unknown:'Unknown — no recent data'},
+           es:{Good:'Probablemente seguro',Caution:'Incierto — a veces elevado',Unsafe:'Probablemente no seguro',Unknown:'Desconocido — sin datos'}};
+  return (k.measured ? M[lang][key] : E[lang][key]) || key;
+}
+function riskSummary(r){
+  const k=r._risk||{}, u=THRESH.unit;
+  if(!k.n) return lang==='en'?'No samples at this station.':'Sin muestras.';
+  if(k.measured) return lang==='en'?`Latest sample ${fmtResult(k.latest.result)} ${u} on ${k.latest.date} (recent).`
+                                   :`Última muestra ${fmtResult(k.latest.result)} ${u} el ${k.latest.date}.`;
+  const span = k.spanFrom===k.spanTo?k.spanFrom:`${k.spanFrom}–${k.spanTo}`;
+  return lang==='en'
+    ? `${k.n} samples (${span}). Typical level (all-time geomean) ${fmtResult(k.allGeo)} ${u}; ${Math.round(k.pAdv*100)}% of samples over the swim advisory. Latest ${fmtResult(k.latest.result)} on ${k.latest.date} — ${agoText(k.ageDays)}, too old to predict today.`
+    : `${k.n} muestras (${span}). Media geométrica histórica ${fmtResult(k.allGeo)} ${u}; ${Math.round(k.pAdv*100)}% sobre el umbral. Última ${fmtResult(k.latest.result)} el ${k.latest.date} (${agoText(k.ageDays)}).`;
+}
+// Flow modifier (American River only): higher flow ≈ lower bacteria risk, lower flow ≈ higher.
+function riskFlowNote(r){
+  if(!FLOW || FLOW.cfs==null || !(r._risk&&r._risk.onAR)) return '';
+  const cfs=Math.round(FLOW.cfs).toLocaleString();
+  if(FLOW.cfs>=3500) return lang==='en'?`↑ Higher flow today (~${cfs} cfs) generally lowers bacteria risk.`:`↑ Caudal alto hoy (~${cfs} cfs) reduce el riesgo.`;
+  if(FLOW.cfs<1500)  return lang==='en'?`↓ Lower flow today (~${cfs} cfs) generally raises bacteria risk.`:`↓ Caudal bajo hoy (~${cfs} cfs) aumenta el riesgo.`;
+  return '';
+}
+function assessAll(){
+  RAW.forEach(r=>{
+    r._measured = statusFor(r.latest?r.latest.result:null);
+    r._risk = riskAssess(r);
+    r._status = r._risk.key;
+    r._gmStatus = r.geomean!=null ? (r.geomean<=THRESH.gm_criterion?'Good':statusFor(r.geomean)) : 'Unknown';
+  });
+}
 const GUIDANCE = {
   en:{
     Good:    {hdr:'🟢 GOOD — Safe for Water Contact',body:'Bacteria levels are at or below the health criterion. Normal precautions apply — rinse off after swimming and avoid swallowing river water.'},
@@ -644,7 +717,7 @@ function renderFlowChip(){
     <div style="margin-top:3px;">${flowSpark(FLOW.series,150,24)}</div>
     <div style="font-size:.55rem;color:#94a3b8;margin-top:1px;">USGS Fair Oaks · ${t}</div>`;
 }
-fetch(USGS_URL).then(r=>r.json()).then(j=>{ FLOW=parseUSGS(j); renderFlowChip(); if(summaryAt) updateSwimHero(); })
+fetch(USGS_URL).then(r=>r.json()).then(j=>{ FLOW=parseUSGS(j); renderFlowChip(); if(RAW.length){ if(typeof applyFilters==='function') applyFilters(); } if(summaryAt) updateSwimHero(); })
   .catch(()=>{ FLOW=null; renderFlowChip(); });
 
 // ── HOVER / TOOLTIP ──────────────────────────────────────────────────────────────
@@ -659,23 +732,15 @@ function showTooltip(r, cx, cy, pinned){
   const g = GUIDANCE[lang][r._status];
   const gm = STATUS[r._gmStatus] || STATUS.Unknown;
   const date = r.latest ? r.latest.date : '—';
-  const rows = [
-    [lang==='en'?'Latest sample':'Última muestra', `${fmtResult(r.latest&&r.latest.result)} ${THRESH.unit}`],
-    [lang==='en'?'Sample date':'Fecha', date],
-    [lang==='en'?'Recent geomean':'Media geom.', r.geomean!=null?`${fmtResult(r.geomean)} (n=${r.geomean_n})`:'—'],
-    [lang==='en'?'Total samples':'Muestras', (r.n||0).toLocaleString()],
-  ];
-  const stale = isStale(date);
+  const flowNote = riskFlowNote(r);
   tip.innerHTML = `
     <div style="display:none;" id="tip-close-handle"><div style="width:36px;height:4px;background:#cbd5e1;border-radius:2px;margin:0 auto 10px;"></div></div>
     <h3>${r.name||r.code}</h3>
-    <div style="display:flex;align-items:center;flex-wrap:wrap;gap:5px;margin-bottom:5px;">
-      <span class="t-badge" style="background:${m.color};margin:0;">${m.flag} ${lang==='en'?m.label:m.label_es}</span>
-      <span style="font-size:.68rem;color:var(--sub);">${lang==='en'?'geomean':'media'}: <span style="color:${gm.color};font-weight:700;">${lang==='en'?gm.label:gm.label_es}</span></span>
-    </div>
-    ${stale?`<div style="font-size:.66rem;color:#b45309;font-weight:600;margin-bottom:5px;">⏳ ${lang==='en'?'Latest sample is over a year old — for demonstration.':'La última muestra tiene más de un año.'}</div>`:''}
-    <table>${rows.map(([k,v])=>`<tr><td>${k}</td><td>${v}</td></tr>`).join('')}</table>
-    <div class="guidance g-${r._status}"><strong>${g.hdr}</strong>${g.body}</div>
+    <div style="font-size:.6rem;font-weight:700;letter-spacing:.05em;color:var(--sub);text-transform:uppercase;margin-bottom:3px;">${lang==='en'?(r._risk&&r._risk.measured?'Measured status':'Estimated risk'):(r._risk&&r._risk.measured?'Estado medido':'Riesgo estimado')}</div>
+    <div style="margin-bottom:5px;"><span class="t-badge" style="background:${m.color};margin:0;">${m.flag} ${riskLabel(r)}</span></div>
+    <div style="font-size:.72rem;color:#475569;line-height:1.5;">${riskSummary(r)}</div>
+    ${flowNote?`<div style="margin-top:5px;font-size:.7rem;color:#0e7490;font-weight:600;">🌊 ${flowNote}</div>`:''}
+    <div class="guidance g-${r._status}" style="margin-top:7px;"><strong>${g.hdr}</strong>${g.body}</div>
     <a href="#" id="st-history-link" style="pointer-events:auto;display:inline-block;font-size:.74rem;color:var(--ca-blue);text-decoration:none;margin-top:8px;font-weight:700;">📈 ${lang==='en'?'View sample history':'Ver historial'} →</a>
     <button onclick="printSign()" style="pointer-events:auto;margin-top:8px;width:100%;padding:6px;border:1px solid var(--ca-blue);border-radius:var(--radius);background:var(--ca-blue);color:#fff;cursor:pointer;font-size:.75rem;font-weight:700;">🖨️ ${lang==='en'?'Print Advisory Sign':'Imprimir Aviso'}</button>
   `;
@@ -748,8 +813,8 @@ function showStationPopup(code){
       </div>
       <div style="padding:14px 18px 0;display:flex;gap:14px;flex-wrap:wrap;align-items:center;">
         <div style="text-align:center;">
-          <div style="font-size:.66rem;color:#64748b;margin-bottom:3px;text-transform:uppercase;letter-spacing:.05em;">${lang==='en'?'Current Verdict':'Veredicto'}</div>
-          <span style="display:inline-block;background:${m.color};color:#fff;padding:4px 14px;border-radius:6px;font-size:.95rem;font-weight:800;">${m.flag} ${lang==='en'?m.label:m.label_es}</span>
+          <div style="font-size:.66rem;color:#64748b;margin-bottom:3px;text-transform:uppercase;letter-spacing:.05em;">${lang==='en'?(r._risk&&r._risk.measured?'Measured':'Estimated risk'):'Riesgo'}</div>
+          <span style="display:inline-block;background:${m.color};color:#fff;padding:4px 14px;border-radius:6px;font-size:.9rem;font-weight:800;">${m.flag} ${riskLabel(r)}</span>
         </div>
         <div style="text-align:center;"><div style="font-size:.66rem;color:#64748b;">${lang==='en'?'Latest':'Última'}</div><div style="font-size:1.05rem;font-weight:800;color:${m.color};">${fmtResult(r.latest&&r.latest.result)}</div><div style="font-size:.62rem;color:#94a3b8;">${THRESH.unit}</div></div>
         <div style="text-align:center;"><div style="font-size:.66rem;color:#64748b;">${lang==='en'?'Geomean':'Media'}</div><div style="font-size:1.05rem;font-weight:800;color:${(STATUS[r._gmStatus]||STATUS.Unknown).color};">${fmtResult(r.geomean)}</div><div style="font-size:.62rem;color:#94a3b8;">n=${r.geomean_n||0}</div></div>
@@ -941,25 +1006,28 @@ function renderList(data){
   else sorted.sort((a,b)=>STATUS[a._status].order-STATUS[b._status].order);
   list.innerHTML = sorted.map(r=>{
     const m = STATUS[r._status];
-    const date = r.latest?r.latest.date:'';
+    const k = r._risk||{};
+    const meta = k.measured
+      ? (lang==='en'?`Latest ${fmtResult(k.latest&&k.latest.result)} ${THRESH.unit} · ${k.latest.date}`:`Última ${fmtResult(k.latest&&k.latest.result)} · ${k.latest.date}`)
+      : (k.n ? (lang==='en'?`geomean ${fmtResult(k.allGeo)} · ${k.n} samples`:`media ${fmtResult(k.allGeo)} · ${k.n} muestras`) : (lang==='en'?'no data':'sin datos'));
     const distBadge = userLat!==null ? `<span class="st-badge" style="background:#475569;margin-left:3px">${fmtDist(distKm(userLat,userLon,r.lat,r.lon))}</span>` : '';
     return `<div class="st-card s-${r._status}" onclick="flyTo(${r.lat},${r.lon})">
       <div class="st-name">${r.name||r.code}</div>
-      <div class="st-meta">${fmtResult(r.latest&&r.latest.result)} ${THRESH.unit}${date?' · '+date:''}</div>
-      <span class="st-badge" style="background:${m.color}">${m.flag} ${lang==='en'?m.label:m.label_es}</span>${distBadge}
+      <div class="st-meta">${meta}</div>
+      <span class="st-badge" style="background:${m.color}">${m.flag} ${riskLabel(r)}</span>${distBadge}
     </div>`;
   }).join('');
 }
 
 function renderStats(data){
   const good = data.filter(r=>r._status==='Good').length;
-  const caut = data.filter(r=>r._status==='Caution').length;
-  const bad  = data.filter(r=>r._status==='Warning'||r._status==='Unsafe').length;
+  const caut = data.filter(r=>r._status==='Caution'||r._status==='Warning').length;
+  const bad  = data.filter(r=>r._status==='Unsafe').length;
   document.getElementById('statsBar').innerHTML = `
-    <div class="stat-card"><div class="stat-num">${data.length}</div><div class="stat-lbl">${lang==='en'?'Stations':'Estaciones'}</div></div>
-    <div class="stat-card"><div class="stat-num" style="color:var(--good)">${good}</div><div class="stat-lbl">${lang==='en'?'Good':'Bueno'}</div></div>
-    <div class="stat-card"><div class="stat-num" style="color:var(--caution)">${caut}</div><div class="stat-lbl">${lang==='en'?'Caution':'Precaución'}</div></div>
-    <div class="stat-card"><div class="stat-num" style="color:var(--unsafe)">${bad}</div><div class="stat-lbl">${lang==='en'?'Advisory':'Aviso'}</div></div>`;
+    <div class="stat-card"><div class="stat-num">${data.length}</div><div class="stat-lbl">${lang==='en'?'Sites':'Sitios'}</div></div>
+    <div class="stat-card"><div class="stat-num" style="color:var(--good)">${good}</div><div class="stat-lbl">${lang==='en'?'Likely safe':'Prob. seguro'}</div></div>
+    <div class="stat-card"><div class="stat-num" style="color:var(--caution)">${caut}</div><div class="stat-lbl">${lang==='en'?'Uncertain':'Incierto'}</div></div>
+    <div class="stat-card"><div class="stat-num" style="color:var(--unsafe)">${bad}</div><div class="stat-lbl">${lang==='en'?'Likely unsafe':'Prob. no seguro'}</div></div>`;
 }
 
 function buildLegend(){
@@ -1090,11 +1158,16 @@ function showSwimSummary(qLat, qLon, opts){
   // so they only count when genuinely close.
   const R_HAB=milesToKm(1.5), R_HAZ=milesToKm(2);
 
-  // ── 1) Fecal pathogens — nearest E. coli station ──
+  // ── 1) Fecal pathogens — nearest E. coli station, assessed from history + flow ──
   let fSt=null,fD=Infinity;
   for(const r of RAW){ if(r.lat==null) continue; const d=distKm(qLat,qLon,r.lat,r.lon); if(d<fD){fD=d;fSt=r;} }
-  const fStatus=fSt?fSt._status:'Unknown', fM=STATUS[fStatus]||STATUS.Unknown;
-  const fDate=fSt&&fSt.latest?fSt.latest.date:null;
+  const fFar = !fSt || fD > milesToKm(3);              // no representative station nearby
+  const fStatus = fFar ? 'Unknown' : fSt._status;
+  const fM = STATUS[fStatus]||STATUS.Unknown;
+  const fLabel = fFar ? (lang==='en'?'No station within 3 mi':'Sin estación en 3 mi') : riskLabel(fSt);
+  const fDetail = fFar ? '' : riskSummary(fSt);
+  const fFlowNote = fFar ? '' : riskFlowNote(fSt);
+  const fDate = fSt&&fSt.latest ? fSt.latest.date : null;
 
   // ── 2) Harmful algal blooms — within 1.5 mi. Only blooms observed in the last
   //    RECENT_DAYS count as an *active* advisory; older ones are historical context. ──
@@ -1118,7 +1191,7 @@ function showSwimSummary(qLat, qLon, opts){
 
   // River flow (one gage for the whole Lower American River corridor).
   const fc = FLOW ? flowCat(FLOW.cfs) : null;
-  const flowOnRiver = FLOW && fStatus!=='Unknown' && fD<=milesToKm(2);  // only relevant if on the American River
+  const flowOnRiver = FLOW && fSt && !fFar && fD<=milesToKm(2);  // physical flow note relevant on the river
 
   // ── Overall verdict (0 safe · 1 caution · 2 avoid) ──
   let level=0;
@@ -1146,12 +1219,13 @@ function showSwimSummary(qLat, qLon, opts){
       <button onclick="closeSwimSummary()" aria-label="Close" style="align-self:flex-start;background:none;border:none;font-size:.95rem;color:#94a3b8;cursor:pointer;line-height:1;padding:2px;">✕</button>
     </div>
     <div style="margin-top:8px;border-top:1px solid #e8edf2;padding-top:7px;display:flex;flex-direction:column;gap:6px;">
-      ${catRow('💧', lang==='en'?'Bacteria':'Bacterias', fM.color, lang==='en'?fM.label:fM.label_es, fSt?fSt.name:'', fDate, isStale(fDate))}
+      ${catRow('💧', lang==='en'?'Bacteria':'Bacterias', fM.color, fLabel, fFar?'':(fSt.name+' · '+fmtDist(fD)), null, false)}
       ${catRow('🦠', lang==='en'?'Algal blooms':'Floraciones', habColor, habStatus, habName||'', habDate, false)}
       ${catRow('⚠️', lang==='en'?'Hazards':'Peligros', hazColor, hazStatus, hz?hz.name:'', null, false)}
       ${flowOnRiver?catRow('🌊', lang==='en'?'River flow':'Caudal', fc.color, (lang==='en'?fc.en:fc.es), `${Math.round(FLOW.cfs).toLocaleString()} cfs`, null, false):''}
     </div>
-    ${latestDate?`<div style="margin-top:7px;font-size:.62rem;color:#94a3b8;border-top:1px solid #f1f5f9;padding-top:5px;">${lang==='en'?'Last water-quality data':'Últimos datos'}: <strong style="color:#64748b;">${latestDate}</strong>${isStale(latestDate)?(lang==='en'?' · demo data, over a year old':' · datos demo'):''}</div>`:''}`;
+    ${fDetail?`<div style="margin-top:7px;font-size:.63rem;color:#64748b;line-height:1.45;border-top:1px solid #f1f5f9;padding-top:5px;"><strong style="color:#334155;">💧 ${lang==='en'?'Bacteria basis':'Base'}:</strong> ${fDetail}${fFlowNote?`<br><span style="color:#0e7490;font-weight:600;">${fFlowNote}</span>`:''}</div>`:''}
+    ${fFar?`<div style="margin-top:6px;font-size:.62rem;color:#94a3b8;line-height:1.4;">${lang==='en'?'No monitoring station within 3 miles — bacteria risk here is unknown.':'Sin estación de monitoreo en 3 millas — riesgo desconocido.'}</div>`:''}`;
 }
 function closeSwimSummary(){
   document.getElementById('swim-hero').style.display='none';
@@ -1287,7 +1361,7 @@ async function loadData(){
 
 loadData().then(data=>{
   RAW=data;
-  RAW.forEach(r=>{ r._status=statusFor(r.latest?r.latest.result:null); r._gmStatus = r.geomean!=null ? (r.geomean<=THRESH.gm_criterion?'Good':statusFor(r.geomean)) : 'Unknown'; });
+  assessAll();
   filtered=[...RAW];
   buildLegend(); applyFilters();
   // fit map to stations

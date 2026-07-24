@@ -30,6 +30,18 @@ EPA 2012 recreational criteria. Defined in `THRESH` (JS) and top of `build_data.
 - Good `#15803D` · Caution `#A16207` · Warning `#C2410C` · Unsafe `#B91C1C` · No Data `#374151`
 - CA Blue `#005566` · CA Gold `#FDB913`
 
+## Fecal-risk assessment (`riskAssess`/`assessAll` in index.html)
+- Do NOT color stations by the last single sample. `riskAssess(r)`: if latest ≤14 days
+  → measured `statusFor(latest)`; else estimate from full history — Unsafe if
+  all-time geomean >235 or ≥50% > advisory (235) or ≥33% > STV (410); Caution if
+  geomean >126 or ≥20%>adv or ≥12%>STV; else Good; <4 samples → Unknown.
+- `r._status` = risk key (drives all colors); `r._measured` = raw latest status.
+- Flow is a transparent modifier only (`riskFlowNote`, American River stations):
+  ≥3500 cfs "higher flow lowers risk", <1500 "lower flow raises risk". NOT a silent recolor.
+- `assessAll()` runs on load AND when USGS flow arrives (re-`applyFilters`). `riskLabel`/
+  `riskSummary` are lang-aware, computed at render time. Summary: nearest station within
+  3 mi else Unknown; tooltip/summary show the history basis. Keep chronic sites (Tiscornia) red.
+
 ## Life-vest loaner sites (Kids Don't Float)
 - `docs/pfd_stations.json` — curated free life-jacket loaner boards (Sacramento
   County Regional Parks) `{note,program_url,program_name,sites:[{name,lat,lon,
