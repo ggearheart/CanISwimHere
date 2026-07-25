@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover"/>
+<title>Float &amp; Shuttle Planner — Lower American River</title>
+<meta name="theme-color" content="#005566"/>
+<style>
+:root{ --ca-blue:#005566; --ca-gold:#FDB913; --teal:#0e7490; --up:#7c3aed; --down:#0891b2;
+  --bg:#F0F4F8; --text:#1a2332; --sub:#4B5563; --border:#d0d8e4; --radius:8px; }
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Segoe UI',system-ui,Arial,sans-serif;background:var(--bg);color:var(--text);height:100vh;display:flex;flex-direction:column;overflow:hidden;}
+a{color:var(--ca-blue);}
+header{background:var(--ca-blue);color:#fff;padding:0 14px;height:52px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;box-shadow:0 2px 8px rgba(0,0,0,.35);z-index:1000;}
+.hdr-title{font-size:1rem;font-weight:800;line-height:1.05;}
+.hdr-title small{display:block;font-size:.64rem;font-weight:400;opacity:.85;}
+.hdr-link{color:var(--ca-gold);font-size:.72rem;font-weight:700;text-decoration:none;white-space:nowrap;}
+.app-body{flex:1;position:relative;overflow:hidden;}
+#map{position:absolute;inset:0;}
+.map-hint{position:absolute;top:10px;left:50%;transform:translateX(-50%);z-index:600;background:rgba(0,85,102,.92);color:#fff;border-radius:20px;padding:7px 15px;font-size:.74rem;font-weight:600;box-shadow:0 3px 12px rgba(0,0,0,.25);pointer-events:none;white-space:nowrap;max-width:92vw;}
+.fabs{position:absolute;bottom:calc(16px + env(safe-area-inset-bottom,0px));left:0;right:0;display:flex;justify-content:center;gap:10px;z-index:590;pointer-events:none;}
+.fabs button{pointer-events:auto;background:var(--ca-blue);color:#fff;border:none;border-radius:24px;padding:10px 18px;font-size:.85rem;font-weight:700;cursor:pointer;box-shadow:0 4px 16px rgba(0,0,0,.3);-webkit-tap-highlight-color:transparent;}
+#locate.on{background:#2563EB;}
+/* panel */
+#panel{position:absolute;bottom:0;left:0;right:0;z-index:700;background:#fff;border-top:2px solid var(--border);border-radius:16px 16px 0 0;box-shadow:0 -8px 40px rgba(0,0,0,.3);max-height:64vh;overflow-y:auto;transform:translateY(100%);transition:transform .28s cubic-bezier(.4,0,.2,1);padding:12px 15px calc(20px + env(safe-area-inset-bottom,0px));}
+#panel.open{transform:translateY(0);}
+.panel-handle{width:38px;height:4px;background:#cbd5e1;border-radius:2px;margin:0 auto 10px;}
+.sel-name{font-size:1.1rem;font-weight:800;color:var(--ca-blue);}
+.sel-meta{font-size:.75rem;color:var(--sub);margin:2px 0 4px;line-height:1.45;}
+.mile-chip{display:inline-block;background:#ecfeff;color:var(--teal);font-weight:700;font-size:.72rem;padding:2px 8px;border-radius:10px;}
+.plan-btn{width:100%;margin-top:10px;padding:11px;background:var(--ca-blue);color:#fff;border:none;border-radius:var(--radius);font-size:.85rem;font-weight:700;cursor:pointer;}
+.grp-label{font-size:.68rem;font-weight:800;text-transform:uppercase;letter-spacing:.05em;margin:12px 0 5px;display:flex;align-items:center;gap:5px;}
+.conn{border:1px solid var(--border);border-left:4px solid var(--border);border-radius:var(--radius);padding:8px 10px;margin-bottom:6px;cursor:pointer;}
+.conn:hover{box-shadow:0 2px 8px rgba(0,0,0,.1);}
+.conn.up{border-left-color:var(--up);}
+.conn.down{border-left-color:var(--down);}
+.conn-name{font-size:.85rem;font-weight:700;}
+.conn-stats{font-size:.72rem;color:var(--sub);margin-top:3px;display:flex;flex-wrap:wrap;gap:4px 12px;}
+.conn-stats b{color:var(--text);}
+.drive{color:var(--sub);}
+.close-x{background:none;border:none;font-size:1.2rem;color:#94a3b8;cursor:pointer;float:right;line-height:1;}
+.note{font-size:.66rem;color:#94a3b8;line-height:1.4;margin-top:12px;border-top:1px solid #f1f5f9;padding-top:8px;}
+.leaflet-container{background:#e8edf2;}
+</style>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+</head>
+<body>
+<header>
+  <div class="hdr-title">🛶 Float &amp; Shuttle Planner<small>Lower American River</small></div>
+  <a class="hdr-link" href="index.html">Can I Swim Here? ↗</a>
+</header>
+<div class="app-body">
+  <div id="map"></div>
+  <div class="map-hint" id="hint">👆 Tap an access point — or 📍 Near Me — to plan a trip</div>
+  <div class="fabs"><button id="locate" onclick="locateMe()">📍 Near Me</button></div>
+  <div id="panel"><div class="panel-handle"></div><div id="panel-body"></div></div>
+</div>
+<script>
+const M2MI = 1/1609.344;
+let ACCESS=[], SPEED={min:2,max:4}, RIVER='Lower American River';
+let markers=[], selIdx=null, userMarker=null, driveCache={};
+const map = L.map('map',{zoomControl:false}).setView([38.60,-121.36],11);
+L.control.zoom({position:'topright'}).addTo(map);
+L.tileLayer('https://basemap.nationalmap.gov/arcgis/rest/services/USGSTopo/MapServer/tile/{z}/{y}/{x}',
+  {attribution:'USGS National Map | Access points: OSM + curated', opacity:0.6, maxZoom:17, minZoom:9}).addTo(map);
+
+function accessIcon(selected){
+  const c = selected ? '#FDB913' : '#0e7490';
+  const sz = selected ? 30 : 22;
+  return L.divIcon({className:'', iconSize:[sz,sz], iconAnchor:[sz/2,sz/2],
+    html:`<div style="width:${sz}px;height:${sz}px;border-radius:50%;background:#fff;border:3px solid ${c};box-shadow:0 1px 5px rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center;font-size:${selected?15:11}px;">🛶</div>`});
+}
+function distKm(a,b,c,d){const R=6371,dLa=(c-a)*Math.PI/180,dLo=(d-b)*Math.PI/180;const x=Math.sin(dLa/2)**2+Math.cos(a*Math.PI/180)*Math.cos(c*Math.PI/180)*Math.sin(dLo/2)**2;return R*2*Math.atan2(Math.sqrt(x),Math.sqrt(1-x));}
+function fmtHrs(mi){ const lo=mi/SPEED.max, hi=mi/SPEED.min; const f=h=>h<1?Math.round(h*60)+' min':(Math.round(h*10)/10)+' hr'; return f(lo)+'–'+f(hi); }
+function dismissHint(){ const h=document.getElementById('hint'); if(h) h.style.display='none'; }
+
+function drawMarkers(){
+  markers.forEach(m=>m.remove()); markers=[];
+  ACCESS.forEach((a,i)=>{
+    const mk=L.marker([a.lat,a.lon],{icon:accessIcon(i===selIdx),zIndexOffset:i===selIdx?1000:200})
+      .addTo(map).on('click',()=>selectAccess(i));
+    mk.bindTooltip(a.name,{direction:'top',offset:[0,-12]});
+    markers.push(mk);
+  });
+}
+function nearestAccess(lat,lon){ let bi=0,bd=1e9; ACCESS.forEach((a,i)=>{const d=distKm(lat,lon,a.lat,a.lon); if(d<bd){bd=d;bi=i;}}); return bi; }
+
+function selectAccess(i, planNow){
+  selIdx=i; drawMarkers(); dismissHint();
+  const a=ACCESS[i];
+  map.setView([a.lat,a.lon], Math.max(map.getZoom(),12));
+  const body=document.getElementById('panel-body');
+  body.innerHTML=`
+    <button class="close-x" onclick="closePanel()" aria-label="Close">✕</button>
+    <div class="sel-name">🛶 ${a.name}</div>
+    <div class="sel-meta">${a.note||''}</div>
+    <div><span class="mile-chip">river mile ${a.river_mi.toFixed(1)}</span></div>
+    <button class="plan-btn" id="planBtn" onclick="showShuttles()">🚗 Plan a shuttle from here →</button>
+    <div id="shuttles"></div>`;
+  document.getElementById('panel').classList.add('open');
+  if(planNow) showShuttles();
+}
+function closePanel(){ document.getElementById('panel').classList.remove('open'); selIdx=null; drawMarkers(); }
+
+function showShuttles(){
+  const a=ACCESS[selIdx];
+  const pb=document.getElementById('planBtn'); if(pb) pb.style.display='none';
+  const up = ACCESS.map((x,i)=>({x,i})).filter(o=>o.i!==selIdx && o.x.river_mi>a.river_mi).sort((p,q)=>p.x.river_mi-q.x.river_mi);
+  const down = ACCESS.map((x,i)=>({x,i})).filter(o=>o.i!==selIdx && o.x.river_mi<a.river_mi).sort((p,q)=>q.x.river_mi-p.x.river_mi);
+  const row=(o,dir)=>{
+    const mi=Math.abs(o.x.river_mi-a.river_mi);
+    const id='drv_'+o.i;
+    return `<div class="conn ${dir}" onclick="selectAccess(${o.i},true)">
+      <div class="conn-name">${dir==='up'?'⬆':'⬇'} ${o.x.name}</div>
+      <div class="conn-stats">
+        <span>🛶 <b>${mi.toFixed(1)} mi</b> float · ${fmtHrs(mi)}</span>
+        <span class="drive" id="${id}">🚗 shuttle…</span>
+      </div>
+    </div>`;
+  };
+  let html='';
+  if(up.length) html+=`<div class="grp-label" style="color:var(--up)">⬆ ${up.length} put-in${up.length>1?'s':''} upstream — float down to ${a.name}</div>`+up.map(o=>row(o,'up')).join('');
+  if(down.length) html+=`<div class="grp-label" style="color:var(--down)">⬇ ${down.length} take-out${down.length>1?'s':''} downstream — float from ${a.name}</div>`+down.map(o=>row(o,'down')).join('');
+  html+=`<div class="note">🛶 Float time assumes ${SPEED.min}–${SPEED.max} mph (typical ${RIVER} paddle/float speed; varies with flow). River miles from the OpenStreetMap river centerline (NHD+ would be more exact). 🚗 Drive times are live road routing. Always leave your shuttle car at the take-out, then put in upstream.</div>`;
+  document.getElementById('shuttles').innerHTML=html;
+  [...up,...down].forEach(o=>fetchDrive(a,o.x,'drv_'+o.i));
+}
+
+function fetchDrive(a,b,elId){
+  const key=[a.lat,a.lon,b.lat,b.lon].map(v=>v.toFixed(4)).join(',');
+  const set=(txt)=>{const el=document.getElementById(elId); if(el) el.innerHTML='🚗 '+txt;};
+  if(driveCache[key]){ set(driveCache[key]); return; }
+  const url=`https://router.project-osrm.org/route/v1/driving/${a.lon},${a.lat};${b.lon},${b.lat}?overview=false`;
+  fetch(url).then(r=>r.json()).then(j=>{
+    if(j&&j.routes&&j.routes[0]){ const rt=j.routes[0]; const txt=`<b>${Math.round(rt.duration/60)} min</b> drive · ${(rt.distance*M2MI).toFixed(1)} mi`; driveCache[key]=txt; set(txt); }
+    else throw 0;
+  }).catch(()=>{ const mi=distKm(a.lat,a.lon,b.lat,b.lon)*0.621371*1.4; const txt=`~${Math.round(mi/32*60)} min drive (est.)`; driveCache[key]=txt; set(txt); });
+}
+
+function locateMe(){
+  if(!navigator.geolocation){ alert('Geolocation not supported.'); return; }
+  const btn=document.getElementById('locate'); btn.textContent='⏳ Locating…';
+  navigator.geolocation.getCurrentPosition(p=>{
+    const la=p.coords.latitude, lo=p.coords.longitude;
+    if(userMarker) userMarker.remove();
+    userMarker=L.marker([la,lo],{icon:L.divIcon({className:'',html:'<div style="width:16px;height:16px;background:#2563EB;border:3px solid #fff;border-radius:50%;box-shadow:0 0 0 3px rgba(37,99,235,.35);"></div>',iconSize:[16,16],iconAnchor:[8,8]}),zIndexOffset:2000}).addTo(map);
+    btn.textContent='📍 Near Me'; btn.className='on';
+    selectAccess(nearestAccess(la,lo));
+  }, ()=>{ btn.textContent='📍 Near Me'; alert('Could not get your location.'); }, {enableHighAccuracy:true,timeout:12000});
+}
+
+map.on('click', e=>{ if(ACCESS.length) selectAccess(nearestAccess(e.latlng.lat,e.latlng.lng)); });
+
+fetch('access_points.json').then(r=>r.json()).then(d=>{
+  ACCESS=(d.access||[]).slice().sort((a,b)=>a.river_mi-b.river_mi);
+  if(d.speed_mph) SPEED=d.speed_mph; if(d.river) RIVER=d.river;
+  drawMarkers();
+  const pts=ACCESS.map(a=>[a.lat,a.lon]); if(pts.length) map.fitBounds(L.latLngBounds(pts).pad(0.15));
+}).catch(()=>{ document.getElementById('hint').textContent='⚠️ Could not load access points.'; });
+</script>
+</body>
+</html>

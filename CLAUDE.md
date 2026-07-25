@@ -42,6 +42,19 @@ EPA 2012 recreational criteria. Defined in `THRESH` (JS) and top of `build_data.
   `riskSummary` are lang-aware, computed at render time. Summary: nearest station within
   3 mi else Unknown; tooltip/summary show the history basis. Keep chronic sites (Tiscornia) red.
 
+## Float & Shuttle Planner (`docs/float.html`)
+- Separate self-contained page (linked from index.html header). CanISwimHere stays
+  focused on swim safety; this answers float/shuttle planning.
+- `docs/access_points.json` `{note,river,speed_mph,access:[{name,lat,lon,river_mi,snap_off_m,note}]}`.
+  `river_mi` = miles along the OSM river centerline from the confluence (mile 0),
+  precomputed by snapping each point (ad-hoc: fetch OSM American River via Overpass,
+  order downstream→upstream by nearest-neighbor from the westernmost vertex, cumulative
+  arc length, project each access point). NHD+ is the intended upgrade.
+- Flow: pick access (marker/map-click/Near Me) → "Plan a shuttle" → upstream put-ins
+  + downstream take-outs, each with river miles, float time (river_mi ÷ 2–4 mph), and
+  drive time (OSRM `router.project-osrm.org`, straight-line fallback).
+- To add the user's shuttle locations: append to access_points.json + recompute river_mi.
+
 ## HAB risk communication
 - A reported bloom is likely over after ~2 weeks. Summary uses `HAB_ACTIVE_DAYS=14`:
   reports within 14 days = *active* (drive verdict); older = site *history*

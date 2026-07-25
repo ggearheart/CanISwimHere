@@ -1,0 +1,115 @@
+{
+  "note": "Lower American River access points for the shuttle/float planner. river_mi = distance along the river from the American\u2013Sacramento confluence (mile 0), computed by snapping each point to the OpenStreetMap river centerline. NHD+ would be more authoritative; OSM is close for this reach. Coordinates approximate \u2014 edit freely.",
+  "river": "Lower American River",
+  "speed_mph": {
+    "min": 2,
+    "max": 4,
+    "note": "typical float/paddle speed at regular LAR flows"
+  },
+  "access": [
+    {
+      "name": "Tiscornia Beach",
+      "lat": 38.598,
+      "lon": -121.507,
+      "river_mi": 0.14,
+      "snap_off_m": 48,
+      "note": "Sandy beach at the confluence; life jackets on site."
+    },
+    {
+      "name": "Discovery Park",
+      "lat": 38.6015,
+      "lon": -121.5045,
+      "river_mi": 0.42,
+      "snap_off_m": 83,
+      "note": "Confluence with the Sacramento River; large park, boat ramp, restrooms."
+    },
+    {
+      "name": "Sutter's Landing",
+      "lat": 38.588,
+      "lon": -121.462,
+      "river_mi": 3.06,
+      "snap_off_m": 104,
+      "note": "River access near downtown; parking."
+    },
+    {
+      "name": "Paradise Beach",
+      "lat": 38.582,
+      "lon": -121.43,
+      "river_mi": 5.07,
+      "snap_off_m": 121,
+      "note": "Glen Hall Park / River Park; popular beach."
+    },
+    {
+      "name": "Howe Avenue Access",
+      "lat": 38.5601,
+      "lon": -121.4053,
+      "river_mi": 7.96,
+      "snap_off_m": 16,
+      "note": "River access off Howe Ave."
+    },
+    {
+      "name": "Watt Avenue Access",
+      "lat": 38.566,
+      "lon": -121.381,
+      "river_mi": 9.41,
+      "snap_off_m": 113,
+      "note": "River access at the Watt Ave bridge."
+    },
+    {
+      "name": "River Bend Park",
+      "lat": 38.5875,
+      "lon": -121.3255,
+      "river_mi": 14.53,
+      "snap_off_m": 104,
+      "note": "Formerly Goethe Park; beaches and parking (Rancho Cordova)."
+    },
+    {
+      "name": "Rossmoor Bar",
+      "lat": 38.6112,
+      "lon": -121.3045,
+      "river_mi": 17.17,
+      "snap_off_m": 54,
+      "note": "Gravel-bar access, Rancho Cordova."
+    },
+    {
+      "name": "Ancil Hoffman Park",
+      "lat": 38.6228,
+      "lon": -121.305,
+      "river_mi": 18.03,
+      "snap_off_m": 4,
+      "note": "Large Carmichael park on a river bend."
+    },
+    {
+      "name": "Sacramento Bar",
+      "lat": 38.6275,
+      "lon": -121.2891,
+      "river_mi": 19.34,
+      "snap_off_m": 3,
+      "note": "Gravel-bar access and rafting take-out."
+    },
+    {
+      "name": "El Manto Access",
+      "lat": 38.618,
+      "lon": -121.282,
+      "river_mi": 20.04,
+      "snap_off_m": 369,
+      "note": "River access at the end of El Manto Dr (Gold River)."
+    },
+    {
+      "name": "Lower Sunrise",
+      "lat": 38.633,
+      "lon": -121.271,
+      "river_mi": 21.16,
+      "snap_off_m": 56,
+      "note": "Sunrise Recreation Area; sandy beaches, parking, popular put-in."
+    },
+    {
+      "name": "Sailor Bar",
+      "lat": 38.633,
+      "lon": -121.233,
+      "river_mi": 23.43,
+      "snap_off_m": 10,
+      "note": "Fair Oaks; uppermost Lower American River access below Nimbus Dam."
+    }
+  ]
+}

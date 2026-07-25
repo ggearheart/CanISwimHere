@@ -46,6 +46,7 @@ This keeps a lone year-old high reading from painting a chronically-clean site r
 - **Drowning-hazard markers** (red diamonds) for locally-known dangerous spots
 - **Free life-vest loaner sites** (🦺 markers) from the Sacramento County "Kids Don't Float" program, with borrow info and a link to the program page
 - **Report a hazard** — an in-app form (algal bloom, scum, pollution, etc.) that POSTs to the CA State Water Board FHAB Modernized public intake API
+- **[🛶 Float & Shuttle Planner](https://ggearheart.github.io/CanISwimHere/float.html)** — a companion page (`docs/float.html`) for planning a river trip (see below)
 - Printable bilingual (English / Spanish) advisory signs per status level
 - Download stations or a single station's history as CSV
 - Installable PWA with offline caching of the last-loaded data
@@ -58,6 +59,16 @@ Live streamflow is read client-side from the **USGS Instantaneous Values** servi
 Flow categories (cfs, general Lower-American-River guidance, not an official standard): Low/calm < 1,500 · Moderate < 3,500 · Swift < 6,000 · High ≥ 6,000. Releases from Nimbus Dam can change flow quickly.
 
 > Note: popular-swim-spot data was removed pending a higher-quality source (the previous list was approximate and not all points sat on the water).
+
+## Float & Shuttle Planner (`docs/float.html`)
+
+A separate companion page — the main app stays focused on "can I swim here?", this one answers "how do I plan a float/shuttle trip?" Pick a river-access point (tap a marker, tap the map, or **📍 Near Me**), then **Plan a shuttle** to see the connecting put-ins/take-outs **upstream and downstream**, each with:
+
+- **River miles** — distance *along the river* (not straight-line), from `docs/access_points.json` where each access point carries a precomputed `river_mi` (miles from the American–Sacramento confluence). Computed by snapping access points onto the OpenStreetMap river centerline; **NHD+ would be more authoritative** and is the intended upgrade.
+- **Float time** — river miles ÷ **2–4 mph** (typical Lower American River paddle/float speed; varies with flow).
+- **Drive time** — live road routing (OSRM) for the shuttle car, with a straight-line estimate fallback.
+
+`access_points.json` is a curated starter set (Sailor Bar → Discovery Park); edit it or add the shuttle locations you know. To recompute `river_mi` after adding points, re-snap them to the river centerline (ad-hoc script; see the `note` in the JSON).
 
 ## Harmful algal blooms
 
