@@ -65,6 +65,8 @@ A second hazard layer maps **harmful algal bloom (HAB)** reports from the CA Sta
 
 `build_data.py` builds `docs/blooms.json` (fetched statewide, filtered to the bbox) alongside `stations.json`. Edit `BBOX` in `build_data.py` to change the area.
 
+**Bloom risk, like bacteria, is time-sensitive.** A reported bloom is usually over after ~2 weeks, so the "Near Me" / tap summary treats only reports within **14 days** (`HAB_ACTIVE_DAYS`) as *active*; older ones become **site history** ("blooms have occurred here — a new one could be present"). Either way the app leads with **"when in doubt, stay out"** and tells people to look before they get in — for floating scum/streaks (planktonic) or brown-black bottom mats (benthic), noting not every green algae or plant is harmful — linking the state's [bloom ID field guide](https://mywaterquality.ca.gov/habs/resources/field-guide.html). (Fine-scale remote-sensing bloom prediction is a hoped-for future addition.)
+
 > HABs and E. coli are **different hazards** — a site can be clear of one and not the other. Most blooms are reported by the public and only some are lab-tested, so cyanotoxins may be present even when not confirmed.
 
 ## Drowning hazards

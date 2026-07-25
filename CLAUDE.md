@@ -42,6 +42,16 @@ EPA 2012 recreational criteria. Defined in `THRESH` (JS) and top of `build_data.
   `riskSummary` are lang-aware, computed at render time. Summary: nearest station within
   3 mi else Unknown; tooltip/summary show the history basis. Keep chronic sites (Tiscornia) red.
 
+## HAB risk communication
+- A reported bloom is likely over after ~2 weeks. Summary uses `HAB_ACTIVE_DAYS=14`:
+  reports within 14 days = *active* (drive verdict); older = site *history*
+  ("blooms have occurred here", does NOT force the verdict). `habActive`/`habActiveAdv`
+  in `showSwimSummary`.
+- Always lead with **"when in doubt, stay out"** + look for planktonic scum / benthic mats.
+  Helpers `habWatchHTML()` + `habAgeNote()`; link `HAB_GUIDE_URL`
+  (mywaterquality.ca.gov field guide). Shown in `showHabTip` and the summary.
+- Remote-sensing bloom prediction noted as a future direction (About panel).
+
 ## Life-vest loaner sites (Kids Don't Float)
 - `docs/pfd_stations.json` — curated free life-jacket loaner boards (Sacramento
   County Regional Parks) `{note,program_url,program_name,sites:[{name,lat,lon,
