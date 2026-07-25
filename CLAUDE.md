@@ -46,7 +46,8 @@ EPA 2012 recreational criteria. Defined in `THRESH` (JS) and top of `build_data.
 - A reported bloom is likely over after ~2 weeks. Summary uses `HAB_ACTIVE_DAYS=14`:
   reports within 14 days = *active* (drive verdict); older = site *history*
   ("blooms have occurred here", does NOT force the verdict). `habActive`/`habActiveAdv`
-  in `showSwimSummary`.
+  in `showSwimSummary`. A **recurring** advisory history (`habRecurring`: ≥3 advisory
+  blooms, or ≥2 across ≥2 years) → "recurring bloom site", nudges verdict to caution.
 - Always lead with **"when in doubt, stay out"** + look for planktonic scum / benthic mats.
   Helpers `habWatchHTML()` + `habAgeNote()`; link `HAB_GUIDE_URL`
   (mywaterquality.ca.gov field guide). Shown in `showHabTip` and the summary.

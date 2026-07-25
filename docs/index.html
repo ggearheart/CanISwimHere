@@ -1201,9 +1201,15 @@ function showSwimSummary(qLat, qLon, opts){
   const habActive=habNear.filter(b=>isActive(b.obs));
   const habActiveAdv=habActive.filter(b=>ADVISORY.has(b.tier))
     .sort((a,b)=>(ADV[a.tier]||ADV.Other).order-(ADV[b.tier]||ADV.Other).order);  // worst first
+  // Recurrence: advisory-level blooms here across multiple seasons → bloom-prone site.
+  const habAdvHist=habNear.filter(b=>ADVISORY.has(b.tier));
+  const habAdvYears=new Set(habAdvHist.map(b=>(b.obs||'').slice(0,4)).filter(Boolean));
+  const habRecurring = habAdvHist.length>=3 || (habAdvHist.length>=2 && habAdvYears.size>=2);
+  const habYearSpan = habAdvYears.size ? `${Math.min(...[...habAdvYears])}–${Math.max(...[...habAdvYears])}` : '';
   let habColor, habStatus, habDate=null, habName=null, habState='none';
   if(habActiveAdv.length){ const w=habActiveAdv[0], m=ADV[w.tier]; habColor=m.color; habStatus=(lang==='en'?'Active '+m.label+' bloom':'Floración activa: '+m.label_es); habDate=w.obs?w.obs.split('T')[0]:null; habName=w.name; habState='active'; }
   else if(habActive.length){ habColor='#A16207'; habStatus=lang==='en'?'Bloom reported here recently':'Floración reciente aquí'; habDate=habActive[0].obs?habActive[0].obs.split('T')[0]:null; habName=habActive[0].name; habState='active'; }
+  else if(habRecurring){ habColor='#A16207'; habStatus=lang==='en'?'Recurring bloom site':'Sitio de floraciones recurrentes'; habDate=habNear[0].obs?habNear[0].obs.split('T')[0]:null; habName=lang==='en'?`${habAdvHist.length} advisories ${habYearSpan}`:`${habAdvHist.length} avisos ${habYearSpan}`; habState='recurring'; }
   else if(habNear.length){ habColor='#A16207'; habStatus=lang==='en'?'Blooms have occurred here':'Han ocurrido floraciones'; habDate=habNear[0].obs?habNear[0].obs.split('T')[0]:null; habName=lang==='en'?`${habNear.length} past report${habNear.length>1?'s':''}`:`${habNear.length} reportes`; habState='history'; }
   else { habColor='#15803D'; habStatus=lang==='en'?'No blooms reported nearby':'Ninguna cerca'; habState='none'; }
 
@@ -1222,6 +1228,7 @@ function showSwimSummary(qLat, qLon, opts){
   if(fStatus==='Unsafe') level=2; else if(['Warning','Caution','Unknown'].includes(fStatus)) level=Math.max(level,1);
   if(habActiveAdv.length){ level=['Danger','Mat'].includes(habActiveAdv[0].tier)?2:Math.max(level,1); }
   else if(habActive.length){ level=Math.max(level,1); }   // a bloom was just seen here
+  else if(habState==='recurring'){ level=Math.max(level,1); }  // bloom-prone site → look carefully
   if(hz) level=Math.max(level,1);
   if(flowOnRiver){ if(fc.key==='high') level=2; else if(fc.key==='swift') level=Math.max(level,1); }
   const verdict=level===0?{txt:lang==='en'?'Safe to swim':'Seguro para nadar',icon:'✅',color:'#15803D'}
@@ -1251,7 +1258,11 @@ function showSwimSummary(qLat, qLon, opts){
     </div>
     ${fDetail?`<div style="margin-top:7px;font-size:.63rem;color:#64748b;line-height:1.45;border-top:1px solid #f1f5f9;padding-top:5px;"><strong style="color:#334155;">💧 ${lang==='en'?'Bacteria basis':'Base'}:</strong> ${fDetail}${fFlowNote?`<br><span style="color:#0e7490;font-weight:600;">${fFlowNote}</span>`:''}</div>`:''}
     ${fFar?`<div style="margin-top:6px;font-size:.62rem;color:#94a3b8;line-height:1.4;">${lang==='en'?'No monitoring station within 3 miles — bacteria risk here is unknown.':'Sin estación de monitoreo en 3 millas — riesgo desconocido.'}</div>`:''}
-    ${habState!=='none'?`<div style="margin-top:6px;font-size:.63rem;color:#475569;line-height:1.45;">🦠 <strong style="color:#92400e;">${lang==='en'?'When in doubt, stay out.':'Cuando tenga dudas, manténgase fuera.'}</strong> ${habState==='active'?(lang==='en'?'A bloom was reported here in the last 2 weeks.':'Se reportó una floración en las últimas 2 semanas.'):(lang==='en'?`Blooms have been reported near here (last ${habDate}); a new one could be present.`:`Se han reportado floraciones cerca (última ${habDate}).`)} ${lang==='en'?'Look for floating scum or bottom mats before you get in.':'Busque espuma o tapetes antes de entrar.'} <a href="${HAB_GUIDE_URL}" target="_blank" rel="noopener" style="pointer-events:auto;color:var(--ca-blue);font-weight:700;text-decoration:none;">${lang==='en'?'Bloom ID guide':'Guía'} ↗</a></div>`:''}`;
+    ${habState!=='none'?`<div style="margin-top:6px;font-size:.63rem;color:#475569;line-height:1.45;">🦠 <strong style="color:#92400e;">${lang==='en'?'When in doubt, stay out.':'Cuando tenga dudas, manténgase fuera.'}</strong> ${
+      habState==='active'?(lang==='en'?'A bloom was reported here in the last 2 weeks.':'Se reportó una floración en las últimas 2 semanas.')
+      :habState==='recurring'?(lang==='en'?`This is a recurring bloom site (${habAdvHist.length} advisories${habYearSpan?' across '+habYearSpan:''}) — a new bloom is more likely here.`:`Sitio de floraciones recurrentes (${habAdvHist.length} avisos${habYearSpan?', '+habYearSpan:''}) — más probable aquí.`)
+      :(lang==='en'?`Blooms have been reported near here (last ${habDate}); a new one could be present.`:`Se han reportado floraciones cerca (última ${habDate}).`)
+    } ${lang==='en'?'Look for floating scum or bottom mats before you get in.':'Busque espuma o tapetes antes de entrar.'} <a href="${HAB_GUIDE_URL}" target="_blank" rel="noopener" style="pointer-events:auto;color:var(--ca-blue);font-weight:700;text-decoration:none;">${lang==='en'?'Bloom ID guide':'Guía'} ↗</a></div>`:''}`;
 }
 function closeSwimSummary(){
   document.getElementById('swim-hero').style.display='none';
