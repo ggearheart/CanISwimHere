@@ -12,32 +12,50 @@ Outputs:
   docs/river_line.json   — ordered centerline: {unit, source, line:[[lat,lon,mi],...]}
   docs/access_points.json — {note, river, speed_mph, access:[{id,name,lat,lon,river_mi,...}]}
 """
-import json, math, os, urllib.request, urllib.parse
+import csv, json, math, os, re, urllib.request
 
 M2MI = 1/1609.344
 DOCS = os.path.join(os.path.dirname(__file__), "docs")
+SOURCE_CSV = os.path.join(os.path.dirname(__file__), "access_points_source.csv")
 # USGS NLDI (Network Linked Data Index) — NHDPlus flowlines, downstream-main from
 # the American River at Fair Oaks gage; trimmed at the confluence.
 NLDI = ("https://api.water.usgs.gov/nldi/linked-data/nwissite/USGS-11446500/"
         "navigation/DM/flowlines?distance=45&f=json")
 CONFLUENCE = (38.6005, -121.5085)   # American x Sacramento River
 
-# Seed access points (downstream->upstream). Coordinates approximate — edit freely.
-SEEDS = [
- ("discovery-park",   "Discovery Park",         38.6015, -121.5045, "Confluence with the Sacramento River; large park, boat ramp, restrooms."),
- ("tiscornia-beach",  "Tiscornia Beach",        38.5980, -121.5070, "Sandy beach at the confluence; life jackets on site."),
- ("sutters-landing",  "Sutter's Landing",       38.5880, -121.4620, "River access near downtown; parking."),
- ("paradise-beach",   "Paradise Beach",         38.5820, -121.4300, "Glen Hall Park / River Park; popular beach."),
- ("howe-ave",         "Howe Avenue Access",     38.5601, -121.4053, "River access off Howe Ave."),
- ("watt-ave",         "Watt Avenue Access",     38.5660, -121.3810, "River access at the Watt Ave bridge."),
- ("river-bend",       "River Bend Park",        38.5875, -121.3255, "Formerly Goethe Park; beaches and parking (Rancho Cordova)."),
- ("rossmoor-bar",     "Rossmoor Bar",           38.6112, -121.3045, "Gravel-bar access, Rancho Cordova."),
- ("ancil-hoffman",    "Ancil Hoffman Park",     38.6228, -121.3050, "Large Carmichael park on a river bend."),
- ("sacramento-bar",   "Sacramento Bar",         38.6275, -121.2891, "Gravel-bar access and rafting take-out."),
- ("el-manto",         "El Manto Access",        38.6180, -121.2820, "River access at the end of El Manto Dr (Gold River)."),
- ("lower-sunrise",    "Lower Sunrise",          38.6330, -121.2710, "Sunrise Recreation Area; sandy beaches, parking, popular put-in."),
- ("sailor-bar",       "Sailor Bar",             38.6330, -121.2330, "Fair Oaks; uppermost Lower American River access below Nimbus Dam."),
-]
+# String fields carried through from the source CSV into access_points.json.
+STR_FIELDS = ["parking_fee", "parking_info", "walk_to_water", "amenities", "cautions", "note"]
+
+
+def slug(s):
+    return re.sub(r"[^a-z0-9]+", "-", (s or "").lower()).strip("-")
+
+
+def num(v):
+    try:
+        return float(v)
+    except (TypeError, ValueError):
+        return None
+
+
+def read_seeds():
+    """Curated access points from access_points_source.csv (the file the user edits)."""
+    seeds = []
+    with open(SOURCE_CSV, newline="") as f:
+        for row in csv.DictReader(f):
+            name = (row.get("name") or "").strip()
+            alat, alon = num(row.get("access_lat")), num(row.get("access_lon"))
+            if not name or alat is None or alon is None:
+                continue
+            seeds.append({
+                "id": slug(row.get("id") or name),
+                "name": name,
+                "lat": alat, "lon": alon,
+                "parking_lat": num(row.get("parking_lat")),
+                "parking_lon": num(row.get("parking_lon")),
+                **{k: ((row.get(k) or "").strip() or None) for k in STR_FIELDS},
+            })
+    return seeds
 
 
 def hav(a, b, c, d):
@@ -123,17 +141,26 @@ def main():
                    "line": line}, f, separators=(",", ":"))
 
     access = []
-    for aid, name, la, lo, note in SEEDS:
-        mi, off = station_mi(la, lo, path, cum)
-        access.append({"id": aid, "name": name, "lat": la, "lon": lo,
-                       "river_mi": round(mi, 2), "snap_off_m": round(off), "note": note})
+    for s in read_seeds():
+        mi, off = station_mi(s["lat"], s["lon"], path, cum)
+        walk_ft = None
+        if s["parking_lat"] is not None and s["parking_lon"] is not None:
+            walk_ft = round(hav(s["lat"], s["lon"], s["parking_lat"], s["parking_lon"]) * 3.28084)
+        entry = {"id": s["id"], "name": s["name"], "lat": s["lat"], "lon": s["lon"],
+                 "river_mi": round(mi, 2), "snap_off_m": round(off),
+                 "parking_lat": s["parking_lat"], "parking_lon": s["parking_lon"], "walk_ft": walk_ft}
+        for k in STR_FIELDS:
+            if s.get(k):
+                entry[k] = s[k]
+        access.append(entry)
     access.sort(key=lambda a: a["river_mi"])
     with open(os.path.join(DOCS, "access_points.json"), "w") as f:
         json.dump({
             "note": "Lower American River access points for the float/shuttle planner. "
-                    "river_mi = miles along the USGS NHDPlus river centerline (via NLDI) "
-                    "from the American-Sacramento confluence (mile 0). "
-                    "Coordinates approximate — edit freely, then re-run build_access.py.",
+                    "Source of truth: access_points_source.csv (edit that, then re-run "
+                    "build_access.py). river_mi = miles along the USGS NHDPlus river "
+                    "centerline (via NLDI) from the American-Sacramento confluence (mile 0). "
+                    "lat/lon = water's edge (put-in/take-out); parking_lat/lon = the lot.",
             "river": "Lower American River",
             "speed_mph": {"min": 2, "max": 4, "note": "typical float/paddle speed at regular LAR flows"},
             "access": access,

@@ -163,9 +163,11 @@ function buildTrip(putInIdx,takeOutIdx,timeMode,timeISO){
   const verts=[[putIn.lat,putIn.lon]].concat(routeVerts(putIn.river_mi,takeOut.river_mi)).concat([[takeOut.lat,takeOut.lon]]);
   L.polyline(verts,{color:'#0891b2',weight:6,opacity:.85}).addTo(routeLayer);
   L.polyline(verts,{color:'#fff',weight:2,opacity:.6,dashArray:'2,10'}).addTo(routeLayer);
+  addParkingWalk(putIn); addParkingWalk(takeOut);
   routeLayer.addLayer(endMarker(putIn,'PUT IN','#15803D'));
   routeLayer.addLayer(endMarker(takeOut,'TAKE OUT','#B91C1C'));
-  map.fitBounds(L.latLngBounds(verts).pad(0.25));
+  const allpts=verts.concat([putIn,takeOut].filter(a=>a.parking_lat!=null).map(a=>[a.parking_lat,a.parking_lon]));
+  map.fitBounds(L.latLngBounds(allpts).pad(0.2));
   drawSafety();
   renderTripPanel();
   document.getElementById('panel').classList.add('open');
@@ -175,6 +177,29 @@ function endMarker(a,label,color){
   return L.marker([a.lat,a.lon],{zIndexOffset:1500,icon:L.divIcon({className:'',iconSize:[16,16],iconAnchor:[8,8],
     html:`<div style="width:16px;height:16px;border-radius:50%;background:${color};border:3px solid #fff;box-shadow:0 0 0 2px ${color}55;"></div>`})})
     .bindTooltip(`${label}: ${a.name}`,{permanent:true,direction:'top',offset:[0,-8],className:'route-tt'});
+}
+// Parking marker + dashed walk line from the lot to the water's edge.
+function addParkingWalk(a){
+  if(a.parking_lat==null||a.parking_lon==null) return;
+  L.polyline([[a.parking_lat,a.parking_lon],[a.lat,a.lon]],{color:'#334155',weight:2.5,opacity:.8,dashArray:'4,5'}).addTo(routeLayer);
+  L.marker([a.parking_lat,a.parking_lon],{zIndexOffset:1400,icon:L.divIcon({className:'',iconSize:[22,22],iconAnchor:[11,11],
+    html:`<div style="width:22px;height:22px;border-radius:5px;background:#1d4ed8;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:13px;">P</div>`})})
+    .addTo(routeLayer).bindTooltip(`🅿️ Parking: ${a.name}${a.walk_ft?` · ${walkText(a)} to water`:''}`,{direction:'top'});
+}
+function walkText(a){
+  if(a.walk_to_water) return a.walk_to_water;
+  if(a.walk_ft) return a.walk_ft>=500?`${(a.walk_ft/5280).toFixed(1)} mi walk`:`${a.walk_ft} ft walk`;
+  return '';
+}
+function accDetail(a){
+  const bits=[];
+  if(a.parking_fee) bits.push(`🅿️ ${a.parking_fee}`);
+  if(walkText(a)) bits.push(`🚶 ${walkText(a)}`);
+  if(a.amenities) bits.push(a.amenities);
+  let h=bits.length?`<div style="font-size:.68rem;color:#64748b;margin:1px 0 2px 22px;line-height:1.4;">${bits.join(' · ')}</div>`:'';
+  if(a.parking_info) h+=`<div style="font-size:.64rem;color:#94a3b8;margin:0 0 2px 22px;line-height:1.4;">${a.parking_info}</div>`;
+  if(a.cautions) h+=`<div style="font-size:.66rem;color:#b91c1c;font-weight:600;margin:1px 0 3px 22px;line-height:1.4;">⚠️ ${a.cautions}</div>`;
+  return h;
 }
 
 // ── water quality (Can I Swim Here?) along the route ───────────────────────────
@@ -275,7 +300,9 @@ function renderTripPanel(){
     <button class="close-x" onclick="closePanel()" aria-label="Close">✕</button>
     <div class="sel-name">🛶 Your float</div>
     <div class="trip-row"><span class="pin" style="background:#15803D"></span><b>Put in:</b>&nbsp;${plan.putIn.name} <span style="color:#94a3b8;font-size:.72rem;">· mi ${plan.putIn.river_mi.toFixed(1)}</span></div>
+    ${accDetail(plan.putIn)}
     <div class="trip-row"><span class="pin" style="background:#B91C1C"></span><b>Take out:</b>&nbsp;${plan.takeOut.name} <span style="color:#94a3b8;font-size:.72rem;">· mi ${plan.takeOut.river_mi.toFixed(1)}</span></div>
+    ${accDetail(plan.takeOut)}
     <div class="stat-grid">
       <div class="stat"><div class="n">${mi.toFixed(1)} mi</div><div class="l">river distance</div></div>
       <div class="stat"><div class="n">${fmtHrs(mi)}</div><div class="l">float @ ${SPEED.min}–${SPEED.max} mph</div></div>

@@ -73,7 +73,9 @@ A separate companion page — the main app stays focused on "can I swim here?", 
 - **⌄ Inspect map** collapses the panel to a shaded plan box (put-in → take-out · miles · time) so you can pan/zoom and read hazards + flow, then tap to reopen.
 - **Share** — a "Share this float plan" button produces a **self-contained URL** (`?from=<id>&to=<id>&start=<iso>`). Opening it reconstructs the whole plan. **No database needed** — the plan lives in the URL (stateless, works on static hosting).
 
-**Data / rebuild:** `build_access.py` fetches the LAR centerline from **USGS NHDPlus** (via the NLDI service — downstream-main flowlines from the Fair Oaks gage, trimmed at the confluence), orders it, and writes `docs/river_line.json` (centerline with per-vertex NHDPlus river mile) + `docs/access_points.json` (curated access points with `id`, `river_mi`, notes). Add the shuttle locations you know to the `SEEDS` list and re-run `python3 build_access.py`.
+Each access point also carries **parking** detail — a separate parking coordinate (🅿️ marker + a dashed **walk line** to the water's edge on the map), **fee**, lot info, **walk-to-water** description, amenities, and cautions — surfaced in the put-in/take-out plan details.
+
+**Data / rebuild:** the source of truth is **`access_points_source.csv`** (columns: `id, name, access_lat, access_lon, parking_lat, parking_lon, parking_fee, parking_info, walk_to_water, amenities, cautions, note`). Edit it, then run `python3 build_access.py`, which fetches the LAR centerline from **USGS NHDPlus** (via the NLDI service — downstream-main flowlines from the Fair Oaks gage, trimmed at the confluence), snaps each `access_*` point to it for the NHDPlus `river_mi`, and writes `docs/river_line.json` + `docs/access_points.json`.
 
 ## Harmful algal blooms
 
