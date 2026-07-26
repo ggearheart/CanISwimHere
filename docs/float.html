@@ -7,6 +7,7 @@
 <meta name="theme-color" content="#005566"/>
 <style>
 :root{ --ca-blue:#005566; --ca-gold:#FDB913; --teal:#0e7490; --up:#7c3aed; --down:#0891b2;
+  --good:#15803D; --caution:#A16207; --warning:#C2410C; --unsafe:#B91C1C; --unknown:#6B7280;
   --bg:#F0F4F8; --text:#1a2332; --sub:#4B5563; --border:#d0d8e4; --radius:8px; }
 *{box-sizing:border-box;margin:0;padding:0;}
 body{font-family:'Segoe UI',system-ui,Arial,sans-serif;background:var(--bg);color:var(--text);height:100vh;display:flex;flex-direction:column;overflow:hidden;}
@@ -19,27 +20,37 @@ header{background:var(--ca-blue);color:#fff;padding:0 14px;height:52px;display:f
 #map{position:absolute;inset:0;}
 .map-hint{position:absolute;top:10px;left:50%;transform:translateX(-50%);z-index:600;background:rgba(0,85,102,.92);color:#fff;border-radius:20px;padding:7px 15px;font-size:.74rem;font-weight:600;box-shadow:0 3px 12px rgba(0,0,0,.25);pointer-events:none;white-space:nowrap;max-width:92vw;}
 .fabs{position:absolute;bottom:calc(16px + env(safe-area-inset-bottom,0px));left:0;right:0;display:flex;justify-content:center;gap:10px;z-index:590;pointer-events:none;}
-.fabs button{pointer-events:auto;background:var(--ca-blue);color:#fff;border:none;border-radius:24px;padding:10px 18px;font-size:.85rem;font-weight:700;cursor:pointer;box-shadow:0 4px 16px rgba(0,0,0,.3);-webkit-tap-highlight-color:transparent;}
+.fabs button{pointer-events:auto;background:var(--ca-blue);color:#fff;border:none;border-radius:24px;padding:10px 18px;font-size:.85rem;font-weight:700;cursor:pointer;box-shadow:0 4px 16px rgba(0,0,0,.3);}
 #locate.on{background:#2563EB;}
-/* panel */
-#panel{position:absolute;bottom:0;left:0;right:0;z-index:700;background:#fff;border-top:2px solid var(--border);border-radius:16px 16px 0 0;box-shadow:0 -8px 40px rgba(0,0,0,.3);max-height:64vh;overflow-y:auto;transform:translateY(100%);transition:transform .28s cubic-bezier(.4,0,.2,1);padding:12px 15px calc(20px + env(safe-area-inset-bottom,0px));}
+#panel{position:absolute;bottom:0;left:0;right:0;z-index:700;background:#fff;border-top:2px solid var(--border);border-radius:16px 16px 0 0;box-shadow:0 -8px 40px rgba(0,0,0,.3);max-height:66vh;overflow-y:auto;transform:translateY(100%);transition:transform .28s cubic-bezier(.4,0,.2,1);padding:12px 15px calc(20px + env(safe-area-inset-bottom,0px));}
 #panel.open{transform:translateY(0);}
 .panel-handle{width:38px;height:4px;background:#cbd5e1;border-radius:2px;margin:0 auto 10px;}
 .sel-name{font-size:1.1rem;font-weight:800;color:var(--ca-blue);}
 .sel-meta{font-size:.75rem;color:var(--sub);margin:2px 0 4px;line-height:1.45;}
 .mile-chip{display:inline-block;background:#ecfeff;color:var(--teal);font-weight:700;font-size:.72rem;padding:2px 8px;border-radius:10px;}
-.plan-btn{width:100%;margin-top:10px;padding:11px;background:var(--ca-blue);color:#fff;border:none;border-radius:var(--radius);font-size:.85rem;font-weight:700;cursor:pointer;}
-.grp-label{font-size:.68rem;font-weight:800;text-transform:uppercase;letter-spacing:.05em;margin:12px 0 5px;display:flex;align-items:center;gap:5px;}
+.plan-btn{padding:11px;background:var(--ca-blue);color:#fff;border:none;border-radius:var(--radius);font-size:.82rem;font-weight:700;cursor:pointer;}
+.grp-label{font-size:.68rem;font-weight:800;text-transform:uppercase;letter-spacing:.05em;margin:12px 0 5px;}
 .conn{border:1px solid var(--border);border-left:4px solid var(--border);border-radius:var(--radius);padding:8px 10px;margin-bottom:6px;cursor:pointer;}
 .conn:hover{box-shadow:0 2px 8px rgba(0,0,0,.1);}
-.conn.up{border-left-color:var(--up);}
-.conn.down{border-left-color:var(--down);}
+.conn.up{border-left-color:var(--up);} .conn.down{border-left-color:var(--down);}
 .conn-name{font-size:.85rem;font-weight:700;}
 .conn-stats{font-size:.72rem;color:var(--sub);margin-top:3px;display:flex;flex-wrap:wrap;gap:4px 12px;}
-.conn-stats b{color:var(--text);}
-.drive{color:var(--sub);}
+.conn-stats b{color:var(--text);} .drive{color:var(--sub);}
 .close-x{background:none;border:none;font-size:1.2rem;color:#94a3b8;cursor:pointer;float:right;line-height:1;}
 .note{font-size:.66rem;color:#94a3b8;line-height:1.4;margin-top:12px;border-top:1px solid #f1f5f9;padding-top:8px;}
+.trip-row{display:flex;align-items:center;gap:8px;font-size:.85rem;margin:3px 0;}
+.pin{width:14px;height:14px;border-radius:50%;flex-shrink:0;border:2px solid #fff;box-shadow:0 0 0 1px rgba(0,0,0,.15);}
+.stat-grid{display:flex;gap:7px;margin:9px 0;flex-wrap:wrap;}
+.stat{flex:1;min-width:80px;background:var(--bg);border:1px solid var(--border);border-radius:7px;padding:7px 9px;text-align:center;}
+.stat .n{font-size:1.05rem;font-weight:800;color:var(--ca-blue);line-height:1.1;}
+.stat .l{font-size:.62rem;color:var(--sub);margin-top:2px;}
+.time-btn{padding:7px 10px;border:1px solid var(--border);border-radius:6px;background:#fff;font-size:.74rem;font-weight:600;color:var(--sub);cursor:pointer;}
+.time-btn.on{background:var(--ca-blue);color:#fff;border-color:var(--ca-blue);}
+input[type=datetime-local]{width:100%;padding:7px 9px;border:1px solid var(--border);border-radius:6px;font-size:.85rem;margin-top:6px;font-family:inherit;}
+.wq{font-size:.72rem;color:#475569;line-height:1.5;background:#f8fafc;border-left:3px solid var(--teal);border-radius:0 5px 5px 0;padding:7px 9px;margin-top:8px;}
+.wq b{color:#334155;}
+.toast{position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:#111827;color:#fff;padding:9px 15px;border-radius:20px;font-size:.8rem;z-index:2000;box-shadow:0 4px 16px rgba(0,0,0,.35);opacity:0;transition:opacity .2s;pointer-events:none;}
+.toast.show{opacity:1;}
 .leaflet-container{background:#e8edf2;}
 </style>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
@@ -56,119 +67,249 @@ header{background:var(--ca-blue);color:#fff;padding:0 14px;height:52px;display:f
   <div class="fabs"><button id="locate" onclick="locateMe()">📍 Near Me</button></div>
   <div id="panel"><div class="panel-handle"></div><div id="panel-body"></div></div>
 </div>
+<div class="toast" id="toast"></div>
 <script>
-const M2MI = 1/1609.344;
-let ACCESS=[], SPEED={min:2,max:4}, RIVER='Lower American River';
+const M2MI=1/1609.344;
+let ACCESS=[], SPEED={min:2,max:4}, RIVER='Lower American River', LINE=[];
+let STATIONS=[], BLOOMS=[], HAZARDS=[], PFD=[];
 let markers=[], selIdx=null, userMarker=null, driveCache={};
-const map = L.map('map',{zoomControl:false}).setView([38.60,-121.36],11);
+let routeLayer=L.layerGroup(), safetyLayer=L.layerGroup();
+let plan=null; // {putIn, takeOut, timeMode, timeISO}
+
+const map=L.map('map',{zoomControl:false}).setView([38.60,-121.36],11);
 L.control.zoom({position:'topright'}).addTo(map);
 L.tileLayer('https://basemap.nationalmap.gov/arcgis/rest/services/USGSTopo/MapServer/tile/{z}/{y}/{x}',
-  {attribution:'USGS National Map | Access points: OSM + curated', opacity:0.6, maxZoom:17, minZoom:9}).addTo(map);
+  {attribution:'USGS National Map | Access: OSM + curated | Water quality: CA Water Boards',opacity:0.6,maxZoom:17,minZoom:9}).addTo(map);
+routeLayer.addTo(map); safetyLayer.addTo(map);
 
-function accessIcon(selected){
-  const c = selected ? '#FDB913' : '#0e7490';
-  const sz = selected ? 30 : 22;
-  return L.divIcon({className:'', iconSize:[sz,sz], iconAnchor:[sz/2,sz/2],
-    html:`<div style="width:${sz}px;height:${sz}px;border-radius:50%;background:#fff;border:3px solid ${c};box-shadow:0 1px 5px rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center;font-size:${selected?15:11}px;">🛶</div>`});
-}
+// ── helpers ──────────────────────────────────────────────────────────────────
 function distKm(a,b,c,d){const R=6371,dLa=(c-a)*Math.PI/180,dLo=(d-b)*Math.PI/180;const x=Math.sin(dLa/2)**2+Math.cos(a*Math.PI/180)*Math.cos(c*Math.PI/180)*Math.sin(dLo/2)**2;return R*2*Math.atan2(Math.sqrt(x),Math.sqrt(1-x));}
-function fmtHrs(mi){ const lo=mi/SPEED.max, hi=mi/SPEED.min; const f=h=>h<1?Math.round(h*60)+' min':(Math.round(h*10)/10)+' hr'; return f(lo)+'–'+f(hi); }
-function dismissHint(){ const h=document.getElementById('hint'); if(h) h.style.display='none'; }
+function fmtHrs(mi){const lo=mi/SPEED.max,hi=mi/SPEED.min;const f=h=>h<1?Math.round(h*60)+' min':(Math.round(h*10)/10)+' hr';return f(lo)+'–'+f(hi);}
+function floatHours(mi){return mi/3;} // midpoint ~3 mph
+function fmtClock(d){return d.toLocaleString(undefined,{weekday:'short',hour:'numeric',minute:'2-digit'});}
+function dismissHint(){const h=document.getElementById('hint');if(h)h.style.display='none';}
+function byId(id){return ACCESS.find(a=>a.id===id);}
+function toast(t){const el=document.getElementById('toast');el.textContent=t;el.classList.add('show');setTimeout(()=>el.classList.remove('show'),2200);}
 
-function drawMarkers(){
-  markers.forEach(m=>m.remove()); markers=[];
-  ACCESS.forEach((a,i)=>{
-    const mk=L.marker([a.lat,a.lon],{icon:accessIcon(i===selIdx),zIndexOffset:i===selIdx?1000:200})
-      .addTo(map).on('click',()=>selectAccess(i));
-    mk.bindTooltip(a.name,{direction:'top',offset:[0,-12]});
-    markers.push(mk);
-  });
-}
-function nearestAccess(lat,lon){ let bi=0,bd=1e9; ACCESS.forEach((a,i)=>{const d=distKm(lat,lon,a.lat,a.lon); if(d<bd){bd=d;bi=i;}}); return bi; }
+// ── access markers / browse ───────────────────────────────────────────────────
+function accessIcon(sel){const c=sel?'#FDB913':'#0e7490',sz=sel?30:22;return L.divIcon({className:'',iconSize:[sz,sz],iconAnchor:[sz/2,sz/2],html:`<div style="width:${sz}px;height:${sz}px;border-radius:50%;background:#fff;border:3px solid ${c};box-shadow:0 1px 5px rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center;font-size:${sel?15:11}px;">🛶</div>`});}
+function drawMarkers(){markers.forEach(m=>m.remove());markers=[];ACCESS.forEach((a,i)=>{const mk=L.marker([a.lat,a.lon],{icon:accessIcon(i===selIdx),zIndexOffset:i===selIdx?1000:200}).addTo(map).on('click',()=>selectAccess(i));mk.bindTooltip(a.name,{direction:'top',offset:[0,-12]});markers.push(mk);});}
+function nearestAccess(lat,lon){let bi=0,bd=1e9;ACCESS.forEach((a,i)=>{const d=distKm(lat,lon,a.lat,a.lon);if(d<bd){bd=d;bi=i;}});return bi;}
 
-function selectAccess(i, planNow){
-  selIdx=i; drawMarkers(); dismissHint();
-  const a=ACCESS[i];
-  map.setView([a.lat,a.lon], Math.max(map.getZoom(),12));
-  const body=document.getElementById('panel-body');
-  body.innerHTML=`
+function selectAccess(i){
+  clearTrip(); selIdx=i; drawMarkers(); dismissHint();
+  const a=ACCESS[i]; map.setView([a.lat,a.lon],Math.max(map.getZoom(),12));
+  document.getElementById('panel-body').innerHTML=`
     <button class="close-x" onclick="closePanel()" aria-label="Close">✕</button>
     <div class="sel-name">🛶 ${a.name}</div>
     <div class="sel-meta">${a.note||''}</div>
     <div><span class="mile-chip">river mile ${a.river_mi.toFixed(1)}</span></div>
     <div style="font-size:.72rem;color:var(--sub);margin-top:9px;">Plan a float — is this your start or your finish?</div>
     <div style="display:flex;gap:7px;margin-top:5px;">
-      <button class="plan-btn dir-btn" id="btn-down" onclick="showShuttles('down')" style="flex:1;background:var(--down);">🛶 Float <u>from</u> here<span style="display:block;font-weight:400;font-size:.65rem;opacity:.9;">downstream take-outs ⬇</span></button>
-      <button class="plan-btn dir-btn" id="btn-up" onclick="showShuttles('up')" style="flex:1;background:var(--up);">🛶 Float <u>to</u> here<span style="display:block;font-weight:400;font-size:.65rem;opacity:.9;">⬆ upstream put-ins</span></button>
+      <button class="plan-btn" id="btn-down" onclick="showShuttles('down')" style="flex:1;background:var(--down);">🛶 Float <u>from</u> here<span style="display:block;font-weight:400;font-size:.65rem;opacity:.9;">downstream take-outs ⬇</span></button>
+      <button class="plan-btn" id="btn-up" onclick="showShuttles('up')" style="flex:1;background:var(--up);">🛶 Float <u>to</u> here<span style="display:block;font-weight:400;font-size:.65rem;opacity:.9;">⬆ upstream put-ins</span></button>
     </div>
     <div id="shuttles"></div>`;
   document.getElementById('panel').classList.add('open');
-  if(planNow) showShuttles('both');
 }
-function closePanel(){ document.getElementById('panel').classList.remove('open'); selIdx=null; drawMarkers(); }
+function closePanel(){document.getElementById('panel').classList.remove('open');selIdx=null;clearTrip();drawMarkers();}
 
 function showShuttles(dir){
-  dir = dir||'both';
   const a=ACCESS[selIdx];
-  const bd=document.getElementById('btn-down'), bu=document.getElementById('btn-up');
-  if(bd&&bu){ bd.style.opacity = dir==='up'?'.5':'1'; bu.style.opacity = dir==='down'?'.5':'1'; }
-  const up = ACCESS.map((x,i)=>({x,i})).filter(o=>o.i!==selIdx && o.x.river_mi>a.river_mi).sort((p,q)=>p.x.river_mi-q.x.river_mi);
-  const down = ACCESS.map((x,i)=>({x,i})).filter(o=>o.i!==selIdx && o.x.river_mi<a.river_mi).sort((p,q)=>q.x.river_mi-p.x.river_mi);
-  const row=(o,d)=>{
-    const mi=Math.abs(o.x.river_mi-a.river_mi);
-    return `<div class="conn ${d}" onclick="selectAccess(${o.i},true)">
+  const bd=document.getElementById('btn-down'),bu=document.getElementById('btn-up');
+  if(bd&&bu){bd.style.opacity=dir==='up'?'.5':'1';bu.style.opacity=dir==='down'?'.5':'1';}
+  const up=ACCESS.map((x,i)=>({x,i})).filter(o=>o.i!==selIdx&&o.x.river_mi>a.river_mi).sort((p,q)=>p.x.river_mi-q.x.river_mi);
+  const down=ACCESS.map((x,i)=>({x,i})).filter(o=>o.i!==selIdx&&o.x.river_mi<a.river_mi).sort((p,q)=>q.x.river_mi-p.x.river_mi);
+  // clicking a connection builds the trip: put-in = upstream point, take-out = downstream point
+  const row=(o,d)=>{const mi=Math.abs(o.x.river_mi-a.river_mi);
+    const put=d==='up'?o.i:selIdx, take=d==='up'?selIdx:o.i;
+    return `<div class="conn ${d}" onclick="buildTrip(${put},${take})">
       <div class="conn-name">${d==='up'?'⬆':'⬇'} ${o.x.name}</div>
-      <div class="conn-stats">
-        <span>🛶 <b>${mi.toFixed(1)} mi</b> float · ${fmtHrs(mi)}</span>
-        <span class="drive" id="drv_${o.i}">🚗 shuttle…</span>
-      </div>
-    </div>`;
-  };
-  let html='', shown=[];
-  if(dir==='down'||dir==='both'){
-    if(down.length){ html+=`<div class="grp-label" style="color:var(--down)">⬇ Float FROM ${a.name} — ${down.length} take-out${down.length>1?'s':''} downstream</div>`+down.map(o=>row(o,'down')).join(''); shown=shown.concat(down); }
-    else if(dir==='down') html+=`<div class="note" style="border:0;padding:6px 0;">This is the downstream end (confluence) — nothing further to float to. Try <b>float to here</b> instead.</div>`;
-  }
-  if(dir==='up'||dir==='both'){
-    if(up.length){ html+=`<div class="grp-label" style="color:var(--up)">⬆ Float TO ${a.name} — put in at ${up.length} spot${up.length>1?'s':''} upstream</div>`+up.map(o=>row(o,'up')).join(''); shown=shown.concat(up); }
-    else if(dir==='up') html+=`<div class="note" style="border:0;padding:6px 0;">This is the uppermost access — nothing further upstream to put in. Try <b>float from here</b> instead.</div>`;
-  }
-  html+=`<div class="note">🛶 Float time assumes ${SPEED.min}–${SPEED.max} mph (typical ${RIVER} paddle/float speed; varies with flow). River miles follow the river centerline (OSM; NHD+ would be more exact). 🚗 Drive = live shuttle routing. Tip: leave your car at the take-out, then put in upstream. Tap any spot to re-plan from there.</div>`;
+      <div class="conn-stats"><span>🛶 <b>${mi.toFixed(1)} mi</b> float · ${fmtHrs(mi)}</span><span class="drive" id="drv_${o.i}">🚗 shuttle…</span></div>
+    </div>`;};
+  let html='',shown=[];
+  if(dir==='down'||dir==='both'){ if(down.length){html+=`<div class="grp-label" style="color:var(--down)">⬇ Float FROM ${a.name} — ${down.length} take-out${down.length>1?'s':''} downstream</div>`+down.map(o=>row(o,'down')).join('');shown=shown.concat(down);} else if(dir==='down') html+=`<div class="note" style="border:0;padding:6px 0;">This is the downstream end — try <b>float to here</b> instead.</div>`; }
+  if(dir==='up'||dir==='both'){ if(up.length){html+=`<div class="grp-label" style="color:var(--up)">⬆ Float TO ${a.name} — put in at ${up.length} spot${up.length>1?'s':''} upstream</div>`+up.map(o=>row(o,'up')).join('');shown=shown.concat(up);} else if(dir==='up') html+=`<div class="note" style="border:0;padding:6px 0;">This is the uppermost access — try <b>float from here</b> instead.</div>`; }
+  html+=`<div class="note">Tap a spot to see the route, timing, and water quality along the way. Float time assumes ${SPEED.min}–${SPEED.max} mph.</div>`;
   document.getElementById('shuttles').innerHTML=html;
   shown.forEach(o=>fetchDrive(a,o.x,'drv_'+o.i));
 }
 
-function fetchDrive(a,b,elId){
+// ── shuttle drive time (OSRM, with estimate fallback) ──────────────────────────
+function fetchDrive(a,b,elId,cb){
   const key=[a.lat,a.lon,b.lat,b.lon].map(v=>v.toFixed(4)).join(',');
-  const set=(txt)=>{const el=document.getElementById(elId); if(el) el.innerHTML='🚗 '+txt;};
-  if(driveCache[key]){ set(driveCache[key]); return; }
-  const url=`https://router.project-osrm.org/route/v1/driving/${a.lon},${a.lat};${b.lon},${b.lat}?overview=false`;
-  fetch(url).then(r=>r.json()).then(j=>{
-    if(j&&j.routes&&j.routes[0]){ const rt=j.routes[0]; const txt=`<b>${Math.round(rt.duration/60)} min</b> drive · ${(rt.distance*M2MI).toFixed(1)} mi`; driveCache[key]=txt; set(txt); }
-    else throw 0;
-  }).catch(()=>{ const mi=distKm(a.lat,a.lon,b.lat,b.lon)*0.621371*1.4; const txt=`~${Math.round(mi/32*60)} min drive (est.)`; driveCache[key]=txt; set(txt); });
+  const set=t=>{const el=elId&&document.getElementById(elId);if(el)el.innerHTML='🚗 '+t; if(cb)cb(t);};
+  if(driveCache[key]){set(driveCache[key]);return;}
+  fetch(`https://router.project-osrm.org/route/v1/driving/${a.lon},${a.lat};${b.lon},${b.lat}?overview=false`)
+   .then(r=>r.json()).then(j=>{if(j&&j.routes&&j.routes[0]){const rt=j.routes[0];const t=`<b>${Math.round(rt.duration/60)} min</b> drive · ${(rt.distance*M2MI).toFixed(1)} mi`;driveCache[key]=t;set(t);}else throw 0;})
+   .catch(()=>{const mi=distKm(a.lat,a.lon,b.lat,b.lon)*0.621371*1.4;const t=`~${Math.round(mi/32*60)} min drive (est.)`;driveCache[key]=t;set(t);});
 }
 
+// ── build & draw a trip (put-in upstream, take-out downstream) ─────────────────
+function clearTrip(){routeLayer.clearLayers();safetyLayer.clearLayers();plan=null;}
+function routeVerts(putMi,takeMi){
+  const lo=Math.min(putMi,takeMi),hi=Math.max(putMi,takeMi);
+  return LINE.filter(p=>p[2]>=lo-0.05&&p[2]<=hi+0.05).sort((a,b)=>b[2]-a[2]).map(p=>[p[0],p[1]]);
+}
+function buildTrip(putInIdx,takeOutIdx,timeMode,timeISO){
+  const putIn=ACCESS[putInIdx], takeOut=ACCESS[takeOutIdx];
+  plan={putIn,takeOut,timeMode:timeMode||null,timeISO:timeISO||null};
+  selIdx=null; drawMarkers(); routeLayer.clearLayers();
+  const verts=[[putIn.lat,putIn.lon]].concat(routeVerts(putIn.river_mi,takeOut.river_mi)).concat([[takeOut.lat,takeOut.lon]]);
+  L.polyline(verts,{color:'#0891b2',weight:6,opacity:.85}).addTo(routeLayer);
+  L.polyline(verts,{color:'#fff',weight:2,opacity:.6,dashArray:'2,10'}).addTo(routeLayer);
+  routeLayer.addLayer(endMarker(putIn,'PUT IN','#15803D'));
+  routeLayer.addLayer(endMarker(takeOut,'TAKE OUT','#B91C1C'));
+  map.fitBounds(L.latLngBounds(verts).pad(0.25));
+  drawSafety();
+  renderTripPanel();
+  document.getElementById('panel').classList.add('open');
+  dismissHint();
+}
+function endMarker(a,label,color){
+  return L.marker([a.lat,a.lon],{zIndexOffset:1500,icon:L.divIcon({className:'',iconSize:[16,16],iconAnchor:[8,8],
+    html:`<div style="width:16px;height:16px;border-radius:50%;background:${color};border:3px solid #fff;box-shadow:0 0 0 2px ${color}55;"></div>`})})
+    .bindTooltip(`${label}: ${a.name}`,{permanent:true,direction:'top',offset:[0,-8],className:'route-tt'});
+}
+
+// ── water quality (Can I Swim Here?) along the route ───────────────────────────
+function stationRisk(st){
+  const res=(st.samples||[]).map(s=>s.result).filter(v=>v>0),n=res.length;
+  if(!n||!st.latest) return {key:'Unknown'};
+  const age=(Date.now()-new Date(st.latest.date).getTime())/86400000;
+  const gm=Math.exp(res.map(v=>Math.log(v)).reduce((a,b)=>a+b,0)/n);
+  const pAdv=res.filter(v=>v>235).length/n,pStv=res.filter(v=>v>410).length/n;
+  let key;
+  if(age<=14) key=st.latest.result<=126?'Good':st.latest.result<=235?'Caution':st.latest.result<=410?'Warning':'Unsafe';
+  else if(n<4) key='Unknown';
+  else if(gm>235||pAdv>=.5||pStv>=.33) key='Unsafe';
+  else if(gm>126||pAdv>=.2||pStv>=.12) key='Caution';
+  else key='Good';
+  return {key,gm:Math.round(gm),n};
+}
+const RISKC={Good:'#15803D',Caution:'#A16207',Warning:'#C2410C',Unsafe:'#B91C1C',Unknown:'#6B7280'};
+const RISKL={Good:'Probably safe',Caution:'Uncertain',Warning:'Elevated',Unsafe:'Probably unsafe',Unknown:'Unknown'};
+function near(items,latf,lonf,mi){return items.filter(x=>x.lat!=null&&distKm(x.lat,x.lon,latf,lonf)<=mi/0.621371);}
+function corridor(items){ if(!plan)return items; return items.filter(x=>x.lat!=null&&(distToRoute(x.lat,x.lon)<=2.0)); }
+function distToRoute(lat,lon){ let m=1e9; if(!plan)return m; const a=plan.putIn,b=plan.takeOut; [a,b].forEach(p=>{const d=distKm(lat,lon,p.lat,p.lon)*0.621371;if(d<m)m=d;}); LINE.forEach(p=>{if(p[2]>=Math.min(a.river_mi,b.river_mi)-0.2&&p[2]<=Math.max(a.river_mi,b.river_mi)+0.2){const d=distKm(lat,lon,p[0],p[1])*0.621371;if(d<m)m=d;}}); return m; }
+function drawSafety(){
+  safetyLayer.clearLayers();
+  corridor(STATIONS).forEach(st=>{const r=stationRisk(st);const c=RISKC[r.key];
+    L.circleMarker([st.lat,st.lon],{radius:6,fillColor:c,fillOpacity:.9,color:'#fff',weight:2}).addTo(safetyLayer)
+      .bindTooltip(`💧 ${st.name}: ${RISKL[r.key]}${r.gm?` (geomean ${r.gm})`:''}`,{direction:'top'});});
+  corridor(BLOOMS).filter(b=>b.tier&&b.tier!=='Other').forEach(b=>{
+    L.marker([b.lat,b.lon],{zIndexOffset:400,icon:L.divIcon({className:'',iconSize:[16,16],iconAnchor:[8,8],html:'<div style="font-size:14px;line-height:1;">🦠</div>'})}).addTo(safetyLayer)
+      .bindTooltip(`🦠 Algal bloom: ${b.name||''} (${(b.obs||'').slice(0,10)})`,{direction:'top'});});
+  corridor(HAZARDS).forEach(h=>{L.marker([h.lat,h.lon],{zIndexOffset:400,icon:L.divIcon({className:'',iconSize:[16,16],iconAnchor:[8,8],html:'<div style="width:12px;height:12px;transform:rotate(45deg);background:#7f1d1d;border:2px solid #fff;margin:2px;"></div>'})}).addTo(safetyLayer)
+      .bindTooltip(`⚠️ ${h.name}`,{direction:'top'});});
+}
+function wqSummary(a){ // nearest station risk for an access point
+  if(!STATIONS.length) return '';
+  let best=null,bd=1e9; STATIONS.forEach(st=>{if(st.lat==null)return;const d=distKm(a.lat,a.lon,st.lat,st.lon);if(d<bd){bd=d;best=st;}});
+  if(!best||bd*0.621371>3) return '<span style="color:#6B7280">bacteria: unknown (no station within 3 mi)</span>';
+  const r=stationRisk(best);return `bacteria: <b style="color:${RISKC[r.key]}">${RISKL[r.key]}</b> <span style="color:#94a3b8">(${best.name.replace('American River at ','').replace('Lake Natoma at ','')})</span>`;
+}
+
+// ── trip / plan panel ──────────────────────────────────────────────────────────
+function computeTimes(){
+  if(!plan||!plan.timeMode||!plan.timeISO) return null;
+  const mi=Math.abs(plan.putIn.river_mi-plan.takeOut.river_mi), hrs=floatHours(mi);
+  const t=new Date(plan.timeISO); if(isNaN(t)) return null;
+  let start,end;
+  if(plan.timeMode==='start'){start=t;end=new Date(t.getTime()+hrs*3600000);}
+  else{end=t;start=new Date(t.getTime()-hrs*3600000);}
+  return {start,end,hrs};
+}
+function renderTripPanel(){
+  const mi=Math.abs(plan.putIn.river_mi-plan.takeOut.river_mi);
+  const body=document.getElementById('panel-body');
+  const T=computeTimes();
+  body.innerHTML=`
+    <button class="close-x" onclick="closePanel()" aria-label="Close">✕</button>
+    <div class="sel-name">🛶 Your float</div>
+    <div class="trip-row"><span class="pin" style="background:#15803D"></span><b>Put in:</b>&nbsp;${plan.putIn.name} <span style="color:#94a3b8;font-size:.72rem;">· mi ${plan.putIn.river_mi.toFixed(1)}</span></div>
+    <div class="trip-row"><span class="pin" style="background:#B91C1C"></span><b>Take out:</b>&nbsp;${plan.takeOut.name} <span style="color:#94a3b8;font-size:.72rem;">· mi ${plan.takeOut.river_mi.toFixed(1)}</span></div>
+    <div class="stat-grid">
+      <div class="stat"><div class="n">${mi.toFixed(1)} mi</div><div class="l">river distance</div></div>
+      <div class="stat"><div class="n">${fmtHrs(mi)}</div><div class="l">float @ ${SPEED.min}–${SPEED.max} mph</div></div>
+      <div class="stat"><div class="n" id="trip-drive">…</div><div class="l">🚗 shuttle drive</div></div>
+    </div>
+    <div class="wq"><b>💧 Water quality along your route</b> (Can I Swim Here?)<br>
+      Put-in ${wqSummary(plan.putIn)}<br>Take-out ${wqSummary(plan.takeOut)}<br>
+      <span style="font-size:.66rem;color:#94a3b8;">Dots = station risk (from history); 🦠 = bloom report; ◆ = drowning hazard. Tap markers for detail. Full detail in <a href="index.html">Can I Swim Here?</a></span>
+    </div>
+    <div style="font-size:.72rem;font-weight:700;color:#334155;margin-top:11px;">⏱ Set a time (optional)</div>
+    <div style="display:flex;gap:6px;margin-top:5px;">
+      <button class="time-btn ${plan.timeMode==='start'?'on':''}" onclick="setTimeMode('start')">Set start time</button>
+      <button class="time-btn ${plan.timeMode==='end'?'on':''}" onclick="setTimeMode('end')">Set take-out time</button>
+      ${plan.timeMode?`<button class="time-btn" onclick="setTimeMode(null)">clear</button>`:''}
+    </div>
+    ${plan.timeMode?`<input type="datetime-local" id="time-in" value="${plan.timeISO||''}" onchange="onTime(this.value)">`:''}
+    ${T?`<div style="margin-top:7px;font-size:.8rem;color:#334155;background:#ecfeff;border-radius:6px;padding:8px 10px;">🟢 Put in <b>${fmtClock(T.start)}</b> → 🔴 take out <b>${fmtClock(T.end)}</b><br><span style="font-size:.68rem;color:#64748b;">≈ ${(T.hrs).toFixed(1)} hr float at ~3 mph (range ${fmtHrs(mi)})</span></div>`:''}
+    <button class="plan-btn" style="width:100%;margin-top:12px;background:var(--ca-blue);" onclick="sharePlan()">🔗 Share this float plan</button>
+    <button class="time-btn" style="width:100%;margin-top:7px;text-align:center;" onclick="closePanel()">← Plan a different trip</button>
+    <div class="note">Shuttle: leave your car at the take-out, then put in upstream. Conditions change — check <a href="index.html">Can I Swim Here?</a> before you go.</div>`;
+  fetchDrive(plan.putIn,plan.takeOut,null,t=>{const el=document.getElementById('trip-drive');if(el)el.innerHTML=t.replace(/<\/?b>/g,'').split(' drive')[0];});
+}
+function setTimeMode(m){ plan.timeMode=m; if(!m)plan.timeISO=null; else if(!plan.timeISO){const d=new Date();d.setMinutes(0,0,0);d.setHours(d.getHours()+1);plan.timeISO=isoLocal(d);} renderTripPanel(); }
+function onTime(v){ plan.timeISO=v; renderTripPanel(); }
+function isoLocal(d){const p=n=>String(n).padStart(2,'0');return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;}
+
+// ── share (stateless URL — no backend needed) ──────────────────────────────────
+function planURL(){
+  const u=new URL(location.href.split('?')[0]);
+  u.searchParams.set('from',plan.putIn.id); u.searchParams.set('to',plan.takeOut.id);
+  if(plan.timeMode&&plan.timeISO){u.searchParams.set(plan.timeMode,plan.timeISO);}
+  return u.toString();
+}
+function sharePlan(){
+  const url=planURL();
+  const title=`Float plan: ${plan.putIn.name} → ${plan.takeOut.name}`;
+  if(navigator.share){ navigator.share({title,text:title,url}).catch(()=>{}); return; }
+  (navigator.clipboard?navigator.clipboard.writeText(url):Promise.reject())
+    .then(()=>toast('🔗 Plan link copied'))
+    .catch(()=>{ prompt('Copy this float-plan link:',url); });
+}
+function loadFromURL(){
+  const q=new URLSearchParams(location.search);
+  const from=q.get('from'),to=q.get('to'); if(!from||!to) return false;
+  const pi=ACCESS.findIndex(a=>a.id===from), ti=ACCESS.findIndex(a=>a.id===to);
+  if(pi<0||ti<0) return false;
+  const mode=q.get('start')?'start':(q.get('end')?'end':null);
+  buildTrip(pi,ti,mode,mode?q.get(mode):null);
+  return true;
+}
+
+// ── geolocate ──────────────────────────────────────────────────────────────────
 function locateMe(){
-  if(!navigator.geolocation){ alert('Geolocation not supported.'); return; }
-  const btn=document.getElementById('locate'); btn.textContent='⏳ Locating…';
+  if(!navigator.geolocation){alert('Geolocation not supported.');return;}
+  const btn=document.getElementById('locate');btn.textContent='⏳ Locating…';
   navigator.geolocation.getCurrentPosition(p=>{
-    const la=p.coords.latitude, lo=p.coords.longitude;
-    if(userMarker) userMarker.remove();
+    const la=p.coords.latitude,lo=p.coords.longitude;
+    if(userMarker)userMarker.remove();
     userMarker=L.marker([la,lo],{icon:L.divIcon({className:'',html:'<div style="width:16px;height:16px;background:#2563EB;border:3px solid #fff;border-radius:50%;box-shadow:0 0 0 3px rgba(37,99,235,.35);"></div>',iconSize:[16,16],iconAnchor:[8,8]}),zIndexOffset:2000}).addTo(map);
-    btn.textContent='📍 Near Me'; btn.className='on';
+    btn.textContent='📍 Near Me';btn.className='on';
     selectAccess(nearestAccess(la,lo));
-  }, ()=>{ btn.textContent='📍 Near Me'; alert('Could not get your location.'); }, {enableHighAccuracy:true,timeout:12000});
+  },()=>{btn.textContent='📍 Near Me';alert('Could not get your location.');},{enableHighAccuracy:true,timeout:12000});
 }
+map.on('click',e=>{ if(plan) return; if(ACCESS.length) selectAccess(nearestAccess(e.latlng.lat,e.latlng.lng)); });
 
-map.on('click', e=>{ if(ACCESS.length) selectAccess(nearestAccess(e.latlng.lat,e.latlng.lng)); });
-
-fetch('access_points.json').then(r=>r.json()).then(d=>{
-  ACCESS=(d.access||[]).slice().sort((a,b)=>a.river_mi-b.river_mi);
-  if(d.speed_mph) SPEED=d.speed_mph; if(d.river) RIVER=d.river;
+// ── boot ────────────────────────────────────────────────────────────────────────
+function fitAll(){const pts=ACCESS.map(a=>[a.lat,a.lon]);if(pts.length)map.fitBounds(L.latLngBounds(pts).pad(0.15));}
+Promise.all([
+  fetch('access_points.json').then(r=>r.json()).catch(()=>null),
+  fetch('river_line.json').then(r=>r.json()).catch(()=>({line:[]})),
+]).then(([acc,rl])=>{
+  if(!acc){document.getElementById('hint').textContent='⚠️ Could not load access points.';return;}
+  ACCESS=(acc.access||[]).slice().sort((a,b)=>a.river_mi-b.river_mi);
+  if(acc.speed_mph)SPEED=acc.speed_mph; if(acc.river)RIVER=acc.river; LINE=rl.line||[];
   drawMarkers();
-  const pts=ACCESS.map(a=>[a.lat,a.lon]); if(pts.length) map.fitBounds(L.latLngBounds(pts).pad(0.15));
-}).catch(()=>{ document.getElementById('hint').textContent='⚠️ Could not load access points.'; });
+  // load Can I Swim Here? data for the safety layer (non-blocking)
+  fetch('stations.json').then(r=>r.json()).then(d=>{STATIONS=d.stations||[];if(plan)drawSafety();}).catch(()=>{});
+  fetch('blooms.json').then(r=>r.json()).then(d=>{BLOOMS=d.blooms||[];if(plan)drawSafety();}).catch(()=>{});
+  fetch('hazards.json').then(r=>r.json()).then(d=>{HAZARDS=d.hazards||[];if(plan)drawSafety();}).catch(()=>{});
+  if(!loadFromURL()) fitAll();
+});
 </script>
 </body>
 </html>

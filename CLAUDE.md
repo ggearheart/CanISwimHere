@@ -50,10 +50,17 @@ EPA 2012 recreational criteria. Defined in `THRESH` (JS) and top of `build_data.
   precomputed by snapping each point (ad-hoc: fetch OSM American River via Overpass,
   order downstream→upstream by nearest-neighbor from the westernmost vertex, cumulative
   arc length, project each access point). NHD+ is the intended upgrade.
-- Flow: pick access (marker/map-click/Near Me) → "Plan a shuttle" → upstream put-ins
-  + downstream take-outs, each with river miles, float time (river_mi ÷ 2–4 mph), and
-  drive time (OSRM `router.project-osrm.org`, straight-line fallback).
-- To add the user's shuttle locations: append to access_points.json + recompute river_mi.
+- `build_access.py` (repo root, permanent) fetches OSM LAR centerline, orders it, writes
+  `docs/river_line.json` (centerline `[[lat,lon,mi],…]`) + `docs/access_points.json` (with
+  `id` slugs). Add access points to its `SEEDS` list + re-run.
+- Flow: pick access (marker/map-click/Near Me) → Float FROM here (downstream) / Float TO
+  here (upstream) → pick a connection → `buildTrip(putInIdx,takeOutIdx,timeMode,timeISO)`
+  draws the route (`routeVerts` slices river_line by river mile), shows float/shuttle
+  timing, overlays Can I Swim Here? safety data (`drawSafety`, corridor-filtered station
+  risk via compact `stationRisk`, blooms, hazards), optional start/take-out time.
+- **Share = stateless URL** (`planURL`: `?from=<id>&to=<id>&start|end=<iso>`); `loadFromURL`
+  reconstructs on boot. NO backend/DB needed.
+- SW serves float.html network-first (v9). NHD+ is the intended upgrade for river_mi.
 
 ## HAB risk communication
 - A reported bloom is likely over after ~2 weeks. Summary uses `HAB_ACTIVE_DAYS=14`:

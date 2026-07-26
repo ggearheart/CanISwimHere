@@ -1,5 +1,5 @@
 {
-  "note": "Lower American River access points for the shuttle/float planner. river_mi = distance along the river from the American\u2013Sacramento confluence (mile 0), computed by snapping each point to the OpenStreetMap river centerline. NHD+ would be more authoritative; OSM is close for this reach. Coordinates approximate \u2014 edit freely.",
+  "note": "Lower American River access points for the float/shuttle planner. river_mi = miles along the OSM river centerline from the American-Sacramento confluence (mile 0). NHD+ would be more authoritative. Coordinates approximate \u2014 edit freely, then re-run build_access.py.",
   "river": "Lower American River",
   "speed_mph": {
     "min": 2,
@@ -8,6 +8,7 @@
   },
   "access": [
     {
+      "id": "tiscornia-beach",
       "name": "Tiscornia Beach",
       "lat": 38.598,
       "lon": -121.507,
@@ -16,6 +17,7 @@
       "note": "Sandy beach at the confluence; life jackets on site."
     },
     {
+      "id": "discovery-park",
       "name": "Discovery Park",
       "lat": 38.6015,
       "lon": -121.5045,
@@ -24,6 +26,7 @@
       "note": "Confluence with the Sacramento River; large park, boat ramp, restrooms."
     },
     {
+      "id": "sutters-landing",
       "name": "Sutter's Landing",
       "lat": 38.588,
       "lon": -121.462,
@@ -32,6 +35,7 @@
       "note": "River access near downtown; parking."
     },
     {
+      "id": "paradise-beach",
       "name": "Paradise Beach",
       "lat": 38.582,
       "lon": -121.43,
@@ -40,6 +44,7 @@
       "note": "Glen Hall Park / River Park; popular beach."
     },
     {
+      "id": "howe-ave",
       "name": "Howe Avenue Access",
       "lat": 38.5601,
       "lon": -121.4053,
@@ -48,6 +53,7 @@
       "note": "River access off Howe Ave."
     },
     {
+      "id": "watt-ave",
       "name": "Watt Avenue Access",
       "lat": 38.566,
       "lon": -121.381,
@@ -56,6 +62,7 @@
       "note": "River access at the Watt Ave bridge."
     },
     {
+      "id": "river-bend",
       "name": "River Bend Park",
       "lat": 38.5875,
       "lon": -121.3255,
@@ -64,6 +71,7 @@
       "note": "Formerly Goethe Park; beaches and parking (Rancho Cordova)."
     },
     {
+      "id": "rossmoor-bar",
       "name": "Rossmoor Bar",
       "lat": 38.6112,
       "lon": -121.3045,
@@ -72,6 +80,7 @@
       "note": "Gravel-bar access, Rancho Cordova."
     },
     {
+      "id": "ancil-hoffman",
       "name": "Ancil Hoffman Park",
       "lat": 38.6228,
       "lon": -121.305,
@@ -80,6 +89,7 @@
       "note": "Large Carmichael park on a river bend."
     },
     {
+      "id": "sacramento-bar",
       "name": "Sacramento Bar",
       "lat": 38.6275,
       "lon": -121.2891,
@@ -88,6 +98,7 @@
       "note": "Gravel-bar access and rafting take-out."
     },
     {
+      "id": "el-manto",
       "name": "El Manto Access",
       "lat": 38.618,
       "lon": -121.282,
@@ -96,6 +107,7 @@
       "note": "River access at the end of El Manto Dr (Gold River)."
     },
     {
+      "id": "lower-sunrise",
       "name": "Lower Sunrise",
       "lat": 38.633,
       "lon": -121.271,
@@ -104,6 +116,7 @@
       "note": "Sunrise Recreation Area; sandy beaches, parking, popular put-in."
     },
     {
+      "id": "sailor-bar",
       "name": "Sailor Bar",
       "lat": 38.633,
       "lon": -121.233,

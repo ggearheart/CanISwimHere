@@ -62,13 +62,17 @@ Flow categories (cfs, general Lower-American-River guidance, not an official sta
 
 ## Float & Shuttle Planner (`docs/float.html`)
 
-A separate companion page — the main app stays focused on "can I swim here?", this one answers "how do I plan a float/shuttle trip?" Pick a river-access point (tap a marker, tap the map, or **📍 Near Me**), then **Plan a shuttle** to see the connecting put-ins/take-outs **upstream and downstream**, each with:
+A separate companion page — the main app stays focused on "can I swim here?", this one answers "how do I plan a float/shuttle trip?"
 
-- **River miles** — distance *along the river* (not straight-line), from `docs/access_points.json` where each access point carries a precomputed `river_mi` (miles from the American–Sacramento confluence). Computed by snapping access points onto the OpenStreetMap river centerline; **NHD+ would be more authoritative** and is the intended upgrade.
-- **Float time** — river miles ÷ **2–4 mph** (typical Lower American River paddle/float speed; varies with flow).
-- **Drive time** — live road routing (OSRM) for the shuttle car, with a straight-line estimate fallback.
+**Flow:** pick a river-access point (tap a marker, tap the map, or **📍 Near Me**) → choose **Float _from_ here** (downstream take-outs) or **Float _to_ here** (upstream put-ins) → pick a connecting spot. That builds a trip, which:
 
-`access_points.json` is a curated starter set (Sailor Bar → Discovery Park); edit it or add the shuttle locations you know. To recompute `river_mi` after adding points, re-snap them to the river centerline (ad-hoc script; see the `note` in the JSON).
+- **Draws the route** along the river on the map (put-in → take-out) with green/red endpoint markers.
+- Shows **river miles**, **float time** (÷ **2–4 mph**, typical LAR speed), and live **shuttle drive time** (OSRM, estimate fallback).
+- **Overlays Can I Swim Here? data along the route** — station bacteria risk (history-based dots), 🦠 bloom reports, ◆ drowning hazards within the corridor — plus a put-in/take-out water-quality summary.
+- Lets you **set a start or take-out time** (optional); it computes the other end from the float duration.
+- **Share** — a "Share this float plan" button produces a **self-contained URL** (`?from=<id>&to=<id>&start=<iso>`). Opening it reconstructs the whole plan. **No database needed** — the plan lives in the URL (stateless, works on static hosting).
+
+**Data / rebuild:** `build_access.py` fetches the LAR centerline (OSM), orders it, writes `docs/river_line.json` (centerline with per-vertex river mile) + `docs/access_points.json` (curated access points with `id`, `river_mi`, notes). Add the shuttle locations you know to the `SEEDS` list and re-run `python3 build_access.py`. **NHD+ would give more authoritative river distances** and is the intended upgrade.
 
 ## Harmful algal blooms
 
