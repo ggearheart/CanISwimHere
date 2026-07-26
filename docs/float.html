@@ -51,6 +51,9 @@ input[type=datetime-local]{width:100%;padding:7px 9px;border:1px solid var(--bor
 .wq b{color:#334155;}
 .toast{position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:#111827;color:#fff;padding:9px 15px;border-radius:20px;font-size:.8rem;z-index:2000;box-shadow:0 4px 16px rgba(0,0,0,.35);opacity:0;transition:opacity .2s;pointer-events:none;}
 .toast.show{opacity:1;}
+#flow-chip{display:none;position:absolute;top:10px;left:10px;z-index:610;background:rgba(255,255,255,.95);border:1px solid var(--border);border-radius:10px;padding:7px 10px;font-size:.72rem;box-shadow:0 2px 10px rgba(0,0,0,.18);max-width:180px;}
+#plan-chip{display:none;position:absolute;left:50%;bottom:calc(72px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:620;background:rgba(15,23,42,.92);color:#fff;border-radius:12px;padding:9px 14px;font-size:.78rem;box-shadow:0 4px 18px rgba(0,0,0,.4);cursor:pointer;max-width:92vw;line-height:1.45;}
+#plan-chip .pc-open{display:inline-block;margin-left:8px;font-size:.66rem;background:rgba(255,255,255,.22);border-radius:10px;padding:1px 7px;}
 .leaflet-container{background:#e8edf2;}
 </style>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
@@ -64,6 +67,8 @@ input[type=datetime-local]{width:100%;padding:7px 9px;border:1px solid var(--bor
 <div class="app-body">
   <div id="map"></div>
   <div class="map-hint" id="hint">👆 Tap an access point — or 📍 Near Me — to plan a trip</div>
+  <div id="flow-chip"></div>
+  <div id="plan-chip" onclick="expandTrip()"></div>
   <div class="fabs"><button id="locate" onclick="locateMe()">📍 Near Me</button></div>
   <div id="panel"><div class="panel-handle"></div><div id="panel-body"></div></div>
 </div>
@@ -79,7 +84,7 @@ let plan=null; // {putIn, takeOut, timeMode, timeISO}
 const map=L.map('map',{zoomControl:false}).setView([38.60,-121.36],11);
 L.control.zoom({position:'topright'}).addTo(map);
 L.tileLayer('https://basemap.nationalmap.gov/arcgis/rest/services/USGSTopo/MapServer/tile/{z}/{y}/{x}',
-  {attribution:'USGS National Map | Access: OSM + curated | Water quality: CA Water Boards',opacity:0.6,maxZoom:17,minZoom:9}).addTo(map);
+  {attribution:'USGS National Map | River miles: NHDPlus | Water quality: CA Water Boards',opacity:0.6,maxZoom:17,minZoom:9}).addTo(map);
 routeLayer.addTo(map); safetyLayer.addTo(map);
 
 // ── helpers ──────────────────────────────────────────────────────────────────
@@ -112,7 +117,7 @@ function selectAccess(i){
     <div id="shuttles"></div>`;
   document.getElementById('panel').classList.add('open');
 }
-function closePanel(){document.getElementById('panel').classList.remove('open');selIdx=null;clearTrip();drawMarkers();}
+function closePanel(){document.getElementById('panel').classList.remove('open');document.getElementById('plan-chip').style.display='none';selIdx=null;clearTrip();drawSafety();drawMarkers();}
 
 function showShuttles(dir){
   const a=ACCESS[selIdx];
@@ -194,14 +199,56 @@ function corridor(items){ if(!plan)return items; return items.filter(x=>x.lat!=n
 function distToRoute(lat,lon){ let m=1e9; if(!plan)return m; const a=plan.putIn,b=plan.takeOut; [a,b].forEach(p=>{const d=distKm(lat,lon,p.lat,p.lon)*0.621371;if(d<m)m=d;}); LINE.forEach(p=>{if(p[2]>=Math.min(a.river_mi,b.river_mi)-0.2&&p[2]<=Math.max(a.river_mi,b.river_mi)+0.2){const d=distKm(lat,lon,p[0],p[1])*0.621371;if(d<m)m=d;}}); return m; }
 function drawSafety(){
   safetyLayer.clearLayers();
+  // Drowning hazards: always shown (from Can I Swim Here?) so the map is useful to inspect.
+  HAZARDS.forEach(h=>{if(h.lat==null)return;L.marker([h.lat,h.lon],{zIndexOffset:400,icon:L.divIcon({className:'',iconSize:[16,16],iconAnchor:[8,8],html:'<div style="width:12px;height:12px;transform:rotate(45deg);background:#7f1d1d;border:2px solid #fff;margin:2px;"></div>'})}).addTo(safetyLayer)
+      .bindTooltip(`⚠️ Drowning hazard: ${h.name}`,{direction:'top'});});
+  if(!plan) return;
+  // Water quality along the trip corridor.
   corridor(STATIONS).forEach(st=>{const r=stationRisk(st);const c=RISKC[r.key];
     L.circleMarker([st.lat,st.lon],{radius:6,fillColor:c,fillOpacity:.9,color:'#fff',weight:2}).addTo(safetyLayer)
       .bindTooltip(`💧 ${st.name}: ${RISKL[r.key]}${r.gm?` (geomean ${r.gm})`:''}`,{direction:'top'});});
   corridor(BLOOMS).filter(b=>b.tier&&b.tier!=='Other').forEach(b=>{
     L.marker([b.lat,b.lon],{zIndexOffset:400,icon:L.divIcon({className:'',iconSize:[16,16],iconAnchor:[8,8],html:'<div style="font-size:14px;line-height:1;">🦠</div>'})}).addTo(safetyLayer)
       .bindTooltip(`🦠 Algal bloom: ${b.name||''} (${(b.obs||'').slice(0,10)})`,{direction:'top'});});
-  corridor(HAZARDS).forEach(h=>{L.marker([h.lat,h.lon],{zIndexOffset:400,icon:L.divIcon({className:'',iconSize:[16,16],iconAnchor:[8,8],html:'<div style="width:12px;height:12px;transform:rotate(45deg);background:#7f1d1d;border:2px solid #fff;margin:2px;"></div>'})}).addTo(safetyLayer)
-      .bindTooltip(`⚠️ ${h.name}`,{direction:'top'});});
+}
+
+// ── live river flow chip (from Can I Swim Here?) ───────────────────────────────
+let FLOW=null;
+function flowCat(cfs){
+  if(cfs==null) return {label:'—',color:'#374151'};
+  if(cfs<1500) return {label:'Low / calm',color:'#15803D'};
+  if(cfs<3500) return {label:'Moderate',color:'#A16207'};
+  if(cfs<6000) return {label:'Swift',color:'#C2410C'};
+  return {label:'High',color:'#B91C1C'};
+}
+function loadFlow(){
+  fetch('https://waterservices.usgs.gov/nwis/iv/?sites=11446500&parameterCd=00060,00065&period=P2D&format=json&siteStatus=all')
+   .then(r=>r.json()).then(j=>{
+     const ts=(j&&j.value&&j.value.timeSeries)||[];
+     const ser=code=>{const s=ts.find(x=>x.variable.variableCode[0].value===code);if(!s||!s.values[0])return[];return s.values[0].value.map(v=>({v:parseFloat(v.value),t:v.dateTime})).filter(p=>!isNaN(p.v)&&p.v>-999998);};
+     const q=ser('00060'),g=ser('00065'); if(!q.length)return;
+     FLOW={cfs:q[q.length-1].v,gageFt:g.length?g[g.length-1].v:null};
+     renderFlowChip();
+   }).catch(()=>{});
+}
+function renderFlowChip(){
+  const el=document.getElementById('flow-chip'); if(!el||!FLOW)return;
+  const c=flowCat(FLOW.cfs); el.style.display='block';
+  el.innerHTML=`<div style="font-weight:800;color:var(--teal);font-size:.58rem;letter-spacing:.05em;text-transform:uppercase;">🌊 River flow</div>
+    <div style="display:flex;align-items:baseline;gap:4px;"><span style="font-size:1.05rem;font-weight:800;color:#0f172a;">${Math.round(FLOW.cfs).toLocaleString()}</span><span style="font-size:.6rem;color:#64748b;">cfs</span><span style="margin-left:auto;font-size:.58rem;font-weight:700;color:#fff;background:${c.color};padding:1px 6px;border-radius:9px;">${c.label}</span></div>
+    <div style="font-size:.56rem;color:#94a3b8;">${FLOW.gageFt!=null?'gage '+FLOW.gageFt.toFixed(1)+' ft · ':''}USGS Fair Oaks</div>`;
+}
+
+// ── minimize (inspect map) + shaded plan box ───────────────────────────────────
+function minimizeTrip(){ document.getElementById('panel').classList.remove('open'); renderPlanChip(); }
+function expandTrip(){ document.getElementById('plan-chip').style.display='none'; if(plan){ renderTripPanel(); document.getElementById('panel').classList.add('open'); } }
+function renderPlanChip(){
+  const chip=document.getElementById('plan-chip'); if(!plan){chip.style.display='none';return;}
+  const mi=Math.abs(plan.putIn.river_mi-plan.takeOut.river_mi), T=computeTimes();
+  chip.innerHTML=`🛶 <b>${plan.putIn.name}</b> → <b>${plan.takeOut.name}</b><br>
+    <span style="font-size:.7rem;opacity:.9;">${mi.toFixed(1)} mi · ${fmtHrs(mi)} float${T?` · put in ${fmtClock(T.start)}`:''}</span>
+    <span class="pc-open">tap to open ▲</span>`;
+  chip.style.display='block';
 }
 function wqSummary(a){ // nearest station risk for an access point
   if(!STATIONS.length) return '';
@@ -247,7 +294,10 @@ function renderTripPanel(){
     ${plan.timeMode?`<input type="datetime-local" id="time-in" value="${plan.timeISO||''}" onchange="onTime(this.value)">`:''}
     ${T?`<div style="margin-top:7px;font-size:.8rem;color:#334155;background:#ecfeff;border-radius:6px;padding:8px 10px;">🟢 Put in <b>${fmtClock(T.start)}</b> → 🔴 take out <b>${fmtClock(T.end)}</b><br><span style="font-size:.68rem;color:#64748b;">≈ ${(T.hrs).toFixed(1)} hr float at ~3 mph (range ${fmtHrs(mi)})</span></div>`:''}
     <button class="plan-btn" style="width:100%;margin-top:12px;background:var(--ca-blue);" onclick="sharePlan()">🔗 Share this float plan</button>
-    <button class="time-btn" style="width:100%;margin-top:7px;text-align:center;" onclick="closePanel()">← Plan a different trip</button>
+    <div style="display:flex;gap:7px;margin-top:7px;">
+      <button class="time-btn" style="flex:1;text-align:center;" onclick="minimizeTrip()">⌄ Inspect map</button>
+      <button class="time-btn" style="flex:1;text-align:center;" onclick="closePanel()">← New trip</button>
+    </div>
     <div class="note">Shuttle: leave your car at the take-out, then put in upstream. Conditions change — check <a href="index.html">Can I Swim Here?</a> before you go.</div>`;
   fetchDrive(plan.putIn,plan.takeOut,null,t=>{const el=document.getElementById('trip-drive');if(el)el.innerHTML=t.replace(/<\/?b>/g,'').split(' drive')[0];});
 }
@@ -305,9 +355,10 @@ Promise.all([
   if(acc.speed_mph)SPEED=acc.speed_mph; if(acc.river)RIVER=acc.river; LINE=rl.line||[];
   drawMarkers();
   // load Can I Swim Here? data for the safety layer (non-blocking)
+  loadFlow();
   fetch('stations.json').then(r=>r.json()).then(d=>{STATIONS=d.stations||[];if(plan)drawSafety();}).catch(()=>{});
   fetch('blooms.json').then(r=>r.json()).then(d=>{BLOOMS=d.blooms||[];if(plan)drawSafety();}).catch(()=>{});
-  fetch('hazards.json').then(r=>r.json()).then(d=>{HAZARDS=d.hazards||[];if(plan)drawSafety();}).catch(()=>{});
+  fetch('hazards.json').then(r=>r.json()).then(d=>{HAZARDS=d.hazards||[];drawSafety();}).catch(()=>{});
   if(!loadFromURL()) fitAll();
 });
 </script>

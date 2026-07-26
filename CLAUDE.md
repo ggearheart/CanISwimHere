@@ -50,9 +50,13 @@ EPA 2012 recreational criteria. Defined in `THRESH` (JS) and top of `build_data.
   precomputed by snapping each point (ad-hoc: fetch OSM American River via Overpass,
   order downstream→upstream by nearest-neighbor from the westernmost vertex, cumulative
   arc length, project each access point). NHD+ is the intended upgrade.
-- `build_access.py` (repo root, permanent) fetches OSM LAR centerline, orders it, writes
-  `docs/river_line.json` (centerline `[[lat,lon,mi],…]`) + `docs/access_points.json` (with
-  `id` slugs). Add access points to its `SEEDS` list + re-run.
+- `build_access.py` (repo root) fetches the LAR centerline from **USGS NHDPlus via NLDI**
+  (`nwissite/USGS-11446500/navigation/DM/flowlines`, trimmed at `CONFLUENCE`), orders it,
+  writes `docs/river_line.json` (`[[lat,lon,mi],…]`, NHDPlus miles) + `docs/access_points.json`
+  (`id` slugs). Add access points to its `SEEDS` list + re-run.
+- Float map also shows a live flow chip (`loadFlow`/`renderFlowChip`, USGS 11446500) and all
+  drowning hazards (`drawSafety` shows hazards even with no trip). `⌄ Inspect map`
+  (`minimizeTrip`) collapses the panel to a shaded `#plan-chip` (`renderPlanChip`), `expandTrip` reopens.
 - Flow: pick access (marker/map-click/Near Me) → Float FROM here (downstream) / Float TO
   here (upstream) → pick a connection → `buildTrip(putInIdx,takeOutIdx,timeMode,timeISO)`
   draws the route (`routeVerts` slices river_line by river mile), shows float/shuttle

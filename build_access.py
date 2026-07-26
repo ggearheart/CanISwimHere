@@ -1,22 +1,26 @@
 #!/usr/bin/env python3
 """Build access_points.json + river_line.json for the Float & Shuttle Planner.
 
-Fetches the Lower American River centerline from OpenStreetMap, orders it
-downstream->upstream, computes a cumulative river mile for every vertex, and
-snaps a curated set of river-access points onto it (giving each a `river_mi`
-station used to compute float distances between put-ins/take-outs).
+Fetches the Lower American River centerline from the USGS NHDPlus network via the
+NLDI service (downstream-main flowlines from the American R at Fair Oaks gage),
+trims it at the American-Sacramento confluence, orders it confluence->upstream,
+computes a cumulative river mile for every vertex, and snaps a curated set of
+river-access points onto it (giving each a `river_mi` station used to compute
+float distances between put-ins/take-outs).
 
 Outputs:
-  docs/river_line.json   — ordered centerline: {unit, line:[[lat,lon,mi],...]}
+  docs/river_line.json   — ordered centerline: {unit, source, line:[[lat,lon,mi],...]}
   docs/access_points.json — {note, river, speed_mph, access:[{id,name,lat,lon,river_mi,...}]}
-
-NHD+ would give more authoritative river distances; OSM is close for this reach.
 """
 import json, math, os, urllib.request, urllib.parse
 
 M2MI = 1/1609.344
 DOCS = os.path.join(os.path.dirname(__file__), "docs")
-OVERPASS = "https://overpass-api.de/api/interpreter"
+# USGS NLDI (Network Linked Data Index) — NHDPlus flowlines, downstream-main from
+# the American River at Fair Oaks gage; trimmed at the confluence.
+NLDI = ("https://api.water.usgs.gov/nldi/linked-data/nwissite/USGS-11446500/"
+        "navigation/DM/flowlines?distance=45&f=json")
+CONFLUENCE = (38.6005, -121.5085)   # American x Sacramento River
 
 # Seed access points (downstream->upstream). Coordinates approximate — edit freely.
 SEEDS = [
@@ -45,18 +49,16 @@ def hav(a, b, c, d):
 
 
 def fetch_centerline():
-    q = ('[out:json][timeout:120];'
-         'way["waterway"="river"]["name"="American River"]'
-         '(38.55,-121.52,38.67,-121.21);out geom;')
-    req = urllib.request.Request(OVERPASS, data=urllib.parse.urlencode({"data": q}).encode(),
-                                 headers={"User-Agent": "CanISwimHere-build/1.0"})
-    with urllib.request.urlopen(req, timeout=150) as r:
+    req = urllib.request.Request(NLDI, headers={"User-Agent": "CanISwimHere-build/1.0"})
+    with urllib.request.urlopen(req, timeout=120) as r:
         d = json.load(r)
     pts = []
-    for e in d.get("elements", []):
-        for g in e.get("geometry", []) or []:
-            pts.append((g["lat"], g["lon"]))
-    # de-dup preserving order
+    for f in d.get("features", []):
+        g = f.get("geometry", {})
+        segs = [g["coordinates"]] if g.get("type") == "LineString" else g.get("coordinates", [])
+        for ls in segs:
+            for c in ls:
+                pts.append((c[1], c[0]))  # (lat, lon)
     seen, P = set(), []
     for la, lo in pts:
         k = (round(la, 6), round(lo, 6))
@@ -66,8 +68,8 @@ def fetch_centerline():
 
 
 def order_path(P):
-    # nearest-neighbor from the confluence (westernmost vertex), upstream
-    start = min(range(len(P)), key=lambda i: P[i][1])
+    # order downstream from the gage (easternmost vertex) via nearest-neighbor
+    start = max(range(len(P)), key=lambda i: P[i][1])
     path, used, cur = [P[start]], {start}, start
     while len(used) < len(P):
         best, bd = None, 1e18
@@ -77,9 +79,12 @@ def order_path(P):
             dd = hav(P[cur][0], P[cur][1], la, lo)
             if dd < bd:
                 bd, best = dd, j
-        if best is None or bd > 1500:
+        if best is None or bd > 2000:
             break
         used.add(best); path.append(P[best]); cur = best
+    # trim at the confluence and flip so mile 0 = confluence, increasing upstream
+    ci = min(range(len(path)), key=lambda i: hav(path[i][0], path[i][1], *CONFLUENCE))
+    path = path[:ci+1][::-1]
     cum = [0.0]
     for i in range(1, len(path)):
         cum.append(cum[-1] + hav(path[i-1][0], path[i-1][1], path[i][0], path[i][1]))
@@ -112,7 +117,8 @@ def main():
 
     line = [[round(la, 6), round(lo, 6), round(c*M2MI, 3)] for (la, lo), c in zip(path, cum)]
     with open(os.path.join(DOCS, "river_line.json"), "w") as f:
-        json.dump({"unit": "mi", "note": "Lower American River centerline (OSM), ordered "
+        json.dump({"unit": "mi", "source": "USGS NHDPlus via NLDI",
+                   "note": "Lower American River centerline (NHDPlus flowlines), ordered "
                    "confluence(mi 0)->upstream, with cumulative river mile per vertex.",
                    "line": line}, f, separators=(",", ":"))
 
@@ -125,8 +131,8 @@ def main():
     with open(os.path.join(DOCS, "access_points.json"), "w") as f:
         json.dump({
             "note": "Lower American River access points for the float/shuttle planner. "
-                    "river_mi = miles along the OSM river centerline from the American-"
-                    "Sacramento confluence (mile 0). NHD+ would be more authoritative. "
+                    "river_mi = miles along the USGS NHDPlus river centerline (via NLDI) "
+                    "from the American-Sacramento confluence (mile 0). "
                     "Coordinates approximate — edit freely, then re-run build_access.py.",
             "river": "Lower American River",
             "speed_mph": {"min": 2, "max": 4, "note": "typical float/paddle speed at regular LAR flows"},

@@ -68,11 +68,12 @@ A separate companion page — the main app stays focused on "can I swim here?", 
 
 - **Draws the route** along the river on the map (put-in → take-out) with green/red endpoint markers.
 - Shows **river miles**, **float time** (÷ **2–4 mph**, typical LAR speed), and live **shuttle drive time** (OSRM, estimate fallback).
-- **Overlays Can I Swim Here? data along the route** — station bacteria risk (history-based dots), 🦠 bloom reports, ◆ drowning hazards within the corridor — plus a put-in/take-out water-quality summary.
+- **Overlays Can I Swim Here? data** — the live **river-flow chip**, **◆ drowning hazards** (always shown), and along the trip corridor station bacteria risk (history-based dots) + 🦠 bloom reports, plus a put-in/take-out water-quality summary.
 - Lets you **set a start or take-out time** (optional); it computes the other end from the float duration.
+- **⌄ Inspect map** collapses the panel to a shaded plan box (put-in → take-out · miles · time) so you can pan/zoom and read hazards + flow, then tap to reopen.
 - **Share** — a "Share this float plan" button produces a **self-contained URL** (`?from=<id>&to=<id>&start=<iso>`). Opening it reconstructs the whole plan. **No database needed** — the plan lives in the URL (stateless, works on static hosting).
 
-**Data / rebuild:** `build_access.py` fetches the LAR centerline (OSM), orders it, writes `docs/river_line.json` (centerline with per-vertex river mile) + `docs/access_points.json` (curated access points with `id`, `river_mi`, notes). Add the shuttle locations you know to the `SEEDS` list and re-run `python3 build_access.py`. **NHD+ would give more authoritative river distances** and is the intended upgrade.
+**Data / rebuild:** `build_access.py` fetches the LAR centerline from **USGS NHDPlus** (via the NLDI service — downstream-main flowlines from the Fair Oaks gage, trimmed at the confluence), orders it, and writes `docs/river_line.json` (centerline with per-vertex NHDPlus river mile) + `docs/access_points.json` (curated access points with `id`, `river_mi`, notes). Add the shuttle locations you know to the `SEEDS` list and re-run `python3 build_access.py`.
 
 ## Harmful algal blooms
 
