@@ -96,35 +96,46 @@ function selectAccess(i, planNow){
     <div class="sel-name">🛶 ${a.name}</div>
     <div class="sel-meta">${a.note||''}</div>
     <div><span class="mile-chip">river mile ${a.river_mi.toFixed(1)}</span></div>
-    <button class="plan-btn" id="planBtn" onclick="showShuttles()">🚗 Plan a shuttle from here →</button>
+    <div style="font-size:.72rem;color:var(--sub);margin-top:9px;">Plan a float — is this your start or your finish?</div>
+    <div style="display:flex;gap:7px;margin-top:5px;">
+      <button class="plan-btn dir-btn" id="btn-down" onclick="showShuttles('down')" style="flex:1;background:var(--down);">🛶 Float <u>from</u> here<span style="display:block;font-weight:400;font-size:.65rem;opacity:.9;">downstream take-outs ⬇</span></button>
+      <button class="plan-btn dir-btn" id="btn-up" onclick="showShuttles('up')" style="flex:1;background:var(--up);">🛶 Float <u>to</u> here<span style="display:block;font-weight:400;font-size:.65rem;opacity:.9;">⬆ upstream put-ins</span></button>
+    </div>
     <div id="shuttles"></div>`;
   document.getElementById('panel').classList.add('open');
-  if(planNow) showShuttles();
+  if(planNow) showShuttles('both');
 }
 function closePanel(){ document.getElementById('panel').classList.remove('open'); selIdx=null; drawMarkers(); }
 
-function showShuttles(){
+function showShuttles(dir){
+  dir = dir||'both';
   const a=ACCESS[selIdx];
-  const pb=document.getElementById('planBtn'); if(pb) pb.style.display='none';
+  const bd=document.getElementById('btn-down'), bu=document.getElementById('btn-up');
+  if(bd&&bu){ bd.style.opacity = dir==='up'?'.5':'1'; bu.style.opacity = dir==='down'?'.5':'1'; }
   const up = ACCESS.map((x,i)=>({x,i})).filter(o=>o.i!==selIdx && o.x.river_mi>a.river_mi).sort((p,q)=>p.x.river_mi-q.x.river_mi);
   const down = ACCESS.map((x,i)=>({x,i})).filter(o=>o.i!==selIdx && o.x.river_mi<a.river_mi).sort((p,q)=>q.x.river_mi-p.x.river_mi);
-  const row=(o,dir)=>{
+  const row=(o,d)=>{
     const mi=Math.abs(o.x.river_mi-a.river_mi);
-    const id='drv_'+o.i;
-    return `<div class="conn ${dir}" onclick="selectAccess(${o.i},true)">
-      <div class="conn-name">${dir==='up'?'⬆':'⬇'} ${o.x.name}</div>
+    return `<div class="conn ${d}" onclick="selectAccess(${o.i},true)">
+      <div class="conn-name">${d==='up'?'⬆':'⬇'} ${o.x.name}</div>
       <div class="conn-stats">
         <span>🛶 <b>${mi.toFixed(1)} mi</b> float · ${fmtHrs(mi)}</span>
-        <span class="drive" id="${id}">🚗 shuttle…</span>
+        <span class="drive" id="drv_${o.i}">🚗 shuttle…</span>
       </div>
     </div>`;
   };
-  let html='';
-  if(up.length) html+=`<div class="grp-label" style="color:var(--up)">⬆ ${up.length} put-in${up.length>1?'s':''} upstream — float down to ${a.name}</div>`+up.map(o=>row(o,'up')).join('');
-  if(down.length) html+=`<div class="grp-label" style="color:var(--down)">⬇ ${down.length} take-out${down.length>1?'s':''} downstream — float from ${a.name}</div>`+down.map(o=>row(o,'down')).join('');
-  html+=`<div class="note">🛶 Float time assumes ${SPEED.min}–${SPEED.max} mph (typical ${RIVER} paddle/float speed; varies with flow). River miles from the OpenStreetMap river centerline (NHD+ would be more exact). 🚗 Drive times are live road routing. Always leave your shuttle car at the take-out, then put in upstream.</div>`;
+  let html='', shown=[];
+  if(dir==='down'||dir==='both'){
+    if(down.length){ html+=`<div class="grp-label" style="color:var(--down)">⬇ Float FROM ${a.name} — ${down.length} take-out${down.length>1?'s':''} downstream</div>`+down.map(o=>row(o,'down')).join(''); shown=shown.concat(down); }
+    else if(dir==='down') html+=`<div class="note" style="border:0;padding:6px 0;">This is the downstream end (confluence) — nothing further to float to. Try <b>float to here</b> instead.</div>`;
+  }
+  if(dir==='up'||dir==='both'){
+    if(up.length){ html+=`<div class="grp-label" style="color:var(--up)">⬆ Float TO ${a.name} — put in at ${up.length} spot${up.length>1?'s':''} upstream</div>`+up.map(o=>row(o,'up')).join(''); shown=shown.concat(up); }
+    else if(dir==='up') html+=`<div class="note" style="border:0;padding:6px 0;">This is the uppermost access — nothing further upstream to put in. Try <b>float from here</b> instead.</div>`;
+  }
+  html+=`<div class="note">🛶 Float time assumes ${SPEED.min}–${SPEED.max} mph (typical ${RIVER} paddle/float speed; varies with flow). River miles follow the river centerline (OSM; NHD+ would be more exact). 🚗 Drive = live shuttle routing. Tip: leave your car at the take-out, then put in upstream. Tap any spot to re-plan from there.</div>`;
   document.getElementById('shuttles').innerHTML=html;
-  [...up,...down].forEach(o=>fetchDrive(a,o.x,'drv_'+o.i));
+  shown.forEach(o=>fetchDrive(a,o.x,'drv_'+o.i));
 }
 
 function fetchDrive(a,b,elId){
