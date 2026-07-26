@@ -67,7 +67,7 @@ A separate companion page — the main app stays focused on "can I swim here?", 
 **Flow:** pick a river-access point (tap a marker, tap the map, or **📍 Near Me**) → choose **Float _from_ here** (downstream take-outs) or **Float _to_ here** (upstream put-ins) → pick a connecting spot. That builds a trip, which:
 
 - **Draws the route** along the river on the map (put-in → take-out) with green/red endpoint markers.
-- Shows **river miles**, **float time** (÷ **2–4 mph**, typical LAR speed), and live **shuttle drive time** (OSRM, estimate fallback).
+- Shows **river miles**, **float time** (÷ **2–4 mph**, typical LAR speed), and live **shuttle drive time** — routed **parking-lot to parking-lot** (take-out → put-in), and clickable to open **Google Maps driving directions** for the shuttle.
 - **Overlays Can I Swim Here? data** — the live **river-flow chip**, **◆ drowning hazards** (always shown), and along the trip corridor station bacteria risk (history-based dots) + 🦠 bloom reports, plus a put-in/take-out water-quality summary.
 - Lets you **set a start or take-out time** (optional); it computes the other end from the float duration.
 - **⌄ Inspect map** collapses the panel to a shaded plan box (put-in → take-out · miles · time) so you can pan/zoom and read hazards + flow, then tap to reopen.

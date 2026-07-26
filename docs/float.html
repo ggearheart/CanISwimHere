@@ -141,14 +141,19 @@ function showShuttles(dir){
 }
 
 // ── shuttle drive time (OSRM, with estimate fallback) ──────────────────────────
+// Cars go to the parking lot, not the water's edge — route lot-to-lot when available.
+function driveCoord(a){ return (a.parking_lat!=null&&a.parking_lon!=null)?[a.parking_lat,a.parking_lon]:[a.lat,a.lon]; }
 function fetchDrive(a,b,elId,cb){
-  const key=[a.lat,a.lon,b.lat,b.lon].map(v=>v.toFixed(4)).join(',');
+  const A=driveCoord(a), B=driveCoord(b);
+  const key=[A[0],A[1],B[0],B[1]].map(v=>v.toFixed(4)).join(',');
   const set=t=>{const el=elId&&document.getElementById(elId);if(el)el.innerHTML='🚗 '+t; if(cb)cb(t);};
   if(driveCache[key]){set(driveCache[key]);return;}
-  fetch(`https://router.project-osrm.org/route/v1/driving/${a.lon},${a.lat};${b.lon},${b.lat}?overview=false`)
+  fetch(`https://router.project-osrm.org/route/v1/driving/${A[1]},${A[0]};${B[1]},${B[0]}?overview=false`)
    .then(r=>r.json()).then(j=>{if(j&&j.routes&&j.routes[0]){const rt=j.routes[0];const t=`<b>${Math.round(rt.duration/60)} min</b> drive · ${(rt.distance*M2MI).toFixed(1)} mi`;driveCache[key]=t;set(t);}else throw 0;})
-   .catch(()=>{const mi=distKm(a.lat,a.lon,b.lat,b.lon)*0.621371*1.4;const t=`~${Math.round(mi/32*60)} min drive (est.)`;driveCache[key]=t;set(t);});
+   .catch(()=>{const mi=distKm(A[0],A[1],B[0],B[1])*0.621371*1.4;const t=`~${Math.round(mi/32*60)} min drive (est.)`;driveCache[key]=t;set(t);});
 }
+// Google Maps driving directions from take-out parking to put-in parking (the shuttle).
+function gdir(from,to){ const A=driveCoord(from),B=driveCoord(to); return `https://www.google.com/maps/dir/?api=1&origin=${A[0]},${A[1]}&destination=${B[0]},${B[1]}&travelmode=driving`; }
 
 // ── build & draw a trip (put-in upstream, take-out downstream) ─────────────────
 function clearTrip(){routeLayer.clearLayers();safetyLayer.clearLayers();plan=null;}
@@ -313,7 +318,7 @@ function renderTripPanel(){
     <div class="stat-grid">
       <div class="stat"><div class="n">${mi.toFixed(1)} mi</div><div class="l">river distance</div></div>
       <div class="stat"><div class="n">${fmtHrs(mi)}</div><div class="l">float @ ${SPEED.min}–${SPEED.max} mph</div></div>
-      <div class="stat"><div class="n" id="trip-drive">…</div><div class="l">🚗 shuttle drive</div></div>
+      <a class="stat" href="${gdir(plan.takeOut,plan.putIn)}" target="_blank" rel="noopener" style="text-decoration:none;color:inherit;"><div class="n" id="trip-drive">…</div><div class="l">🚗 shuttle drive ↗</div></a>
     </div>
     <div class="wq"><b>💧 Water quality along your route</b> (Can I Swim Here?)<br>
       Put-in ${wqSummary(plan.putIn)}<br>Take-out ${wqSummary(plan.takeOut)}<br>
@@ -333,7 +338,7 @@ function renderTripPanel(){
       <button class="time-btn" style="flex:1;text-align:center;" onclick="closePanel()">← New trip</button>
     </div>
     <div class="note">Shuttle: leave your car at the take-out, then put in upstream. Conditions change — check <a href="index.html">Can I Swim Here?</a> before you go.</div>`;
-  fetchDrive(plan.putIn,plan.takeOut,null,t=>{const el=document.getElementById('trip-drive');if(el)el.innerHTML=t.replace(/<\/?b>/g,'').split(' drive')[0];});
+  fetchDrive(plan.takeOut,plan.putIn,null,t=>{const el=document.getElementById('trip-drive');if(el)el.innerHTML=t.replace(/<\/?b>/g,'').split(' drive')[0];});
 }
 function setTimeMode(m){ plan.timeMode=m; if(!m)plan.timeISO=null; else if(!plan.timeISO){const d=new Date();d.setMinutes(0,0,0);d.setHours(d.getHours()+1);plan.timeISO=isoLocal(d);} renderTripPanel(); }
 function onTime(v){ plan.timeISO=v; renderTripPanel(); }
