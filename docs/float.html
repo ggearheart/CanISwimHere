@@ -173,10 +173,13 @@ function buildTrip(putInIdx,takeOutIdx,timeMode,timeISO){
   document.getElementById('panel').classList.add('open');
   dismissHint();
 }
+function gmaps(lat,lon){ return `https://www.google.com/maps/search/?api=1&query=${lat},${lon}`; }
+function gmapLink(lat,lon,label){ return `<a href="${gmaps(lat,lon)}" target="_blank" rel="noopener" style="color:var(--ca-blue);font-weight:700;text-decoration:none;">${label} ↗</a>`; }
 function endMarker(a,label,color){
   return L.marker([a.lat,a.lon],{zIndexOffset:1500,icon:L.divIcon({className:'',iconSize:[16,16],iconAnchor:[8,8],
     html:`<div style="width:16px;height:16px;border-radius:50%;background:${color};border:3px solid #fff;box-shadow:0 0 0 2px ${color}55;"></div>`})})
-    .bindTooltip(`${label}: ${a.name}`,{permanent:true,direction:'top',offset:[0,-8],className:'route-tt'});
+    .bindTooltip(`${label}: ${a.name}`,{permanent:true,direction:'top',offset:[0,-8],className:'route-tt'})
+    .bindPopup(`<b>${label}</b>: ${a.name}<br>${gmapLink(a.lat,a.lon,"Open in Google Maps")}`);
 }
 // Parking marker + dashed walk line from the lot to the water's edge.
 function addParkingWalk(a){
@@ -184,7 +187,9 @@ function addParkingWalk(a){
   L.polyline([[a.parking_lat,a.parking_lon],[a.lat,a.lon]],{color:'#334155',weight:2.5,opacity:.8,dashArray:'4,5'}).addTo(routeLayer);
   L.marker([a.parking_lat,a.parking_lon],{zIndexOffset:1400,icon:L.divIcon({className:'',iconSize:[22,22],iconAnchor:[11,11],
     html:`<div style="width:22px;height:22px;border-radius:5px;background:#1d4ed8;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:13px;">P</div>`})})
-    .addTo(routeLayer).bindTooltip(`🅿️ Parking: ${a.name}${a.walk_ft?` · ${walkText(a)} to water`:''}`,{direction:'top'});
+    .addTo(routeLayer)
+    .bindTooltip(`🅿️ Parking: ${a.name}${walkText(a)?` · ${walkText(a)} to water`:''}`,{direction:'top'})
+    .bindPopup(`🅿️ <b>Parking</b>: ${a.name}${a.parking_fee?`<br>${a.parking_fee}`:''}${walkText(a)?`<br>🚶 ${walkText(a)} to water`:''}<br>${gmapLink(a.parking_lat,a.parking_lon,"Directions in Google Maps")}`);
 }
 function walkText(a){
   if(a.walk_to_water) return a.walk_to_water;
@@ -193,7 +198,9 @@ function walkText(a){
 }
 function accDetail(a){
   const bits=[];
-  if(a.parking_fee) bits.push(`🅿️ ${a.parking_fee}`);
+  const hasPark=a.parking_lat!=null&&a.parking_lon!=null;
+  if(hasPark) bits.push(`${gmapLink(a.parking_lat,a.parking_lon,"🅿️ Parking")}${a.parking_fee?` — ${a.parking_fee}`:''}`);
+  else if(a.parking_fee) bits.push(`🅿️ ${a.parking_fee}`);
   if(walkText(a)) bits.push(`🚶 ${walkText(a)}`);
   if(a.amenities) bits.push(a.amenities);
   let h=bits.length?`<div style="font-size:.68rem;color:#64748b;margin:1px 0 2px 22px;line-height:1.4;">${bits.join(' · ')}</div>`:'';
@@ -299,9 +306,9 @@ function renderTripPanel(){
   body.innerHTML=`
     <button class="close-x" onclick="closePanel()" aria-label="Close">✕</button>
     <div class="sel-name">🛶 Your float</div>
-    <div class="trip-row"><span class="pin" style="background:#15803D"></span><b>Put in:</b>&nbsp;${plan.putIn.name} <span style="color:#94a3b8;font-size:.72rem;">· mi ${plan.putIn.river_mi.toFixed(1)}</span></div>
+    <div class="trip-row"><span class="pin" style="background:#15803D"></span><b>Put in:</b>&nbsp;${gmapLink(plan.putIn.lat,plan.putIn.lon,plan.putIn.name)} <span style="color:#94a3b8;font-size:.72rem;">· mi ${plan.putIn.river_mi.toFixed(1)}</span></div>
     ${accDetail(plan.putIn)}
-    <div class="trip-row"><span class="pin" style="background:#B91C1C"></span><b>Take out:</b>&nbsp;${plan.takeOut.name} <span style="color:#94a3b8;font-size:.72rem;">· mi ${plan.takeOut.river_mi.toFixed(1)}</span></div>
+    <div class="trip-row"><span class="pin" style="background:#B91C1C"></span><b>Take out:</b>&nbsp;${gmapLink(plan.takeOut.lat,plan.takeOut.lon,plan.takeOut.name)} <span style="color:#94a3b8;font-size:.72rem;">· mi ${plan.takeOut.river_mi.toFixed(1)}</span></div>
     ${accDetail(plan.takeOut)}
     <div class="stat-grid">
       <div class="stat"><div class="n">${mi.toFixed(1)} mi</div><div class="l">river distance</div></div>
