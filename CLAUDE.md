@@ -53,8 +53,8 @@ EPA 2012 recreational criteria. Defined in `THRESH` (JS) and top of `build_data.
 - Source of truth = **`access_points_source.csv`** (repo root; the user edits this — I round-trip
   it to/from an xlsx). Columns: id,name,access_lat/lon (water's edge),parking_lat/lon,parking_fee,
   parking_info,walk_to_water,amenities,cautions,note. `build_access.py` reads it (`read_seeds`),
-  fetches the LAR centerline from **USGS NHDPlus via NLDI** (`nwissite/USGS-11446500/navigation/DM/
-  flowlines`, trimmed at `CONFLUENCE`), snaps `access_*` → NHDPlus `river_mi`, computes `walk_ft`
+  fetches the LAR centerline from **OpenStreetMap** (Overpass, best visual fit),
+  orders confluence→upstream, snaps `access_*` → `river_mi`, computes `walk_ft`
   (parking↔access), writes `docs/river_line.json` + `docs/access_points.json` (with parking fields).
 - float.html: `addParkingWalk` draws a 🅿️ marker + dashed walk line; `accDetail` shows fee/walk/
   amenities/cautions per put-in/take-out. Access marker = water's edge.
@@ -68,7 +68,8 @@ EPA 2012 recreational criteria. Defined in `THRESH` (JS) and top of `build_data.
   risk via compact `stationRisk`, blooms, hazards), optional start/take-out time.
 - **Share = stateless URL** (`planURL`: `?from=<id>&to=<id>&start|end=<iso>`); `loadFromURL`
   reconstructs on boot. NO backend/DB needed.
-- SW serves float.html network-first (v9). NHD+ is the intended upgrade for river_mi.
+- SW serves float.html network-first (v9). River line = OSM (best fit to the mapped river;
+  user preferred it over the NHDPlus line for how the route draws).
 
 ## HAB risk communication
 - A reported bloom is likely over after ~2 weeks. Summary uses `HAB_ACTIVE_DAYS=14`:

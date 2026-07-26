@@ -75,7 +75,7 @@ A separate companion page — the main app stays focused on "can I swim here?", 
 
 Each access point also carries **parking** detail — a separate parking coordinate (🅿️ marker + a dashed **walk line** to the water's edge on the map), **fee**, lot info, **walk-to-water** description, amenities, and cautions — surfaced in the put-in/take-out plan details. The put-in/take-out names and the 🅿️ parking each **link to a Google Maps point** (and the map's P markers pop up a "Directions in Google Maps" link) for navigating the shuttle.
 
-**Data / rebuild:** the source of truth is **`access_points_source.csv`** (columns: `id, name, access_lat, access_lon, parking_lat, parking_lon, parking_fee, parking_info, walk_to_water, amenities, cautions, note`). Edit it, then run `python3 build_access.py`, which fetches the LAR centerline from **USGS NHDPlus** (via the NLDI service — downstream-main flowlines from the Fair Oaks gage, trimmed at the confluence), snaps each `access_*` point to it for the NHDPlus `river_mi`, and writes `docs/river_line.json` + `docs/access_points.json`.
+**Data / rebuild:** the source of truth is **`access_points_source.csv`** (columns: `id, name, access_lat, access_lon, parking_lat, parking_lon, parking_fee, parking_info, walk_to_water, amenities, cautions, note`). Edit it, then run `python3 build_access.py`, which fetches the LAR centerline from **OpenStreetMap** (best visual fit to the mapped river), snaps each `access_*` point to it for the `river_mi`, and writes `docs/river_line.json` + `docs/access_points.json`.
 
 ## Harmful algal blooms
 
