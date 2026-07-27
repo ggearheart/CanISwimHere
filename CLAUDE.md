@@ -59,13 +59,18 @@ EPA 2012 recreational criteria. Defined in `THRESH` (JS) and top of `build_data.
   **river** points only (null on lakes), precomputed by snapping each point (fetch OSM
   American River via Overpass, order downstream→upstream by nearest-neighbor from the
   westernmost vertex, cumulative arc length, project each access point).
-- **Segments & dams:** a trip can only connect two access points on the **same** segment
-  (dams separate them). `isLake()`/`segLabel()`/`tripMiles()` helpers; `buildTrip` rejects
-  cross-segment pairs ("separated by a dam — no through route"). Lakes: `selectAccess`
-  shows `showPaddle()` (same-lake spots, straight-line paddle miles, "🚫 no shuttle") instead
-  of Float from/to; `buildTrip` draws a dashed straight line, sets `plan.lake`/`plan.miles`,
-  and the trip panel shows "Launch/Paddle to", a "🚫 None · no shuttle" stat, and paddle
-  guidance. Lake markers are indigo; river markers teal.
+- **Three planning modes on every location** (`selectAccess` → 3 buttons → `showConnections(mode)`):
+  `from` (this = put-in; river lists downstream, lake lists all connected), `to` (this = take-out;
+  river lists upstream), `oab` (out-and-back / "no shuttle"). `oab` also offers "📍 Just meet &
+  paddle here" (a `samePoint` plan — a shareable meeting spot, no route). Lakes default-open `oab`.
+- **Connectivity = same segment (dam-bounded).** Only same-`segment` spots are listed
+  (`isLake()`/`segLabel()`/`tripMiles()` helpers); a dam removes boating connectivity so it can't
+  be a shuttle/paddle partner. `buildTrip(putIdx,takeIdx,kind,timeMode,timeISO)` (`kind`:
+  `oneway`|`oab`) rejects cross-segment pairs. `plan` = `{putIn,takeOut,kind,lake,samePoint,
+  oneWayMi,miles,...}`; `miles` = round-trip for `oab`. One-way trips show a shuttle drive (river:
+  classic; lake: "self-run"); `oab` shows "🚫 None · out & back". Route: river follows the
+  centerline (`routeVerts`), lake/oab a dashed straight line. Share URL adds `&trip=oab`. Lake
+  markers indigo; river markers teal; `.conn.oab`/`.conn.lake` teal-bordered.
 - Source of truth = **`access_points_source.csv`** (repo root; the user edits this — I round-trip
   it to/from an xlsx). Columns: id,name,**segment**,access_lat/lon (water's edge),parking_lat/lon,
   parking_fee,parking_info,walk_to_water,amenities,cautions,note. `build_access.py` reads it (`read_seeds`),

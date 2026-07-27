@@ -65,12 +65,20 @@ Flow categories (cfs, general Lower-American-River guidance, not an official sta
 
 A separate companion page — the main app stays focused on "can I swim here?", this one answers "how do I plan a float/shuttle trip?"
 
-**Two kinds of access.** Free-flowing river points (Lower American River) plan a **float + car shuttle**. Points on a **lake** (Lake Natoma, Folsom Lake) are flatwater above a dam — the planner marks them **"no shuttle"** and plans a **paddle** instead (out-and-back or arrange a pickup). Because each lake/river is separated by a dam, a trip can only connect two points on the **same** water — you can't float or shuttle across a dam.
+**Every location offers three ways to plan** (tap a marker, tap the map, or **📍 Near Me**, then choose):
 
-**Flow (river):** pick a river-access point (tap a marker, tap the map, or **📍 Near Me**) → choose **Float _from_ here** (downstream take-outs) or **Float _to_ here** (upstream put-ins) → pick a connecting spot. That builds a trip, which:
+- **🛶 From here** — this is your **put-in**; pick a take-out (downstream on the river; any connected spot on a lake). One-way trip.
+- **🛶 To here** — this is your **take-out**; pick a put-in (upstream on the river). One-way trip.
+- **🔁 No shuttle** — an **out-and-back** from here (paddle out and return), or just **"meet & paddle here"** as a shareable meeting spot. No shuttle needed. On **Lake Natoma** and **Folsom Lake** — flatwater with no real current — this is the usual mode, so it opens by default there.
 
-- **Draws the route** along the river on the map (put-in → take-out) with green/red endpoint markers.
-- Shows **river miles**, **float time** (÷ **2–4 mph**, typical LAR speed), and live **shuttle drive time** — routed **parking-lot to parking-lot** (take-out → put-in), and clickable to open **Google Maps driving directions** for the shuttle.
+One-way trips show a **shuttle drive** (routed take-out → put-in) you can use or arrange yourself; out-and-back trips need no shuttle. Any plan is shareable via URL, so you can **meet at a place** and sort out the shuttle (or not) however you like.
+
+**Only hydrologically-connected spots are offered.** A dam removes boating connectivity, so a trip can only link two access points on the **same** dam-bounded water (Lower American River, Lake Natoma, or Folsom Lake) — you can't float or shuttle across Nimbus or Folsom dam.
+
+**Building a trip:**
+
+- **Draws the route** on the map (river points follow the river centerline; lakes/out-and-backs a straight paddle line) with labeled endpoint markers.
+- Shows **distance** (river miles, or straight-line paddle miles; out-and-back is round-trip) and **float/paddle time** (÷ **2–4 mph**, typical LAR speed). One-way trips add a live **shuttle drive time** — routed **parking-lot to parking-lot** (take-out → put-in), clickable to open **Google Maps driving directions**; out-and-back trips show **🚫 no shuttle**.
 - **Overlays Can I Swim Here? data** — the live **river-flow chip**, **◆ drowning hazards** (always shown), and along the trip corridor station bacteria risk (history-based dots) + 🦠 bloom reports, plus a put-in/take-out water-quality summary.
 - Lets you **set a start or take-out time** (optional); it computes the other end from the float duration.
 - **⌄ Inspect map** collapses the panel to a shaded plan box (put-in → take-out · miles · time) so you can pan/zoom and read hazards + flow, then tap to reopen.

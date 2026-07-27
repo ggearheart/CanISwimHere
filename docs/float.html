@@ -32,7 +32,7 @@ header{background:var(--ca-blue);color:#fff;padding:0 14px;height:52px;display:f
 .grp-label{font-size:.68rem;font-weight:800;text-transform:uppercase;letter-spacing:.05em;margin:12px 0 5px;}
 .conn{border:1px solid var(--border);border-left:4px solid var(--border);border-radius:var(--radius);padding:8px 10px;margin-bottom:6px;cursor:pointer;}
 .conn:hover{box-shadow:0 2px 8px rgba(0,0,0,.1);}
-.conn.up{border-left-color:var(--up);} .conn.down{border-left-color:var(--down);} .conn.lake{border-left-color:var(--teal);}
+.conn.up{border-left-color:var(--up);} .conn.down{border-left-color:var(--down);} .conn.lake,.conn.oab{border-left-color:var(--teal);}
 .seg-chip{display:inline-block;font-weight:700;font-size:.72rem;padding:3px 9px;border-radius:10px;}
 .seg-chip.lake{background:#ecfeff;color:var(--teal);border:1px solid #a5f3fc;}
 .conn-name{font-size:.85rem;font-weight:700;}
@@ -131,65 +131,72 @@ function nearestAccess(lat,lon){let bi=0,bd=1e9;ACCESS.forEach((a,i)=>{const d=d
 function selectAccess(i){
   clearTrip(); selIdx=i; drawMarkers(); dismissHint();
   const a=ACCESS[i]; map.setView([a.lat,a.lon],Math.max(map.getZoom(),12));
-  const controls = isLake(a) ? `
-    <div class="seg-chip lake">🚫 ${segLabel(a)} — no shuttle · flatwater paddle</div>
-    <div style="font-size:.72rem;color:var(--sub);margin-top:9px;">Flatwater above a dam — you paddle (out-and-back, or arrange a pickup). Pick where to paddle to:</div>
-    <div id="shuttles"></div>`
-  : `
-    <div><span class="mile-chip">river mile ${a.river_mi.toFixed(1)}</span></div>
-    <div style="font-size:.72rem;color:var(--sub);margin-top:9px;">Plan a float — is this your start or your finish?</div>
-    <div style="display:flex;gap:7px;margin-top:5px;">
-      <button class="plan-btn" id="btn-down" onclick="showShuttles('down')" style="flex:1;background:var(--down);">🛶 Float <u>from</u> here<span style="display:block;font-weight:400;font-size:.65rem;opacity:.9;">downstream take-outs ⬇</span></button>
-      <button class="plan-btn" id="btn-up" onclick="showShuttles('up')" style="flex:1;background:var(--up);">🛶 Float <u>to</u> here<span style="display:block;font-weight:400;font-size:.65rem;opacity:.9;">⬆ upstream put-ins</span></button>
-    </div>
-    <div id="shuttles"></div>`;
+  const lake=isLake(a);
+  const chip = lake
+    ? `<div class="seg-chip lake">🛶 ${segLabel(a)} — flatwater (no current)</div>`
+    : `<div><span class="mile-chip">river mile ${a.river_mi.toFixed(1)}</span></div>`;
+  const btn=(k,label,sub,color)=>`<button class="plan-btn" id="btn-${k}" onclick="showConnections('${k}')" style="flex:1;background:${color};padding:7px 4px;">${label}<span style="display:block;font-weight:400;font-size:.58rem;opacity:.92;margin-top:1px;">${sub}</span></button>`;
   document.getElementById('panel-body').innerHTML=`
     <button class="close-x" onclick="closePanel()" aria-label="Close">✕</button>
     <div class="sel-name">🛶 ${a.name}</div>
     <div class="sel-meta">${a.note||''}</div>
-    ${controls}`;
+    ${chip}
+    <div style="font-size:.72rem;color:var(--sub);margin-top:9px;">How do you want to plan from here?</div>
+    <div style="display:flex;gap:6px;margin-top:5px;">
+      ${btn('from','🛶 From here','float / paddle out ⬇','var(--down)')}
+      ${btn('to','🛶 To here','⬆ come in to here','var(--up)')}
+      ${btn('oab','🔁 No shuttle','out &amp; back','var(--teal)')}
+    </div>
+    <div id="shuttles"></div>`;
   document.getElementById('panel').classList.add('open');
-  if(isLake(a)) showPaddle();
-}
-// Flatwater lakes: list other access points on the SAME lake to paddle to (no shuttle).
-function showPaddle(){
-  const a=ACCESS[selIdx];
-  const same=ACCESS.map((x,i)=>({x,i})).filter(o=>o.i!==selIdx&&o.x.segment===a.segment)
-    .map(o=>({...o,mi:distKm(a.lat,a.lon,o.x.lat,o.x.lon)*0.621371})).sort((p,q)=>p.mi-q.mi);
-  let html='';
-  if(same.length){
-    html+=`<div class="grp-label" style="color:var(--teal)">🛶 Paddle on ${segLabel(a)} — ${same.length} spot${same.length>1?'s':''}</div>`
-      +same.map(o=>`<div class="conn lake" onclick="buildTrip(${selIdx},${o.i})">
-        <div class="conn-name">🛶 ${o.x.name}</div>
-        <div class="conn-stats"><span>🛶 <b>${o.mi.toFixed(1)} mi</b> one-way · ${fmtHrs(o.mi)}</span><span class="drive">🚫 no shuttle</span></div>
-      </div>`).join('');
-  } else {
-    html+=`<div class="note" style="border:0;padding:6px 0;">No other mapped access on ${segLabel(a)} yet — add put-in/take-out spots to <code>access_points_source.csv</code>.</div>`;
-  }
-  html+=`<div class="note">Distances are straight-line across the water (double for a round trip). Flatwater paddle assumes ${SPEED.min}–${SPEED.max} mph. No downstream current, no car shuttle.</div>`;
-  document.getElementById('shuttles').innerHTML=html;
+  // Lakes default to the typical mode (out-and-back paddle); rivers wait for the user's pick.
+  if(lake) showConnections('oab');
 }
 function closePanel(){document.getElementById('panel').classList.remove('open');document.getElementById('plan-chip').style.display='none';selIdx=null;clearTrip();drawSafety();drawMarkers();}
 
-function showShuttles(dir){
-  const a=ACCESS[selIdx];
-  const bd=document.getElementById('btn-down'),bu=document.getElementById('btn-up');
-  if(bd&&bu){bd.style.opacity=dir==='up'?'.5':'1';bu.style.opacity=dir==='down'?'.5':'1';}
-  const up=ACCESS.map((x,i)=>({x,i})).filter(o=>o.i!==selIdx&&o.x.segment==='river'&&o.x.river_mi>a.river_mi).sort((p,q)=>p.x.river_mi-q.x.river_mi);
-  const down=ACCESS.map((x,i)=>({x,i})).filter(o=>o.i!==selIdx&&o.x.segment==='river'&&o.x.river_mi<a.river_mi).sort((p,q)=>q.x.river_mi-p.x.river_mi);
-  // clicking a connection builds the trip: put-in = upstream point, take-out = downstream point
-  const row=(o,d)=>{const mi=Math.abs(o.x.river_mi-a.river_mi);
-    const put=d==='up'?o.i:selIdx, take=d==='up'?selIdx:o.i;
-    return `<div class="conn ${d}" onclick="buildTrip(${put},${take})">
-      <div class="conn-name">${d==='up'?'⬆':'⬇'} ${o.x.name}</div>
-      <div class="conn-stats"><span>🛶 <b>${mi.toFixed(1)} mi</b> float · ${fmtHrs(mi)}</span><span class="drive" id="drv_${o.i}">🚗 shuttle…</span></div>
-    </div>`;};
-  let html='',shown=[];
-  if(dir==='down'||dir==='both'){ if(down.length){html+=`<div class="grp-label" style="color:var(--down)">⬇ Float FROM ${a.name} — ${down.length} take-out${down.length>1?'s':''} downstream</div>`+down.map(o=>row(o,'down')).join('');shown=shown.concat(down);} else if(dir==='down') html+=`<div class="note" style="border:0;padding:6px 0;">This is the downstream end — try <b>float to here</b> instead.</div>`; }
-  if(dir==='up'||dir==='both'){ if(up.length){html+=`<div class="grp-label" style="color:var(--up)">⬆ Float TO ${a.name} — put in at ${up.length} spot${up.length>1?'s':''} upstream</div>`+up.map(o=>row(o,'up')).join('');shown=shown.concat(up);} else if(dir==='up') html+=`<div class="note" style="border:0;padding:6px 0;">This is the uppermost access — try <b>float from here</b> instead.</div>`; }
-  html+=`<div class="note">Tap a spot to see the route, timing, and water quality along the way. Float time assumes ${SPEED.min}–${SPEED.max} mph.</div>`;
+// Every location offers three modes. Only HYDROLOGICALLY CONNECTED spots are listed —
+// same dam-bounded segment (a dam between two points removes boating connectivity, so it
+// can't be a shuttle/paddle partner). 'from'/'to' = one-way trip; 'oab' = out-and-back (no shuttle).
+function showConnections(mode){
+  const a=ACCESS[selIdx], lake=isLake(a);
+  ['from','to','oab'].forEach(k=>{const b=document.getElementById('btn-'+k); if(b) b.style.opacity=(k===mode?'1':'.5');});
+  let cands=ACCESS.map((x,i)=>({x,i})).filter(o=>o.i!==selIdx && o.x.segment===a.segment);
+  if(lake) cands=cands.map(o=>({...o,mi:distKm(a.lat,a.lon,o.x.lat,o.x.lon)*0.621371}));
+  else     cands=cands.map(o=>({...o,mi:Math.abs(o.x.river_mi-a.river_mi)}));
+  let list;
+  if(!lake && mode==='from')      list=cands.filter(o=>o.x.river_mi<a.river_mi).sort((p,q)=>q.x.river_mi-p.x.river_mi); // downstream take-outs
+  else if(!lake && mode==='to')   list=cands.filter(o=>o.x.river_mi>a.river_mi).sort((p,q)=>p.x.river_mi-q.x.river_mi); // upstream put-ins
+  else                            list=cands.slice().sort((p,q)=>p.mi-q.mi);                                            // lake, or river oab: nearest first
+  const hdr = mode==='from'?`⬇ Float FROM ${a.name}`:mode==='to'?`⬆ Float TO ${a.name}`:`🔁 Out-and-back from ${a.name}`;
+  const hdrC = mode==='from'?'var(--down)':mode==='to'?'var(--up)':'var(--teal)';
+  let html=`<div class="grp-label" style="color:${hdrC}">${hdr}</div>`, drives=[];
+  if(mode==='oab'){
+    html+=`<div class="conn oab" onclick="buildTrip(${selIdx},${selIdx},'oab')">
+      <div class="conn-name">📍 Just meet &amp; paddle here</div>
+      <div class="conn-stats"><span>out-and-back from ${a.name}</span><span class="drive">🚫 no shuttle</span></div>
+    </div>`;
+  }
+  if(list.length){
+    html+=list.map(o=>{
+      const put = mode==='to'?o.i:selIdx, take = mode==='to'?selIdx:o.i, kind = mode==='oab'?'oab':'oneway';
+      const stat = kind==='oab'
+        ? `<span>🛶 <b>${(o.mi*2).toFixed(1)} mi</b> round trip · ${fmtHrs(o.mi*2)}</span><span class="drive">🚫 no shuttle</span>`
+        : `<span>🛶 <b>${o.mi.toFixed(1)} mi</b> ${lake?'paddle':'float'} · ${fmtHrs(o.mi)}</span><span class="drive" id="drv_${o.i}">🚗 shuttle…</span>`;
+      if(kind==='oneway') drives.push(o);
+      const cls=mode==='from'?'down':mode==='to'?'up':'oab', arr=mode==='from'?'⬇':mode==='to'?'⬆':'🔁';
+      return `<div class="conn ${cls}" onclick="buildTrip(${put},${take},'${kind}')">
+        <div class="conn-name">${arr} ${o.x.name}</div>
+        <div class="conn-stats">${stat}</div>
+      </div>`;
+    }).join('');
+  } else if(mode!=='oab'){
+    html+=`<div class="note" style="border:0;padding:6px 0;">${lake?'No other mapped spot on this water yet.':(mode==='from'?'This is the downstream end — try <b>to here</b> or <b>no shuttle</b>.':'This is the uppermost access — try <b>from here</b> or <b>no shuttle</b>.')}</div>`;
+  }
+  html+=`<div class="note">${mode==='oab'
+    ? `Out-and-back = paddle out and return to the same spot, <b>no shuttle needed</b>. Round-trip distance shown${!lake?'; on a flowing river head upstream first, then float back':''}.`
+    : `One-way. ${lake?'No current — arrange a pickup or your own shuttle.':'Shuttle drive (take-out → put-in) shown — or arrange your own.'} Assumes ${SPEED.min}–${SPEED.max} mph.`} Only spots on <b>${segLabel(a)}</b> are shown (dams block connections).</div>`;
   document.getElementById('shuttles').innerHTML=html;
-  shown.forEach(o=>fetchDrive(a,o.x,'drv_'+o.i));
+  drives.forEach(o=>fetchDrive(a,o.x,'drv_'+o.i));
 }
 
 // ── shuttle drive time (OSRM, with estimate fallback) ──────────────────────────
@@ -213,28 +220,39 @@ function routeVerts(putMi,takeMi){
   const lo=Math.min(putMi,takeMi),hi=Math.max(putMi,takeMi);
   return LINE.filter(p=>p[2]>=lo-0.05&&p[2]<=hi+0.05).sort((a,b)=>b[2]-a[2]).map(p=>[p[0],p[1]]);
 }
-function buildTrip(putInIdx,takeOutIdx,timeMode,timeISO){
+function buildTrip(putInIdx,takeOutIdx,kind,timeMode,timeISO){
+  kind = kind==='oab'?'oab':'oneway';
   const putIn=ACCESS[putInIdx], takeOut=ACCESS[takeOutIdx];
-  // Dams separate segments — there is no through-route across one.
+  // Dams separate segments — no boating connectivity across one, so no through-route.
   if(putIn.segment!==takeOut.segment){
-    const msg=`🚫 ${putIn.name} and ${takeOut.name} are on different waters (${segLabel(putIn)} vs ${segLabel(takeOut)}), separated by a dam — no through float or shuttle.`;
+    const msg=`🚫 ${putIn.name} and ${takeOut.name} are on different waters (${segLabel(putIn)} vs ${segLabel(takeOut)}), separated by a dam — no through route.`;
     const sh=document.getElementById('shuttles');
     if(sh) sh.innerHTML=`<div class="note" style="border-left:3px solid #b91c1c;padding-left:8px;">${msg}</div>`;
     else toast('🚫 Separated by a dam — no through route.');
     return;
   }
-  const lake=isLake(putIn), miles=tripMiles(putIn,takeOut);
-  plan={putIn,takeOut,lake,miles,segment:putIn.segment,timeMode:timeMode||null,timeISO:timeISO||null};
+  const lake=isLake(putIn), samePoint=putInIdx===takeOutIdx;
+  const oneWayMi=samePoint?0:tripMiles(putIn,takeOut);
+  const miles=kind==='oab'?oneWayMi*2:oneWayMi;   // out-and-back = round trip
+  plan={putIn,takeOut,kind,lake,samePoint,oneWayMi,miles,segment:putIn.segment,timeMode:timeMode||null,timeISO:timeISO||null};
   selIdx=null; drawMarkers(); routeLayer.clearLayers();
-  const verts=lake?[[putIn.lat,putIn.lon],[takeOut.lat,takeOut.lon]]
-    :[[putIn.lat,putIn.lon]].concat(routeVerts(putIn.river_mi,takeOut.river_mi)).concat([[takeOut.lat,takeOut.lon]]);
-  L.polyline(verts,{color:'#0891b2',weight:6,opacity:.85,dashArray:lake?'10,8':null}).addTo(routeLayer);
-  L.polyline(verts,{color:'#fff',weight:2,opacity:.6,dashArray:'2,10'}).addTo(routeLayer);
-  addParkingWalk(putIn); addParkingWalk(takeOut);
-  routeLayer.addLayer(endMarker(putIn,lake?'LAUNCH':'PUT IN','#15803D'));
-  routeLayer.addLayer(endMarker(takeOut,lake?'PADDLE TO':'TAKE OUT','#B91C1C'));
-  const allpts=verts.concat([putIn,takeOut].filter(a=>a.parking_lat!=null).map(a=>[a.parking_lat,a.parking_lon]));
-  map.fitBounds(L.latLngBounds(allpts).pad(0.2));
+  if(!samePoint){
+    const verts=lake?[[putIn.lat,putIn.lon],[takeOut.lat,takeOut.lon]]
+      :[[putIn.lat,putIn.lon]].concat(routeVerts(putIn.river_mi,takeOut.river_mi)).concat([[takeOut.lat,takeOut.lon]]);
+    L.polyline(verts,{color:'#0891b2',weight:6,opacity:.85,dashArray:(lake||kind==='oab')?'10,8':null}).addTo(routeLayer);
+    L.polyline(verts,{color:'#fff',weight:2,opacity:.6,dashArray:'2,10'}).addTo(routeLayer);
+  }
+  addParkingWalk(putIn); if(!samePoint) addParkingWalk(takeOut);
+  if(kind==='oab'){
+    routeLayer.addLayer(endMarker(putIn, samePoint?'MEET & PADDLE':'START / FINISH','#15803D'));
+    if(!samePoint) routeLayer.addLayer(endMarker(takeOut,'TURNAROUND','#0e7490'));
+  } else {
+    routeLayer.addLayer(endMarker(putIn,'PUT IN','#15803D'));
+    routeLayer.addLayer(endMarker(takeOut,'TAKE OUT','#B91C1C'));
+  }
+  const base=samePoint?[[putIn.lat,putIn.lon]]:[[putIn.lat,putIn.lon],[takeOut.lat,takeOut.lon]];
+  const allpts=base.concat([putIn,takeOut].filter(x=>x.parking_lat!=null).map(x=>[x.parking_lat,x.parking_lon]));
+  map.fitBounds(L.latLngBounds(allpts).pad(samePoint?0.5:0.25));
   drawSafety();
   renderTripPanel();
   document.getElementById('panel').classList.add('open');
@@ -348,9 +366,13 @@ function minimizeTrip(){ document.getElementById('panel').classList.remove('open
 function expandTrip(){ document.getElementById('plan-chip').style.display='none'; if(plan){ renderTripPanel(); document.getElementById('panel').classList.add('open'); } }
 function renderPlanChip(){
   const chip=document.getElementById('plan-chip'); if(!plan){chip.style.display='none';return;}
-  const mi=plan.miles, T=computeTimes();
-  chip.innerHTML=`🛶 <b>${plan.putIn.name}</b> → <b>${plan.takeOut.name}</b><br>
-    <span style="font-size:.7rem;opacity:.9;">${mi.toFixed(1)} mi · ${fmtHrs(mi)} ${plan.lake?'paddle · 🚫 no shuttle':'float'}${T?` · put in ${fmtClock(T.start)}`:''}</span>
+  const mi=plan.miles, T=computeTimes(), oab=plan.kind==='oab';
+  const title=plan.samePoint?`🛶 <b>${plan.putIn.name}</b> (meet & paddle)`
+    :`🛶 <b>${plan.putIn.name}</b> ${oab?'⟳':'→'} <b>${plan.takeOut.name}</b>`;
+  const stats=plan.samePoint?'out-and-back · 🚫 no shuttle'
+    :`${mi.toFixed(1)} mi · ${fmtHrs(mi)} ${oab?'round-trip · 🚫 no shuttle':(plan.lake?'paddle':'float')}`;
+  chip.innerHTML=`${title}<br>
+    <span style="font-size:.7rem;opacity:.9;">${stats}${T?` · ${plan.samePoint?'meet':'put in'} ${fmtClock(T.start)}`:''}</span>
     <span class="pc-open">tap to open ▲</span>`;
   chip.style.display='block';
 }
@@ -364,53 +386,68 @@ function wqSummary(a){ // nearest station risk for an access point
 // ── trip / plan panel ──────────────────────────────────────────────────────────
 function computeTimes(){
   if(!plan||!plan.timeMode||!plan.timeISO) return null;
-  const mi=plan.miles, hrs=floatHours(mi);
   const t=new Date(plan.timeISO); if(isNaN(t)) return null;
+  if(plan.samePoint) return {start:t,end:t,hrs:0,meet:true};   // a meet spot has no fixed duration
+  const hrs=floatHours(plan.miles);
   let start,end;
   if(plan.timeMode==='start'){start=t;end=new Date(t.getTime()+hrs*3600000);}
   else{end=t;start=new Date(t.getTime()-hrs*3600000);}
   return {start,end,hrs};
 }
 function renderTripPanel(){
-  const mi=plan.miles, lake=plan.lake;
+  const {putIn,takeOut,lake,samePoint}=plan, oab=plan.kind==='oab', mi=plan.miles;
   const body=document.getElementById('panel-body');
   const T=computeTimes();
   const milc=a=>a.river_mi!=null?` <span style="color:#94a3b8;font-size:.72rem;">· mi ${a.river_mi.toFixed(1)}</span>`:'';
-  const shuttleStat = lake
-    ? `<div class="stat"><div class="n" style="color:#0e7490;">🚫 None</div><div class="l">no shuttle · paddle</div></div>`
-    : `<a class="stat" href="${gdir(plan.takeOut,plan.putIn)}" target="_blank" rel="noopener" style="text-decoration:none;color:inherit;"><div class="n" id="trip-drive">…</div><div class="l">🚗 shuttle drive ↗</div></a>`;
+  const title = samePoint?'Your meet-up paddle':oab?'Your out-and-back':(lake?'Your paddle':'Your float');
+  const label1 = oab?'Meet / launch:':'Put in:';
+  const label2 = oab?'Turnaround:':'Take out:';
+  const shuttleStat = oab
+    ? `<div class="stat"><div class="n" style="color:#0e7490;">🚫 None</div><div class="l">out &amp; back</div></div>`
+    : `<a class="stat" href="${gdir(plan.takeOut,plan.putIn)}" target="_blank" rel="noopener" style="text-decoration:none;color:inherit;"><div class="n" id="trip-drive">…</div><div class="l">🚗 shuttle ↗ ${lake?'(self-run)':''}</div></a>`;
+  const distStat = samePoint
+    ? `<div class="stat"><div class="n">—</div><div class="l">your choice</div></div><div class="stat"><div class="n">🔁</div><div class="l">out &amp; back</div></div>`
+    : `<div class="stat"><div class="n">${mi.toFixed(1)} mi</div><div class="l">${oab?'round trip':(lake?'paddle':'river dist')}</div></div>
+       <div class="stat"><div class="n">${fmtHrs(mi)}</div><div class="l">${lake?'paddle':'float'} @ ${SPEED.min}–${SPEED.max} mph</div></div>`;
   body.innerHTML=`
     <button class="close-x" onclick="closePanel()" aria-label="Close">✕</button>
-    <div class="sel-name">🛶 Your ${lake?'paddle':'float'}</div>
-    ${lake?`<div class="seg-chip lake" style="margin-bottom:7px;">🚫 ${segLabel(plan.putIn)} — flatwater, no shuttle</div>`:''}
-    <div class="trip-row"><span class="pin" style="background:#15803D"></span><b>${lake?'Launch:':'Put in:'}</b>&nbsp;${gmapLink(plan.putIn.lat,plan.putIn.lon,plan.putIn.name)}${milc(plan.putIn)}</div>
-    ${accDetail(plan.putIn)}
-    <div class="trip-row"><span class="pin" style="background:#B91C1C"></span><b>${lake?'Paddle to:':'Take out:'}</b>&nbsp;${gmapLink(plan.takeOut.lat,plan.takeOut.lon,plan.takeOut.name)}${milc(plan.takeOut)}</div>
-    ${accDetail(plan.takeOut)}
+    <div class="sel-name">🛶 ${title}</div>
+    ${oab?`<div class="seg-chip lake" style="margin-bottom:7px;">🔁 Out-and-back · <b>no shuttle</b>${lake?' · '+segLabel(putIn):''}</div>`:(lake?`<div class="seg-chip lake" style="margin-bottom:7px;">🛶 ${segLabel(putIn)} — flatwater, one-way (arrange a pickup)</div>`:'')}
+    <div class="trip-row"><span class="pin" style="background:#15803D"></span><b>${label1}</b>&nbsp;${gmapLink(putIn.lat,putIn.lon,putIn.name)}${milc(putIn)}</div>
+    ${accDetail(putIn)}
+    ${samePoint?'':`<div class="trip-row"><span class="pin" style="background:${oab?'#0e7490':'#B91C1C'}"></span><b>${label2}</b>&nbsp;${gmapLink(takeOut.lat,takeOut.lon,takeOut.name)}${milc(takeOut)}</div>${accDetail(takeOut)}`}
     <div class="stat-grid">
-      <div class="stat"><div class="n">${mi.toFixed(1)} mi</div><div class="l">${lake?'paddle (1-way)':'river distance'}</div></div>
-      <div class="stat"><div class="n">${fmtHrs(mi)}</div><div class="l">${lake?'paddle':'float'} @ ${SPEED.min}–${SPEED.max} mph</div></div>
+      ${distStat}
       ${shuttleStat}
     </div>
-    <div class="wq"><b>💧 Water quality along your route</b> (Can I Swim Here?)<br>
-      ${lake?'Launch':'Put-in'} ${wqSummary(plan.putIn)}<br>${lake?'Destination':'Take-out'} ${wqSummary(plan.takeOut)}<br>
+    <div class="wq"><b>💧 Water quality ${samePoint?'here':'along your route'}</b> (Can I Swim Here?)<br>
+      ${oab?(samePoint?'Spot':'Launch'):'Put-in'} ${wqSummary(putIn)}${samePoint?'':`<br>${oab?'Turnaround':'Take-out'} ${wqSummary(takeOut)}`}<br>
       <span style="font-size:.66rem;color:#94a3b8;">Dots = station risk (from history); 🦠 = bloom report; ◆ = drowning hazard. Tap markers for detail. Full detail in <a href="index.html">Can I Swim Here?</a></span>
     </div>
-    <div style="font-size:.72rem;font-weight:700;color:#334155;margin-top:11px;">⏱ Set a time (optional)</div>
-    <div style="display:flex;gap:6px;margin-top:5px;">
-      <button class="time-btn ${plan.timeMode==='start'?'on':''}" onclick="setTimeMode('start')">Set ${lake?'launch':'start'} time</button>
-      <button class="time-btn ${plan.timeMode==='end'?'on':''}" onclick="setTimeMode('end')">Set ${lake?'return':'take-out'} time</button>
-      ${plan.timeMode?`<button class="time-btn" onclick="setTimeMode(null)">clear</button>`:''}
-    </div>
-    ${plan.timeMode?`<input type="datetime-local" id="time-in" value="${plan.timeISO||''}" onchange="onTime(this.value)">`:''}
-    ${T?`<div style="margin-top:7px;font-size:.8rem;color:#334155;background:#ecfeff;border-radius:6px;padding:8px 10px;">🟢 ${lake?'Launch':'Put in'} <b>${fmtClock(T.start)}</b> → 🔴 ${lake?'reach it':'take out'} <b>${fmtClock(T.end)}</b><br><span style="font-size:.68rem;color:#64748b;">≈ ${(T.hrs).toFixed(1)} hr at ~3 mph (range ${fmtHrs(mi)})${lake?' · one way — double for a round trip':''}</span></div>`:''}
-    <button class="plan-btn" style="width:100%;margin-top:12px;background:var(--ca-blue);" onclick="sharePlan()">🔗 Share this ${lake?'paddle':'float'} plan</button>
+    ${samePoint?`<div style="font-size:.72rem;font-weight:700;color:#334155;margin-top:11px;">⏱ Set a meet time (optional)</div>
+      <div style="display:flex;gap:6px;margin-top:5px;">
+        <button class="time-btn ${plan.timeMode==='start'?'on':''}" onclick="setTimeMode('start')">Set meet time</button>
+        ${plan.timeMode?`<button class="time-btn" onclick="setTimeMode(null)">clear</button>`:''}
+      </div>
+      ${plan.timeMode?`<input type="datetime-local" id="time-in" value="${plan.timeISO||''}" onchange="onTime(this.value)">`:''}
+      ${T?`<div style="margin-top:7px;font-size:.8rem;color:#334155;background:#ecfeff;border-radius:6px;padding:8px 10px;">🟢 Meet at <b>${fmtClock(T.start)}</b> · ${putIn.name}</div>`:''}`
+    :`<div style="font-size:.72rem;font-weight:700;color:#334155;margin-top:11px;">⏱ Set a time (optional)</div>
+      <div style="display:flex;gap:6px;margin-top:5px;">
+        <button class="time-btn ${plan.timeMode==='start'?'on':''}" onclick="setTimeMode('start')">Set start time</button>
+        <button class="time-btn ${plan.timeMode==='end'?'on':''}" onclick="setTimeMode('end')">Set ${oab?'return':(lake?'arrival':'take-out')} time</button>
+        ${plan.timeMode?`<button class="time-btn" onclick="setTimeMode(null)">clear</button>`:''}
+      </div>
+      ${plan.timeMode?`<input type="datetime-local" id="time-in" value="${plan.timeISO||''}" onchange="onTime(this.value)">`:''}
+      ${T?`<div style="margin-top:7px;font-size:.8rem;color:#334155;background:#ecfeff;border-radius:6px;padding:8px 10px;">🟢 ${oab?'Launch':'Put in'} <b>${fmtClock(T.start)}</b> → 🔴 ${oab?'back by':'take out'} <b>${fmtClock(T.end)}</b><br><span style="font-size:.68rem;color:#64748b;">≈ ${(T.hrs).toFixed(1)} hr at ~3 mph (range ${fmtHrs(mi)})</span></div>`:''}`}
+    <button class="plan-btn" style="width:100%;margin-top:12px;background:var(--ca-blue);" onclick="sharePlan()">🔗 Share this plan</button>
     <div style="display:flex;gap:7px;margin-top:7px;">
       <button class="time-btn" style="flex:1;text-align:center;" onclick="minimizeTrip()">⌄ Inspect map</button>
       <button class="time-btn" style="flex:1;text-align:center;" onclick="closePanel()">← New trip</button>
     </div>
-    <div class="note">${lake?`Flatwater (${segLabel(plan.putIn)}): <b>no car shuttle</b> — paddle out-and-back or arrange a pickup at your destination. Watch for wind and motorboats.`:'Shuttle: leave your car at the take-out, then put in upstream.'} Conditions change — check <a href="index.html">Can I Swim Here?</a> before you go.</div>`;
-  if(!lake) fetchDrive(plan.takeOut,plan.putIn,null,t=>{const el=document.getElementById('trip-drive');if(el)el.innerHTML=t.replace(/<\/?b>/g,'').split(' drive')[0];});
+    <div class="note">${oab
+      ? `Out-and-back — return to your start, <b>no shuttle needed</b>.${lake?' Watch for wind and motorboats.':' On a flowing river, paddle upstream first then float back.'}`
+      : (lake?`Flatwater one-way (${segLabel(putIn)}): no current — <b>arrange a pickup or your own shuttle</b> (drive shown above).`:'One-way float: leave a car at the take-out, or arrange your own shuttle (drive shown above).')} Conditions change — check <a href="index.html">Can I Swim Here?</a> before you go.</div>`;
+  if(!oab && !samePoint) fetchDrive(plan.takeOut,plan.putIn,null,t=>{const el=document.getElementById('trip-drive');if(el)el.innerHTML=t.replace(/<\/?b>/g,'').split(' drive')[0];});
 }
 function setTimeMode(m){ plan.timeMode=m; if(!m)plan.timeISO=null; else if(!plan.timeISO){const d=new Date();d.setMinutes(0,0,0);d.setHours(d.getHours()+1);plan.timeISO=isoLocal(d);} renderTripPanel(); }
 function onTime(v){ plan.timeISO=v; renderTripPanel(); }
@@ -420,24 +457,27 @@ function isoLocal(d){const p=n=>String(n).padStart(2,'0');return `${d.getFullYea
 function planURL(){
   const u=new URL(location.href.split('?')[0]);
   u.searchParams.set('from',plan.putIn.id); u.searchParams.set('to',plan.takeOut.id);
+  if(plan.kind==='oab') u.searchParams.set('trip','oab');
   if(plan.timeMode&&plan.timeISO){u.searchParams.set(plan.timeMode,plan.timeISO);}
   return u.toString();
 }
 function sharePlan(){
   const url=planURL();
-  const title=`Float plan: ${plan.putIn.name} → ${plan.takeOut.name}`;
+  const title=plan.samePoint?`Meet & paddle: ${plan.putIn.name}`
+    :`${plan.kind==='oab'?'Out-and-back':(plan.lake?'Paddle':'Float')} plan: ${plan.putIn.name}${plan.kind==='oab'?' ⟳ '+plan.takeOut.name:' → '+plan.takeOut.name}`;
   if(navigator.share){ navigator.share({title,text:title,url}).catch(()=>{}); return; }
   (navigator.clipboard?navigator.clipboard.writeText(url):Promise.reject())
     .then(()=>toast('🔗 Plan link copied'))
-    .catch(()=>{ prompt('Copy this float-plan link:',url); });
+    .catch(()=>{ prompt('Copy this plan link:',url); });
 }
 function loadFromURL(){
   const q=new URLSearchParams(location.search);
   const from=q.get('from'),to=q.get('to'); if(!from||!to) return false;
   const pi=ACCESS.findIndex(a=>a.id===from), ti=ACCESS.findIndex(a=>a.id===to);
   if(pi<0||ti<0) return false;
+  const kind=q.get('trip')==='oab'?'oab':'oneway';
   const mode=q.get('start')?'start':(q.get('end')?'end':null);
-  buildTrip(pi,ti,mode,mode?q.get(mode):null);
+  buildTrip(pi,ti,kind,mode,mode?q.get(mode):null);
   return true;
 }
 
