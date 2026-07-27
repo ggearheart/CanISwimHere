@@ -37,8 +37,8 @@ RESOURCE_ID = "15a63495-8d9f-4a49-b43a-3092ef3106b9"
 PACKAGE_ID = "surface-water-fecal-indicator-bacteria-results"
 BASE = "https://data.ca.gov/api/3/action"
 
-# American River corridor + Lake Natoma bounding box (for E. coli stations).
-STATION_BBOX = {"lat_min": 38.55, "lat_max": 38.72, "lon_min": -121.53, "lon_max": -121.15}
+# American River corridor + Lake Natoma + Folsom Lake bounding box (for E. coli stations).
+STATION_BBOX = {"lat_min": 38.55, "lat_max": 38.78, "lon_min": -121.53, "lon_max": -121.05}
 # Only keep river/lake swim sites with monitoring since this date (drops one-off
 # study points, stormwater sumps, and discontinued sites).
 STATION_MIN_LATEST = "2024-01-01"
@@ -267,7 +267,8 @@ def main():
         latest = srows[0]
         nm = name.lower()
         # keep only ongoing river/lake swim sites
-        if not (latest["_d"] >= STATION_MIN_LATEST and ("american river" in nm or "lake natoma" in nm)):
+        if not (latest["_d"] >= STATION_MIN_LATEST and
+                ("american river" in nm or "lake natoma" in nm or "folsom lake" in nm)):
             dropped += 1
             continue
         samples = [{"date": r["_d"], "result": round(r["_r"], 1), "status": status_for(r["_r"])}

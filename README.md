@@ -16,7 +16,7 @@ E. coli monitoring results from the CA State Water Resources Control Board's sta
   (resource `15a63495-8d9f-4a49-b43a-3092ef3106b9`, "2020 to present")
 - River map: https://arcg.is/0ea0zq (Lower American River Recreational Water Quality)
 
-`build_data.py` pulls E. coli records within an American River bounding box, consolidates them by monitoring station (collapsing bank/replicate variants, dropping one-off study points, stormwater sumps, and discontinued sites), and keeps ongoing river/lake swim sites (last sampled since 2024). It uses the dataset's official **6-week geometric mean** where available. This yields the core Lower American River stations plus Howe Ave and the Lake Natoma swim beaches (Nimbus Flat, Black Miners Bar).
+`build_data.py` pulls E. coli records within an American River + Lake Natoma + Folsom Lake bounding box, consolidates them by monitoring station (collapsing bank/replicate variants, dropping one-off study points, stormwater sumps, and discontinued sites), and keeps ongoing river/lake swim sites (last sampled since 2024). It uses the dataset's official **6-week geometric mean** where available. This yields the core Lower American River stations plus Howe Ave, the Lake Natoma swim beaches (Nimbus Flat, Black Miners Bar), and the **Folsom Lake** sites (Granite Bay, Beal's Point, Browns Ravine, Folsom Point).
 
 E. coli is a bacteria used to indicate **fecal pollution** and the possible presence of disease-causing organisms.
 
@@ -65,7 +65,9 @@ Flow categories (cfs, general Lower-American-River guidance, not an official sta
 
 A separate companion page — the main app stays focused on "can I swim here?", this one answers "how do I plan a float/shuttle trip?"
 
-**Flow:** pick a river-access point (tap a marker, tap the map, or **📍 Near Me**) → choose **Float _from_ here** (downstream take-outs) or **Float _to_ here** (upstream put-ins) → pick a connecting spot. That builds a trip, which:
+**Two kinds of access.** Free-flowing river points (Lower American River) plan a **float + car shuttle**. Points on a **lake** (Lake Natoma, Folsom Lake) are flatwater above a dam — the planner marks them **"no shuttle"** and plans a **paddle** instead (out-and-back or arrange a pickup). Because each lake/river is separated by a dam, a trip can only connect two points on the **same** water — you can't float or shuttle across a dam.
+
+**Flow (river):** pick a river-access point (tap a marker, tap the map, or **📍 Near Me**) → choose **Float _from_ here** (downstream take-outs) or **Float _to_ here** (upstream put-ins) → pick a connecting spot. That builds a trip, which:
 
 - **Draws the route** along the river on the map (put-in → take-out) with green/red endpoint markers.
 - Shows **river miles**, **float time** (÷ **2–4 mph**, typical LAR speed), and live **shuttle drive time** — routed **parking-lot to parking-lot** (take-out → put-in), and clickable to open **Google Maps driving directions** for the shuttle.
@@ -76,7 +78,7 @@ A separate companion page — the main app stays focused on "can I swim here?", 
 
 Each access point also carries **parking** detail — a separate parking coordinate (🅿️ marker + a dashed **walk line** to the water's edge on the map), **fee**, lot info, **walk-to-water** description, amenities, and cautions — surfaced in the put-in/take-out plan details. The put-in/take-out names and the 🅿️ parking each **link to a Google Maps point** (and the map's P markers pop up a "Directions in Google Maps" link) for navigating the shuttle.
 
-**Data / rebuild:** the source of truth is **`access_points_source.csv`** (columns: `id, name, access_lat, access_lon, parking_lat, parking_lon, parking_fee, parking_info, walk_to_water, amenities, cautions, note`). Edit it, then run `python3 build_access.py`, which fetches the LAR centerline from **OpenStreetMap** (best visual fit to the mapped river), snaps each `access_*` point to it for the `river_mi`, and writes `docs/river_line.json` + `docs/access_points.json`.
+**Data / rebuild:** the source of truth is **`access_points_source.csv`** (columns: `id, name, segment, access_lat, access_lon, parking_lat, parking_lon, parking_fee, parking_info, walk_to_water, amenities, cautions, note`). `segment` is `river` (free-flowing Lower American River — float + shuttle) or `lake-natoma` / `folsom-lake` (flatwater above a dam — paddle, no shuttle). Edit it, then run `python3 build_access.py`, which fetches the LAR centerline from **OpenStreetMap** (best visual fit to the mapped river), snaps each **river** `access_*` point to it for the `river_mi` (lake points have no river mile — distances are straight-line across the water), and writes `docs/river_line.json` + `docs/access_points.json`.
 
 ## Harmful algal blooms
 

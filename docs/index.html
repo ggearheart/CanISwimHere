@@ -1259,7 +1259,8 @@ function showSwimSummary(qLat, qLon, opts){
 
   // River flow (one gage for the whole Lower American River corridor).
   const fc = FLOW ? flowCat(FLOW.cfs) : null;
-  const flowOnRiver = FLOW && fSt && !fFar && fD<=milesToKm(2);  // physical flow note relevant on the river
+  // Fair Oaks flow only describes the free-flowing American River — not Folsom Lake / Lake Natoma (above dams).
+  const flowOnRiver = FLOW && fSt && !fFar && fD<=milesToKm(2) && fSt._risk && fSt._risk.onAR;
 
   // ── Overall verdict (0 safe · 1 caution · 2 avoid) ──
   let level=0;
@@ -1367,7 +1368,7 @@ function showSubMsg(text, type){
 // Statewide Surface Water Fecal Indicator Bacteria results; pull E. coli in the
 // American River bbox and consolidate the same way build_data.py does.
 const CKAN_RESOURCE = '15a63495-8d9f-4a49-b43a-3092ef3106b9';
-const STATION_BBOX = {lat_min:38.55, lat_max:38.72, lon_min:-121.53, lon_max:-121.15};
+const STATION_BBOX = {lat_min:38.55, lat_max:38.78, lon_min:-121.53, lon_max:-121.05};
 const CKAN_SQL = `SELECT "StationCode" c,"StationName" n,"TargetLatitude" lat,"TargetLongitude" lon,"SampleDate" d,"Result" r,"6WeekGeoMean" gm,"6WeekCount" gmn FROM "${CKAN_RESOURCE}" WHERE "Analyte"='E. coli' AND CAST("TargetLatitude" AS FLOAT) BETWEEN ${STATION_BBOX.lat_min} AND ${STATION_BBOX.lat_max} AND CAST("TargetLongitude" AS FLOAT) BETWEEN ${STATION_BBOX.lon_min} AND ${STATION_BBOX.lon_max} LIMIT 40000`;
 const CKAN_API  = `https://data.ca.gov/api/3/action/datastore_search_sql?sql=${encodeURIComponent(CKAN_SQL)}`;
 const CKAN_META = `https://data.ca.gov/api/3/action/resource_show?id=${CKAN_RESOURCE}`;
@@ -1399,7 +1400,7 @@ function aggregate(records){
     const name=Object.entries(g.names).sort((a,b)=>b[1]-a[1])[0][0]||g.code;
     const samples=Object.values(g.byDate).sort((a,b)=>b.date.localeCompare(a.date));
     const latest=samples[0], nm=name.toLowerCase();
-    if(!(latest.date>=MIN_LATEST && (nm.includes('american river')||nm.includes('lake natoma')))) continue;
+    if(!(latest.date>=MIN_LATEST && (nm.includes('american river')||nm.includes('lake natoma')||nm.includes('folsom lake')))) continue;
     const base=samples.filter(s=>s.name===name); const cr=base.length?base:samples;
     const rlat=+(cr.reduce((a,s)=>a+s.lat,0)/cr.length).toFixed(5);
     const rlon=+(cr.reduce((a,s)=>a+s.lon,0)/cr.length).toFixed(5);

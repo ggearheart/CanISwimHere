@@ -19,8 +19,11 @@ Mobile-first swim-safety map for the Lower American River (Sacramento), built on
 - `build_data.py` (`fetch_ecoli_stations`) pulls E. coli within `STATION_BBOX` via
   `datastore_search_sql`, groups by `StationCode` (dedup by date, keep fullest
   6-week window; representative name/coords), keeps ongoing river/lake swim sites
-  (`STATION_MIN_LATEST` 2024-01-01 + name contains "american river"/"lake natoma"),
+  (`STATION_MIN_LATEST` 2024-01-01 + name contains "american river"/"lake natoma"/"folsom lake"),
   uses the dataset's official `6WeekGeoMean` (fallback computes). Writes `docs/stations.json`.
+  Covers the Lower American River, Lake Natoma, and **Folsom Lake** (~19 stations). The
+  Fair Oaks flow modifier applies only to American River stations (`_risk.onAR`) — never
+  to Folsom Lake / Lake Natoma, which sit above dams (guards `riskFlowNote`, `flowOnRiver`).
 - The app loads `stations.json` first; if missing it falls back to a live CKAN
   SQL fetch and aggregates client-side (`aggregate()` in index.html, mirrors the pipeline).
 - `stations.json` shape: `{thresholds, source, stations:[{code,name,lat,lon,
@@ -49,16 +52,25 @@ EPA 2012 recreational criteria. Defined in `THRESH` (JS) and top of `build_data.
 ## Float & Shuttle Planner (`docs/float.html`)
 - Separate self-contained page (linked from index.html header). CanISwimHere stays
   focused on swim safety; this answers float/shuttle planning.
-- `docs/access_points.json` `{note,river,speed_mph,access:[{name,lat,lon,river_mi,snap_off_m,note}]}`.
-  `river_mi` = miles along the OSM river centerline from the confluence (mile 0),
-  precomputed by snapping each point (ad-hoc: fetch OSM American River via Overpass,
-  order downstream→upstream by nearest-neighbor from the westernmost vertex, cumulative
-  arc length, project each access point). NHD+ is the intended upgrade.
+- `docs/access_points.json` `{note,river,speed_mph,access:[{name,segment,lat,lon,river_mi,snap_off_m,note}]}`.
+  `segment` = `river` (free-flowing Lower American River — float + shuttle) or
+  `lake-natoma`/`folsom-lake` (flatwater above a dam — paddle, **no shuttle**).
+  `river_mi` = miles along the OSM river centerline from the confluence (mile 0) for
+  **river** points only (null on lakes), precomputed by snapping each point (fetch OSM
+  American River via Overpass, order downstream→upstream by nearest-neighbor from the
+  westernmost vertex, cumulative arc length, project each access point).
+- **Segments & dams:** a trip can only connect two access points on the **same** segment
+  (dams separate them). `isLake()`/`segLabel()`/`tripMiles()` helpers; `buildTrip` rejects
+  cross-segment pairs ("separated by a dam — no through route"). Lakes: `selectAccess`
+  shows `showPaddle()` (same-lake spots, straight-line paddle miles, "🚫 no shuttle") instead
+  of Float from/to; `buildTrip` draws a dashed straight line, sets `plan.lake`/`plan.miles`,
+  and the trip panel shows "Launch/Paddle to", a "🚫 None · no shuttle" stat, and paddle
+  guidance. Lake markers are indigo; river markers teal.
 - Source of truth = **`access_points_source.csv`** (repo root; the user edits this — I round-trip
-  it to/from an xlsx). Columns: id,name,access_lat/lon (water's edge),parking_lat/lon,parking_fee,
-  parking_info,walk_to_water,amenities,cautions,note. `build_access.py` reads it (`read_seeds`),
+  it to/from an xlsx). Columns: id,name,**segment**,access_lat/lon (water's edge),parking_lat/lon,
+  parking_fee,parking_info,walk_to_water,amenities,cautions,note. `build_access.py` reads it (`read_seeds`),
   fetches the LAR centerline from **OpenStreetMap** (Overpass, best visual fit),
-  orders confluence→upstream, snaps `access_*` → `river_mi`, computes `walk_ft`
+  orders confluence→upstream, snaps **river** `access_*` → `river_mi` (lakes get null), computes `walk_ft`
   (parking↔access), writes `docs/river_line.json` + `docs/access_points.json` (with parking fields).
 - float.html: `addParkingWalk` draws a 🅿️ marker + dashed walk line; `accDetail` shows fee/walk/
   amenities/cautions per put-in/take-out. Access marker = water's edge.

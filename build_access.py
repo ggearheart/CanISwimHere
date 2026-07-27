@@ -45,6 +45,9 @@ def read_seeds():
             seeds.append({
                 "id": slug(row.get("id") or name),
                 "name": name,
+                # segment: "river" = free-flowing Lower American River (float + shuttle);
+                # "lake-natoma"/"folsom-lake" = flatwater above a dam (paddle, no shuttle).
+                "segment": (row.get("segment") or "river").strip().lower() or "river",
                 "lat": alat, "lon": alon,
                 "parking_lat": num(row.get("parking_lat")),
                 "parking_lon": num(row.get("parking_lon")),
@@ -135,24 +138,35 @@ def main():
 
     access = []
     for s in read_seeds():
-        mi, off = station_mi(s["lat"], s["lon"], path, cum)
         walk_ft = None
         if s["parking_lat"] is not None and s["parking_lon"] is not None:
             walk_ft = round(hav(s["lat"], s["lon"], s["parking_lat"], s["parking_lon"]) * 3.28084)
-        entry = {"id": s["id"], "name": s["name"], "lat": s["lat"], "lon": s["lon"],
-                 "river_mi": round(mi, 2), "snap_off_m": round(off),
+        entry = {"id": s["id"], "name": s["name"], "segment": s["segment"],
+                 "lat": s["lat"], "lon": s["lon"],
                  "parking_lat": s["parking_lat"], "parking_lon": s["parking_lon"], "walk_ft": walk_ft}
+        # Only the free-flowing river gets a river_mi (measured along the American River
+        # centerline). Lake access points are flatwater above a dam — no river mile.
+        if s["segment"] == "river":
+            mi, off = station_mi(s["lat"], s["lon"], path, cum)
+            entry["river_mi"] = round(mi, 2)
+            entry["snap_off_m"] = round(off)
+        else:
+            entry["river_mi"] = None
         for k in STR_FIELDS:
             if s.get(k):
                 entry[k] = s[k]
         access.append(entry)
-    access.sort(key=lambda a: a["river_mi"])
+    # river points ordered by river mile; lake points grouped after, by segment then name
+    access.sort(key=lambda a: (a["river_mi"] is None, a.get("segment"),
+                               a["river_mi"] if a["river_mi"] is not None else 0, a["name"]))
     with open(os.path.join(DOCS, "access_points.json"), "w") as f:
         json.dump({
-            "note": "Lower American River access points for the float/shuttle planner. "
-                    "Source of truth: access_points_source.csv (edit that, then re-run "
-                    "build_access.py). river_mi = miles along the OpenStreetMap river "
-                    "centerline from the American-Sacramento confluence (mile 0). "
+            "note": "Access points for the float/shuttle planner. Source of truth: "
+                    "access_points_source.csv (edit that, then re-run build_access.py). "
+                    "segment = 'river' (free-flowing Lower American River — float + shuttle), "
+                    "'lake-natoma' or 'folsom-lake' (flatwater above a dam — paddle, no shuttle). "
+                    "river_mi = miles along the OSM river centerline from the American-Sacramento "
+                    "confluence (mile 0), for river points only (null on lakes). "
                     "lat/lon = water's edge (put-in/take-out); parking_lat/lon = the lot.",
             "river": "Lower American River",
             "speed_mph": {"min": 2, "max": 4, "note": "typical float/paddle speed at regular LAR flows"},
@@ -160,7 +174,10 @@ def main():
         }, f, indent=2)
     print(f"wrote {len(access)} access points + river_line.json")
     for a in access:
-        print(f"  {a['river_mi']:6.2f} mi  {a['snap_off_m']:>4}m  {a['id']:<16} {a['name']}")
+        if a["river_mi"] is not None:
+            print(f"  {a['river_mi']:6.2f} mi  {a['snap_off_m']:>4}m  {a['id']:<18} {a['name']}")
+        else:
+            print(f"   (lake) {a['segment']:<12} {a['id']:<18} {a['name']}")
 
 
 if __name__ == "__main__":
