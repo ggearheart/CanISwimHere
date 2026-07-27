@@ -78,8 +78,9 @@ EPA 2012 recreational criteria. Defined in `THRESH` (JS) and top of `build_data.
   in `showSwimSummary`. A **recurring** advisory history (`habRecurring`: ≥3 advisory
   blooms, or ≥2 across ≥2 years) → "recurring bloom site", nudges verdict to caution.
 - Always lead with **"when in doubt, stay out"** + look for planktonic scum / benthic mats.
-  Helpers `habWatchHTML()` + `habAgeNote()`; link `HAB_GUIDE_URL`
+  Helpers `habWatchHTML(tier)` + `habAgeNote()`; link `HAB_GUIDE_URL`
   (mywaterquality.ca.gov "Identify HABs" visual-guide PDF). Shown in `showHabTip` and the summary.
+  For `Mat`-tier advisories, also links `HAB_MAT_GUIDE_URL` (benthic "Toxic Algal Mats" appendix-F PDF).
 - Remote-sensing bloom prediction noted as a future direction (About panel).
 
 ## Life-vest loaner sites (Kids Don't Float)
