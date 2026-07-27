@@ -403,13 +403,42 @@ let statusFilter = new Set();
 
 // ── MAP ENGINE (Leaflet) ─────────────────────────────────────────────────────────
 const map = L.map('map-canvas', {zoomControl:false}).setView([38.605, -121.39], 12);
-L.tileLayer('https://basemap.nationalmap.gov/arcgis/rest/services/USGSTopo/MapServer/tile/{z}/{y}/{x}', {
+// USGSTopo only caches tiles to z16 for this area; upscale beyond that so the
+// topo basemap never blanks out when zoomed in close on a river spot.
+const baseTopo = L.tileLayer('https://basemap.nationalmap.gov/arcgis/rest/services/USGSTopo/MapServer/tile/{z}/{y}/{x}', {
   attribution:'USGS National Map | CA Water Board Fecal Indicator Bacteria',
-  // USGSTopo only caches tiles to z16 for this area; upscale beyond that so the
-  // basemap never blanks out when zoomed in close on a river spot.
   opacity:0.5, maxZoom:19, maxNativeZoom:16, minZoom:9,
-}).addTo(map);
+});
+// Esri World Imagery — real high-resolution tiles (native to ~z19), great for
+// seeing the actual river bank / gravel bars when zoomed in.
+const baseSat = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+  attribution:'Esri, Maxar, Earthstar Geographics | CA Water Board Fecal Indicator Bacteria',
+  maxZoom:19, maxNativeZoom:19, minZoom:9,
+});
+let curBase = 'topo';
+baseTopo.addTo(map);
 L.control.zoom({position:'topright'}).addTo(map);
+// Base-layer toggle (topo ⇄ satellite), stacked under the zoom control.
+const BaseToggle = L.Control.extend({
+  options:{position:'topright'},
+  onAdd:function(){
+    const c = L.DomUtil.create('div','leaflet-bar');
+    const a = L.DomUtil.create('a','',c);
+    a.href='#'; a.role='button';
+    a.style.cssText='width:auto;padding:0 9px;font:700 12px/30px system-ui,-apple-system,sans-serif;text-decoration:none;white-space:nowrap;color:#0f172a;';
+    const setLabel=()=>{ a.innerHTML = curBase==='topo'?'🛰️ Satellite':'🗺️ Topo';
+      a.title = curBase==='topo'?'Switch to satellite imagery':'Switch to topographic map'; };
+    setLabel();
+    L.DomEvent.disableClickPropagation(c);
+    L.DomEvent.on(a,'click',L.DomEvent.stop).on(a,'click',()=>{
+      if(curBase==='topo'){ map.removeLayer(baseTopo); baseSat.addTo(map); baseSat.bringToBack(); curBase='sat'; }
+      else { map.removeLayer(baseSat); baseTopo.addTo(map); baseTopo.bringToBack(); curBase='topo'; }
+      setLabel();
+    });
+    return c;
+  }
+});
+map.addControl(new BaseToggle());
 let markerLayer = L.layerGroup().addTo(map);
 
 function draw(){

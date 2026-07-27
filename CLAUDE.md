@@ -7,6 +7,10 @@ Mobile-first swim-safety map for the Lower American River (Sacramento), built on
 - Main app: `docs/index.html` — all-in-one Leaflet.js map + sidebar
 - Data: `docs/stations.json`, built by `build_data.py` from CA Open Data (CKAN)
 - All asset/SW URLs are **relative** so it runs under any base path
+- **Base maps:** `baseTopo` (USGSTopo, `opacity` 0.5–0.6, `maxNativeZoom:16` — upscales
+  past the service's z16 cache so it never blanks) and `baseSat` (Esri World Imagery,
+  native to z19). A `BaseToggle` Leaflet control (top-right, under zoom) swaps them via
+  `curBase`; `maxZoom:19` on both. Same pattern in `index.html` and `float.html`.
 
 ## Data
 - Source: statewide "Surface Water — Fecal Indicator Bacteria Monitoring Results", CA Open Data

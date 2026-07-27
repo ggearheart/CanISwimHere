@@ -83,8 +83,26 @@ let plan=null; // {putIn, takeOut, timeMode, timeISO}
 
 const map=L.map('map',{zoomControl:false}).setView([38.60,-121.36],11);
 L.control.zoom({position:'topright'}).addTo(map);
-L.tileLayer('https://basemap.nationalmap.gov/arcgis/rest/services/USGSTopo/MapServer/tile/{z}/{y}/{x}',
-  {attribution:'USGS National Map | River miles: OpenStreetMap | Water quality: CA Water Boards',opacity:0.6,maxZoom:19,maxNativeZoom:16,minZoom:9}).addTo(map);
+const baseTopo=L.tileLayer('https://basemap.nationalmap.gov/arcgis/rest/services/USGSTopo/MapServer/tile/{z}/{y}/{x}',
+  {attribution:'USGS National Map | River miles: OpenStreetMap | Water quality: CA Water Boards',opacity:0.6,maxZoom:19,maxNativeZoom:16,minZoom:9});
+const baseSat=L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+  {attribution:'Esri, Maxar, Earthstar Geographics | River miles: OpenStreetMap | Water quality: CA Water Boards',maxZoom:19,maxNativeZoom:19,minZoom:9});
+let curBase='topo'; baseTopo.addTo(map);
+const BaseToggle=L.Control.extend({options:{position:'topright'},onAdd:function(){
+  const c=L.DomUtil.create('div','leaflet-bar'), a=L.DomUtil.create('a','',c);
+  a.href='#'; a.role='button';
+  a.style.cssText='width:auto;padding:0 9px;font:700 12px/30px system-ui,-apple-system,sans-serif;text-decoration:none;white-space:nowrap;color:#0f172a;';
+  const setLabel=()=>{ a.innerHTML=curBase==='topo'?'🛰️ Satellite':'🗺️ Topo';
+    a.title=curBase==='topo'?'Switch to satellite imagery':'Switch to topographic map'; };
+  setLabel(); L.DomEvent.disableClickPropagation(c);
+  L.DomEvent.on(a,'click',L.DomEvent.stop).on(a,'click',()=>{
+    if(curBase==='topo'){ map.removeLayer(baseTopo); baseSat.addTo(map); baseSat.bringToBack(); curBase='sat'; }
+    else { map.removeLayer(baseSat); baseTopo.addTo(map); baseTopo.bringToBack(); curBase='topo'; }
+    setLabel();
+  });
+  return c;
+}});
+map.addControl(new BaseToggle());
 routeLayer.addTo(map); safetyLayer.addTo(map);
 
 // ── helpers ──────────────────────────────────────────────────────────────────

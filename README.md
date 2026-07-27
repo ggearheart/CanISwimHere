@@ -39,6 +39,7 @@ This keeps a lone year-old high reading from painting a chronically-clean site r
 ## Features
 
 - Full-screen interactive map of monitoring stations, color-coded by swim status
+- **Base-map toggle** (🛰️/🗺️ button, top-right) — switch between the USGS topographic map and **Esri satellite imagery** (high-resolution when zoomed in to see the actual river bank and gravel bars)
 - **Swim summary** anywhere: tap **📍 Near Me** for your location, or **tap any spot on the map** to check it. Gives one "Safe to swim / Use caution / Avoid water contact" verdict with a tri-slice status icon (bacteria · algal blooms · physical hazards) and a one-line readout of each category — naming the specific site and the date of the last water-quality data. Only *recent* blooms (within 120 days, 1.5 mi) count as an active advisory; older reports are shown as historical context
 - Per-station detail: latest result, recent geomean, full sample-history sparkline with threshold lines, and a sortable recent-sample table
 - **Live river flow** from USGS gage 11446500 (American River at Fair Oaks): current discharge (cfs), gage height, trend, and a 7-day sparkline
