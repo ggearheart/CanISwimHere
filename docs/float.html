@@ -84,7 +84,7 @@ let plan=null; // {putIn, takeOut, timeMode, timeISO}
 const map=L.map('map',{zoomControl:false}).setView([38.60,-121.36],11);
 L.control.zoom({position:'topright'}).addTo(map);
 L.tileLayer('https://basemap.nationalmap.gov/arcgis/rest/services/USGSTopo/MapServer/tile/{z}/{y}/{x}',
-  {attribution:'USGS National Map | River miles: OpenStreetMap | Water quality: CA Water Boards',opacity:0.6,maxZoom:17,minZoom:9}).addTo(map);
+  {attribution:'USGS National Map | River miles: OpenStreetMap | Water quality: CA Water Boards',opacity:0.6,maxZoom:19,maxNativeZoom:16,minZoom:9}).addTo(map);
 routeLayer.addTo(map); safetyLayer.addTo(map);
 
 // ── helpers ──────────────────────────────────────────────────────────────────
