@@ -39,10 +39,11 @@ STR_FIELDS = ["parking_fee", "parking_info", "walk_to_water", "amenities", "caut
 # separately (flatwater, no centerline). Process the trunk (Sacramento) FIRST so tributary
 # flow_offsets can snap their confluence onto it. Overpass bbox is (S, W, N, E).
 REACHES = {
-    "sacramento-river": {               # trunk — modeled from the American confluence north
+    "sacramento-river": {               # trunk — from just below Broderick up to Knights Landing
         "name": "Sacramento River", "osm": "Sacramento River",
-        "bbox": (38.59, -121.76, 38.83, -121.48),
-        "mouth": (38.600, -121.506),    # American–Sacramento confluence = mile 0
+        "bbox": (38.57, -121.76, 38.83, -121.48),
+        "mouth": (38.578, -121.509),    # below Broderick = mile 0 (so Broderick sits just
+                                        # downstream of the American confluence — a universal take-out)
         "downstream": None, "junction": None, "gap": 12000,  # big-river centerline is fragmented
     },
     "river": {                          # Lower American River
