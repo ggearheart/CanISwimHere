@@ -93,6 +93,13 @@ EPA 2012 recreational criteria. Defined in `THRESH` (JS) and top of `build_data.
   ("blooms have occurred here", does NOT force the verdict). `habActive`/`habActiveAdv`
   in `showSwimSummary`. A **recurring** advisory history (`habRecurring`: ≥3 advisory
   blooms, or ≥2 across ≥2 years) → "recurring bloom site", nudges verdict to caution.
+- **Bloom tooltip = FIB parity:** hover shows `showHabTip`, click pins it (`pinnedTip`,
+  `pointerEvents:auto`, mobile close handle), and a "📈 View bloom history (N)" link opens
+  `showBloomPopup(id)` — a full-screen modal (mirrors the E. coli `showStationPopup`) with a
+  `bloomTimeline` SVG (x=date w/ year gridlines, y=`HAB_SEV` severity, dot color=tier), a
+  reports table (date · advisory · lab toxins/illness), a recurring-site banner, and a CSV
+  export. `bloomHistory(b)` groups all FHAB reports at the same water body (by name; unnamed
+  → ~0.5 mi cluster), newest first.
 - Always lead with **"when in doubt, stay out"** + look for planktonic scum / benthic mats.
   Helpers `habWatchHTML(tier)` + `habAgeNote()`; link `HAB_GUIDE_URL`
   (mywaterquality.ca.gov "Identify HABs" visual-guide PDF). Shown in `showHabTip` and the summary.

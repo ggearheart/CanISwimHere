@@ -594,6 +594,9 @@ const ADV = {
   Mat:     {color:'#DC2626', label:'Algal Mat',      label_es:'Tapete Algal',order:4},
   Other:   {color:'#6B7280', label:'Bloom Reported', label_es:'Floración',   order:5},
 };
+// Severity rank for the bloom-history timeline (Danger highest). ADV.order is a
+// draw-stacking order, not severity, so map explicitly.
+const HAB_SEV = {Danger:5, Mat:4, Warning:4, Caution:3, Watch:2, Other:1};
 const HAB_GUIDE = {
   en:{
     Danger:'⛔ Danger advisory — stay out of the water. Keep children and pets away; cyanotoxins can be fatal to pets within minutes.',
@@ -676,6 +679,7 @@ function showHabTip(b, cx, cy, pinned){
   const m = ADV[b.tier]||ADV.Other;
   const g = HAB_GUIDE[lang][b.tier]||HAB_GUIDE[lang].Other;
   const obs = b.obs ? b.obs.split('T')[0] : '—';
+  const histN = bloomHistory(b).length;
   const rows = [
     [lang==='en'?'Observed':'Observado', obs],
     [lang==='en'?'Status':'Estado', b.status||'—'],
@@ -698,10 +702,13 @@ function showHabTip(b, cx, cy, pinned){
     ${habAgeNote(b.obs)?`<div style="margin-top:6px;font-size:.7rem;color:#b45309;font-weight:600;line-height:1.4;">⏳ ${habAgeNote(b.obs)}</div>`:''}
     ${habWatchHTML(b.tier)}
     ${b.detail?`<div style="margin-top:7px;padding:7px 9px;background:#f8fafc;border-left:3px solid #cbd5e1;border-radius:0 4px 4px 0;font-size:.72rem;color:#475569;line-height:1.5;"><strong style="display:block;margin-bottom:2px;color:#334155;">${lang==='en'?'Details':'Detalles'}</strong>${b.detail}</div>`:''}
+    <a href="#" id="hab-history-link" style="pointer-events:auto;display:inline-block;font-size:.74rem;color:var(--ca-blue);text-decoration:none;margin-top:8px;font-weight:700;">📈 ${lang==='en'?'View bloom history':'Ver historial de floraciones'}${histN>1?` (${histN})`:''} →</a>
     <div style="margin-top:8px;font-size:.66rem;color:#94a3b8;line-height:1.4;">${lang==='en'?'Source: CA State Water Board FHAB program. Most blooms are reported by the public; only some are lab-tested for toxins, so toxins may be present even when not confirmed.':'Fuente: programa FHAB de la Junta de Aguas de CA.'}</div>
   `;
   tip.style.display='block';
   tip.style.pointerEvents = pinned ? 'auto' : 'none';
+  const hl=document.getElementById('hab-history-link');
+  if(hl) hl.addEventListener('click', e=>{ e.preventDefault(); e.stopPropagation(); showBloomPopup(b.id); });
   const handle=document.getElementById('tip-close-handle');
   if(handle) handle.style.display = window.innerWidth<=768 ? 'block' : 'none';
   if(window.innerWidth>768){
@@ -716,6 +723,100 @@ function toggleHabs(btn){
   document.getElementById('habBtnLbl').textContent = base + (HABS.length?` (${HABS.length})`:'');
   btn.style.opacity = showHabs ? '1' : '.6';
   drawHabs();
+}
+
+// ── BLOOM HISTORY (all FHAB reports at the same water body, over time) ────────────
+// Blooms come and go; a site's report history is the real recurrence signal.
+function bloomHistory(b){
+  const key=(b.name||'').trim().toLowerCase();
+  const here=HABS.filter(x=>{
+    if(key) return (x.name||'').trim().toLowerCase()===key;           // same water body
+    return x.lat!=null && b.lat!=null && distKm(x.lat,x.lon,b.lat,b.lon)<=0.8;  // unnamed → ~0.5 mi cluster
+  });
+  return here.sort((p,q)=>(q.obs||'').localeCompare(p.obs||''));       // newest first
+}
+// SVG timeline: x = date (year gridlines), y = advisory severity, dot color = tier.
+function bloomTimeline(reps,w,h){
+  const pts=reps.filter(r=>r.obs).map(r=>({t:new Date(r.obs).getTime(),r})).filter(p=>!isNaN(p.t));
+  if(!pts.length) return '';
+  const pad=20, iw=w-pad*2, ih=h-26, maxSev=5;
+  let tmin=Math.min(...pts.map(p=>p.t)), tmax=Math.max(...pts.map(p=>p.t));
+  if(tmax===tmin){ tmax=tmin+15768000000; tmin-=15768000000; }        // ±6mo if single date
+  const X=t=>pad+((t-tmin)/(tmax-tmin))*iw;
+  const Y=s=>6+(1-(s-1)/(maxSev-1))*ih;
+  const y0=new Date(tmin).getFullYear(), y1=new Date(tmax).getFullYear();
+  let grid='';
+  for(let yr=y0; yr<=y1; yr++){ const gx=X(new Date(yr,0,1).getTime()); if(gx>=pad-1&&gx<=w-pad+1)
+    grid+=`<line x1="${gx.toFixed(1)}" y1="4" x2="${gx.toFixed(1)}" y2="${h-16}" stroke="#e2e8f0" stroke-width="1"/><text x="${gx.toFixed(1)}" y="${h-4}" font-size="9" fill="#94a3b8" text-anchor="middle">${yr}</text>`; }
+  const dots=pts.map(p=>{const c=(ADV[p.r.tier]||ADV.Other).color, cx=X(p.t).toFixed(1), cy=Y(HAB_SEV[p.r.tier]||1).toFixed(1);
+    const tox=p.r.lab_verified?' 🔬':''; return `<circle cx="${cx}" cy="${cy}" r="4.5" fill="${c}" opacity="0.92" stroke="#fff" stroke-width="1"><title>${p.r.obs.split('T')[0]} — ${(ADV[p.r.tier]||ADV.Other).label}${tox}</title></circle>`;}).join('');
+  return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" style="display:block;width:100%;height:auto;background:#f8fafc;border-radius:3px;">${grid}<line x1="${pad}" y1="${h-16}" x2="${w-pad}" y2="${h-16}" stroke="#cbd5e1" stroke-width="1"/>${dots}</svg>`;
+}
+// Full-screen bloom-history modal (parallels the E. coli station popup).
+function showBloomPopup(bloomId){
+  const b = HABS.find(x=>x.id===bloomId) || (bloomId&&typeof bloomId==='object'?bloomId:null);
+  if(!b) return;
+  const reps=bloomHistory(b);
+  const name=b.name||(lang==='en'?'Unnamed water body':'Cuerpo de agua');
+  const ADVISORY=new Set(['Danger','Warning','Caution','Mat']);
+  const advCount=reps.filter(r=>ADVISORY.has(r.tier)).length;
+  const yrs=[...new Set(reps.map(r=>(r.obs||'').slice(0,4)).filter(Boolean))].map(Number);
+  const span=reps.length?`${(reps[reps.length-1].obs||'').slice(0,10)} → ${(reps[0].obs||'').slice(0,10)}`:'';
+  const recurring=advCount>=3 || (advCount>=2 && yrs.length>=2);
+  const existing=document.getElementById('st-popup-overlay'); if(existing) existing.remove();
+  const overlay=document.createElement('div'); overlay.id='st-popup-overlay';
+  overlay.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9999;display:flex;align-items:flex-start;justify-content:center;overflow-y:auto;padding:40px 20px;';
+  const thc='padding:8px 14px;border-bottom:2px solid #dde1e7;';
+  overlay.innerHTML=`
+    <div onclick="event.stopPropagation()" style="background:#fff;border-radius:8px;width:100%;max-width:660px;box-shadow:0 8px 32px rgba(0,0,0,.25);overflow:hidden;">
+      <div style="background:#166534;color:#fff;padding:14px 18px;display:flex;align-items:center;justify-content:space-between;gap:10px;">
+        <div>
+          <div style="font-weight:700;font-size:1rem;">🦠 ${name}</div>
+          <div style="font-size:.78rem;opacity:.9;">${reps.length} ${lang==='en'?'bloom report'+(reps.length!==1?'s':''):'reporte'+(reps.length!==1?'s':'')}${span?` · ${span}`:''}</div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;flex-shrink:0;">
+          <button id="hab-download-btn" style="background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.5);color:#fff;padding:5px 11px;border-radius:5px;cursor:pointer;font-size:.75rem;font-weight:700;">⬇ CSV</button>
+          <button onclick="document.getElementById('st-popup-overlay').remove()" style="background:none;border:none;color:#fff;font-size:1.3rem;cursor:pointer;line-height:1;">✕</button>
+        </div>
+      </div>
+      ${recurring?`<div style="margin:12px 18px 0;padding:8px 11px;background:#fffbeb;border-left:3px solid #A16207;border-radius:0 4px 4px 0;font-size:.78rem;color:#92400e;line-height:1.45;"><b>${lang==='en'?'Recurring bloom site.':'Sitio recurrente.'}</b> ${lang==='en'?`${advCount} advisory-level reports${yrs.length>1?` across ${Math.min(...yrs)}–${Math.max(...yrs)}`:''} — a new bloom is more likely here.`:`${advCount} avisos${yrs.length>1?`, ${Math.min(...yrs)}–${Math.max(...yrs)}`:''} — más probable aquí.`}</div>`:''}
+      <div style="padding:12px 18px 4px;">
+        <div style="font-size:.74rem;font-weight:700;color:#334155;margin-bottom:6px;">📈 ${lang==='en'?'Bloom reports over time':'Floraciones en el tiempo'} <span style="font-weight:400;color:#94a3b8;">(${lang==='en'?'by advisory level':'por nivel de aviso'})</span></div>
+        <div>${bloomTimeline(reps,600,90)}</div>
+        <div style="display:flex;flex-wrap:wrap;gap:3px 10px;font-size:.6rem;color:#94a3b8;margin-top:5px;">${['Danger','Warning','Caution','Mat','Watch','Other'].map(t=>`<span><span style="color:${ADV[t].color};font-size:.8rem;">●</span> ${lang==='en'?ADV[t].label:ADV[t].label_es}</span>`).join('')}<span>🔬 ${lang==='en'?'lab-confirmed toxins':'toxinas confirmadas'}</span></div>
+      </div>
+      <div style="overflow-x:auto;max-height:260px;overflow-y:auto;margin-top:8px;">
+        <table style="width:100%;border-collapse:collapse;font-size:.82rem;">
+          <thead style="position:sticky;top:0;z-index:1;"><tr style="background:#f4f6f8;text-align:left;">
+            <th style="${thc}">${lang==='en'?'Date':'Fecha'}</th>
+            <th style="${thc}">${lang==='en'?'Advisory':'Aviso'}</th>
+            <th style="${thc}">${lang==='en'?'Lab / illness':'Lab / enfermedad'}</th>
+          </tr></thead>
+          <tbody>
+            ${reps.map((r,i)=>{const m=ADV[r.tier]||ADV.Other; const badges=[];
+              if(r.lab_verified) badges.push(`🔬 ${r.lab_toxins&&r.lab_toxins.length?r.lab_toxins.join(', '):(lang==='en'?'confirmed':'confirmado')}`);
+              if(r.illness) badges.push(`🤒 ${lang==='en'?'illness':'enfermedad'}`);
+              return `<tr style="background:${i%2?'#fafbfc':'#fff'};">
+              <td style="padding:7px 14px;border-bottom:1px solid #eee;white-space:nowrap;">${(r.obs||'').slice(0,10)||'—'}</td>
+              <td style="padding:7px 14px;border-bottom:1px solid #eee;"><span style="display:inline-block;padding:2px 8px;border-radius:4px;background:${m.color};color:#fff;font-size:.72rem;font-weight:700;">${lang==='en'?m.label:m.label_es}</span></td>
+              <td style="padding:7px 14px;border-bottom:1px solid #eee;color:#475569;">${badges.join(' · ')||'—'}</td>
+            </tr>`;}).join('')}
+          </tbody>
+        </table>
+      </div>
+      <div style="padding:10px 18px 16px;">${habWatchHTML(b.tier)}</div>
+    </div>`;
+  overlay.addEventListener('click',()=>overlay.remove());
+  document.body.appendChild(overlay);
+  document.getElementById('hab-download-btn').addEventListener('click',()=>{
+    const header=['date','water_body','advisory','status','lab_toxins','illness','county','latitude','longitude'];
+    const rows=reps.map(r=>[(r.obs||'').slice(0,10), r.name||'', (ADV[r.tier]||ADV.Other).label, r.status||'',
+      (r.lab_toxins||[]).join('; '), r.illness?'yes':'', r.county||'', r.lat, r.lon]
+      .map(v=>`"${String(v==null?'':v).replace(/"/g,'""')}"`).join(','));
+    const csv=[header.join(','),...rows].join('\n');
+    const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
+    a.download=`${name.replace(/[^a-z0-9]/gi,'_')}_blooms.csv`; a.click();
+  });
 }
 
 // ── RIVER FLOW (live USGS gage 11446500 — American River at Fair Oaks) ────────────
