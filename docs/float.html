@@ -63,7 +63,7 @@ input[type=datetime-local]{width:100%;padding:7px 9px;border:1px solid var(--bor
 </head>
 <body>
 <header>
-  <div class="hdr-title">🛶 Float &amp; Shuttle Planner<small>Lower American River</small></div>
+  <div class="hdr-title">🛶 Float &amp; Shuttle Planner<small>American · Sacramento · Feather rivers</small></div>
   <a class="hdr-link" href="index.html">Can I Swim Here? ↗</a>
 </header>
 <div class="app-body">
@@ -115,13 +115,45 @@ function fmtClock(d){return d.toLocaleString(undefined,{weekday:'short',hour:'nu
 function dismissHint(){const h=document.getElementById('hint');if(h)h.style.display='none';}
 function byId(id){return ACCESS.find(a=>a.id===id);}
 function toast(t){const el=document.getElementById('toast');el.textContent=t;el.classList.add('show');setTimeout(()=>el.classList.remove('show'),2200);}
-// Segments: 'river' = free-flowing Lower American River (float + shuttle);
-// lakes are flatwater above a dam (paddle, no shuttle). Dams separate segments,
-// so a trip can only connect two access points that share a segment.
-const SEGLABEL={'river':'Lower American River','lake-natoma':'Lake Natoma','folsom-lake':'Folsom Lake'};
-function isLake(a){return a&&a.segment&&a.segment!=='river';}
-function segLabel(a){return SEGLABEL[a&&a.segment]||'Lower American River';}
-function tripMiles(a,b){return isLake(a)||isLake(b)?distKm(a.lat,a.lon,b.lat,b.lon)*0.621371:Math.abs(a.river_mi-b.river_mi);}
+// Flowing reaches (american 'river', sacramento-river, feather-river) form a connected
+// downstream NETWORK; lakes are flatwater above a dam (paddle, no shuttle).
+const SEGLABEL={'river':'American River','sacramento-river':'Sacramento River','feather-river':'Feather River','lake-natoma':'Lake Natoma','folsom-lake':'Folsom Lake'};
+const LAKE_SEGS=new Set(['lake-natoma','folsom-lake']);
+function isLake(a){return a&&LAKE_SEGS.has(a.segment);}
+function segLabel(a){return SEGLABEL[a&&a.segment]||(REACHES[a&&a.segment]&&REACHES[a.segment].name)||'River';}
+// ── river NETWORK (downstream tree): American & Feather flow into the Sacramento ──
+// Each point has river_mi (miles along its own reach) and flow_mi (miles to the system
+// mouth, crossing confluences). REACHES{seg:{downstream,flow_offset,junction_mi,line}}.
+let REACHES={};
+function downstreamChain(seg){const c=[];let s=seg;while(s&&REACHES[s]){c.push(s);s=REACHES[s].downstream;}return c;}
+function isDownstream(B,A){ // true if you can float DOWNSTREAM from A to B
+  if(isLake(A)||isLake(B)||A.flow_mi==null||B.flow_mi==null||A===B) return false;
+  const chain=downstreamChain(A.segment), bi=chain.indexOf(B.segment);
+  if(bi<0) return false;
+  if(bi===0) return B.river_mi < A.river_mi-1e-9;          // same reach, lower down
+  const junctionFlow=REACHES[chain[bi-1]].flow_offset;      // where A's branch enters this reach
+  return B.flow_mi <= junctionFlow+1e-6 && B.flow_mi < A.flow_mi-1e-9;
+}
+function onFlowPath(A,B){return isDownstream(A,B)||isDownstream(B,A);}  // one up/down line
+function connType(A,B){
+  if(isLake(A)&&isLake(B)) return A.segment===B.segment?'lake':'dam';
+  if(isLake(A)||isLake(B)) return 'dam';
+  return onFlowPath(A,B)?'flow':'branch';                   // rivers: same line vs different branch
+}
+function tripMiles(a,b){return (isLake(a)||isLake(b))?distKm(a.lat,a.lon,b.lat,b.lon)*0.621371:Math.abs(a.flow_mi-b.flow_mi);}
+// Vertices from `hi` (upstream) down to `lo` (downstream), crossing reaches as needed.
+function flowRoute(hi,lo){
+  const chain=downstreamChain(hi.segment), li=chain.indexOf(lo.segment);
+  let verts=[[hi.lat,hi.lon]];
+  for(let k=0;k<=li;k++){
+    const seg=chain[k], line=(REACHES[seg]&&REACHES[seg].line)||[];
+    const topMi = k===0 ? hi.river_mi : REACHES[chain[k-1]].junction_mi;
+    const botMi = seg===lo.segment ? lo.river_mi : 0;
+    verts=verts.concat(line.filter(p=>p[2]>=botMi-0.05&&p[2]<=topMi+0.05).sort((a,b)=>b[2]-a[2]).map(p=>[p[0],p[1]]));
+  }
+  verts.push([lo.lat,lo.lon]);
+  return verts;
+}
 
 // ── access markers / browse ───────────────────────────────────────────────────
 function accessIcon(sel,lake){const c=sel?'#FDB913':(lake?'#4f46e5':'#0e7490'),sz=sel?30:22;return L.divIcon({className:'',iconSize:[sz,sz],iconAnchor:[sz/2,sz/2],html:`<div style="width:${sz}px;height:${sz}px;border-radius:50%;background:#fff;border:3px solid ${c};box-shadow:0 1px 5px rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center;font-size:${sel?15:11}px;">🛶</div>`});}
@@ -154,19 +186,23 @@ function selectAccess(i){
 }
 function closePanel(){document.getElementById('panel').classList.remove('open');document.getElementById('plan-chip').style.display='none';selIdx=null;clearTrip();drawSafety();drawMarkers();}
 
-// Every location offers three modes. Only HYDROLOGICALLY CONNECTED spots are listed —
-// same dam-bounded segment (a dam between two points removes boating connectivity, so it
-// can't be a shuttle/paddle partner). 'from'/'to' = one-way trip; 'oab' = out-and-back (no shuttle).
+// Every location offers three modes. Only HYDROLOGICALLY CONNECTED spots are listed:
+// on a lake, the same lake; on a river, spots reachable along one up/down flow line
+// (crossing confluences within the American↔Sacramento↔Feather network). A dam removes
+// connectivity. 'from'/'to' = one-way; 'oab' = out-and-back (no shuttle).
 function showConnections(mode){
   const a=ACCESS[selIdx], lake=isLake(a);
   ['from','to','oab'].forEach(k=>{const b=document.getElementById('btn-'+k); if(b) b.style.opacity=(k===mode?'1':'.5');});
-  let cands=ACCESS.map((x,i)=>({x,i})).filter(o=>o.i!==selIdx && o.x.segment===a.segment);
-  if(lake) cands=cands.map(o=>({...o,mi:distKm(a.lat,a.lon,o.x.lat,o.x.lon)*0.621371}));
-  else     cands=cands.map(o=>({...o,mi:Math.abs(o.x.river_mi-a.river_mi)}));
   let list;
-  if(!lake && mode==='from')      list=cands.filter(o=>o.x.river_mi<a.river_mi).sort((p,q)=>q.x.river_mi-p.x.river_mi); // downstream take-outs
-  else if(!lake && mode==='to')   list=cands.filter(o=>o.x.river_mi>a.river_mi).sort((p,q)=>p.x.river_mi-q.x.river_mi); // upstream put-ins
-  else                            list=cands.slice().sort((p,q)=>p.mi-q.mi);                                            // lake, or river oab: nearest first
+  if(lake){
+    list=ACCESS.map((x,i)=>({x,i})).filter(o=>o.i!==selIdx && o.x.segment===a.segment)
+      .map(o=>({...o,mi:distKm(a.lat,a.lon,o.x.lat,o.x.lon)*0.621371})).sort((p,q)=>p.mi-q.mi);
+  } else {
+    list=ACCESS.map((x,i)=>({x,i})).filter(o=>{
+      if(o.i===selIdx||isLake(o.x)) return false;
+      return mode==='from'?isDownstream(o.x,a):mode==='to'?isDownstream(a,o.x):onFlowPath(a,o.x);
+    }).map(o=>({...o,mi:Math.abs(o.x.flow_mi-a.flow_mi)})).sort((p,q)=>p.mi-q.mi);
+  }
   const hdr = mode==='from'?`⬇ Float FROM ${a.name}`:mode==='to'?`⬆ Float TO ${a.name}`:`🔁 Out-and-back from ${a.name}`;
   const hdrC = mode==='from'?'var(--down)':mode==='to'?'var(--up)':'var(--teal)';
   let html=`<div class="grp-label" style="color:${hdrC}">${hdr}</div>`, drives=[];
@@ -184,17 +220,18 @@ function showConnections(mode){
         : `<span>🛶 <b>${o.mi.toFixed(1)} mi</b> ${lake?'paddle':'float'} · ${fmtHrs(o.mi)}</span><span class="drive" id="drv_${o.i}">🚗 shuttle…</span>`;
       if(kind==='oneway') drives.push(o);
       const cls=mode==='from'?'down':mode==='to'?'up':'oab', arr=mode==='from'?'⬇':mode==='to'?'⬆':'🔁';
+      const xreach = o.x.segment!==a.segment ? ` <span style="color:#94a3b8;font-weight:400;">· ${segLabel(o.x)}</span>` : '';
       return `<div class="conn ${cls}" onclick="buildTrip(${put},${take},'${kind}')">
-        <div class="conn-name">${arr} ${o.x.name}</div>
+        <div class="conn-name">${arr} ${o.x.name}${xreach}</div>
         <div class="conn-stats">${stat}</div>
       </div>`;
     }).join('');
   } else if(mode!=='oab'){
-    html+=`<div class="note" style="border:0;padding:6px 0;">${lake?'No other mapped spot on this water yet.':(mode==='from'?'This is the downstream end — try <b>to here</b> or <b>no shuttle</b>.':'This is the uppermost access — try <b>from here</b> or <b>no shuttle</b>.')}</div>`;
+    html+=`<div class="note" style="border:0;padding:6px 0;">${lake?'No other mapped spot on this water yet.':(mode==='from'?'This is the downstream end of the mapped network — try <b>to here</b> or <b>no shuttle</b>.':'This is the uppermost mapped access — try <b>from here</b> or <b>no shuttle</b>.')}</div>`;
   }
   html+=`<div class="note">${mode==='oab'
     ? `Out-and-back = paddle out and return to the same spot, <b>no shuttle needed</b>. Round-trip distance shown${!lake?'; on a flowing river head upstream first, then float back':''}.`
-    : `One-way. ${lake?'No current — arrange a pickup or your own shuttle.':'Shuttle drive (take-out → put-in) shown — or arrange your own.'} Assumes ${SPEED.min}–${SPEED.max} mph.`} Only spots on <b>${segLabel(a)}</b> are shown (dams block connections).</div>`;
+    : `One-way. ${lake?'No current — arrange a pickup or your own shuttle.':'Shuttle drive (take-out → put-in) shown — or arrange your own.'} Assumes ${SPEED.min}–${SPEED.max} mph.`} ${lake?`Only spots on <b>${segLabel(a)}</b> are shown`:'Connected spots (across confluences) are shown'} — dams block connections.</div>`;
   document.getElementById('shuttles').innerHTML=html;
   drives.forEach(o=>fetchDrive(a,o.x,'drv_'+o.i));
 }
@@ -216,31 +253,37 @@ function gdir(from,to){ const A=driveCoord(from),B=driveCoord(to); return `https
 
 // ── build & draw a trip (put-in upstream, take-out downstream) ─────────────────
 function clearTrip(){routeLayer.clearLayers();safetyLayer.clearLayers();plan=null;}
-function routeVerts(putMi,takeMi){
-  const lo=Math.min(putMi,takeMi),hi=Math.max(putMi,takeMi);
-  return LINE.filter(p=>p[2]>=lo-0.05&&p[2]<=hi+0.05).sort((a,b)=>b[2]-a[2]).map(p=>[p[0],p[1]]);
-}
-function buildTrip(putInIdx,takeOutIdx,kind,timeMode,timeISO){
+function buildTrip(aIdx,bIdx,kind,timeMode,timeISO){
   kind = kind==='oab'?'oab':'oneway';
-  const putIn=ACCESS[putInIdx], takeOut=ACCESS[takeOutIdx];
-  // Dams separate segments — no boating connectivity across one, so no through-route.
-  if(putIn.segment!==takeOut.segment){
-    const msg=`🚫 ${putIn.name} and ${takeOut.name} are on different waters (${segLabel(putIn)} vs ${segLabel(takeOut)}), separated by a dam — no through route.`;
-    const sh=document.getElementById('shuttles');
-    if(sh) sh.innerHTML=`<div class="note" style="border-left:3px solid #b91c1c;padding-left:8px;">${msg}</div>`;
-    else toast('🚫 Separated by a dam — no through route.');
-    return;
+  const A=ACCESS[aIdx], B=ACCESS[bIdx], samePoint=aIdx===bIdx;
+  if(!samePoint){
+    const ct=connType(A,B);
+    if(ct==='dam'||ct==='branch'){
+      const msg = ct==='dam'
+        ? `🚫 ${A.name} and ${B.name} are on different waters (${segLabel(A)} vs ${segLabel(B)}), separated by a dam — no through route.`
+        : `↔ ${A.name} (${segLabel(A)}) and ${B.name} (${segLabel(B)}) are on different branches of the network — you'd float down one and paddle up the other. Plan each river as its own leg.`;
+      const sh=document.getElementById('shuttles');
+      if(sh) sh.innerHTML=`<div class="note" style="border-left:3px solid #b91c1c;padding-left:8px;">${msg}</div>`;
+      else toast(ct==='dam'?'🚫 Separated by a dam.':'↔ Different branches — plan each leg.');
+      return;
+    }
   }
-  const lake=isLake(putIn), samePoint=putInIdx===takeOutIdx;
-  const oneWayMi=samePoint?0:tripMiles(putIn,takeOut);
+  const lake=isLake(A)||isLake(B);
+  // put-in = upstream (higher flow_mi); take-out = downstream. Lakes have no flow direction.
+  let putIn,takeOut,routeV,oneWayMi;
+  if(samePoint){ putIn=A; takeOut=A; oneWayMi=0; routeV=[[A.lat,A.lon]]; }
+  else if(lake){ putIn=A; takeOut=B; oneWayMi=distKm(A.lat,A.lon,B.lat,B.lon)*0.621371; routeV=[[A.lat,A.lon],[B.lat,B.lon]]; }
+  else {
+    const hi = A.flow_mi>=B.flow_mi?A:B, lo = A.flow_mi>=B.flow_mi?B:A;
+    oneWayMi = hi.flow_mi-lo.flow_mi; routeV = flowRoute(hi,lo);
+    if(kind==='oab'){ putIn=A; takeOut=B; } else { putIn=hi; takeOut=lo; }
+  }
   const miles=kind==='oab'?oneWayMi*2:oneWayMi;   // out-and-back = round trip
-  plan={putIn,takeOut,kind,lake,samePoint,oneWayMi,miles,segment:putIn.segment,timeMode:timeMode||null,timeISO:timeISO||null};
+  plan={putIn,takeOut,kind,lake,samePoint,oneWayMi,miles,routeV,segment:putIn.segment,timeMode:timeMode||null,timeISO:timeISO||null};
   selIdx=null; drawMarkers(); routeLayer.clearLayers();
   if(!samePoint){
-    const verts=lake?[[putIn.lat,putIn.lon],[takeOut.lat,takeOut.lon]]
-      :[[putIn.lat,putIn.lon]].concat(routeVerts(putIn.river_mi,takeOut.river_mi)).concat([[takeOut.lat,takeOut.lon]]);
-    L.polyline(verts,{color:'#0891b2',weight:6,opacity:.85,dashArray:(lake||kind==='oab')?'10,8':null}).addTo(routeLayer);
-    L.polyline(verts,{color:'#fff',weight:2,opacity:.6,dashArray:'2,10'}).addTo(routeLayer);
+    L.polyline(routeV,{color:'#0891b2',weight:6,opacity:.85,dashArray:(lake||kind==='oab')?'10,8':null}).addTo(routeLayer);
+    L.polyline(routeV,{color:'#fff',weight:2,opacity:.6,dashArray:'2,10'}).addTo(routeLayer);
   }
   addParkingWalk(putIn); if(!samePoint) addParkingWalk(takeOut);
   if(kind==='oab'){
@@ -313,12 +356,15 @@ const RISKC={Good:'#15803D',Caution:'#A16207',Warning:'#C2410C',Unsafe:'#B91C1C'
 const RISKL={Good:'Probably safe',Caution:'Uncertain',Warning:'Elevated',Unsafe:'Probably unsafe',Unknown:'Unknown'};
 function near(items,latf,lonf,mi){return items.filter(x=>x.lat!=null&&distKm(x.lat,x.lon,latf,lonf)<=mi/0.621371);}
 function corridor(items){ if(!plan)return items; return items.filter(x=>x.lat!=null&&(distToRoute(x.lat,x.lon)<=2.0)); }
-function distToRoute(lat,lon){ let m=1e9; if(!plan)return m; const a=plan.putIn,b=plan.takeOut; [a,b].forEach(p=>{const d=distKm(lat,lon,p.lat,p.lon)*0.621371;if(d<m)m=d;});
-  if(plan.lake){ // distance to the straight paddle line (approx, small-angle)
-    const A=[a.lat,a.lon],B=[b.lat,b.lon],dx=B[1]-A[1],dy=B[0]-A[0],L2=dx*dx+dy*dy;
-    let t=L2?((lon-A[1])*dx+(lat-A[0])*dy)/L2:0; t=Math.max(0,Math.min(1,t));
-    const d=distKm(lat,lon,A[0]+t*dy,A[1]+t*dx)*0.621371; if(d<m)m=d; return m; }
-  LINE.forEach(p=>{if(p[2]>=Math.min(a.river_mi,b.river_mi)-0.2&&p[2]<=Math.max(a.river_mi,b.river_mi)+0.2){const d=distKm(lat,lon,p[0],p[1])*0.621371;if(d<m)m=d;}}); return m; }
+// Distance (mi) from a point to the drawn route polyline (works across reaches).
+function segDistMi(lat,lon,A,B){ const kx=Math.cos(lat*Math.PI/180);
+  const ax=A[1]*kx,ay=A[0],bx=B[1]*kx,by=B[0],px=lon*kx,py=lat,dx=bx-ax,dy=by-ay,L2=dx*dx+dy*dy;
+  let t=L2?((px-ax)*dx+(py-ay)*dy)/L2:0; t=Math.max(0,Math.min(1,t));
+  return distKm(lat,lon,ay+t*dy,(ax+t*dx)/kx)*0.621371; }
+function distToRoute(lat,lon){ if(!plan||!plan.routeV)return 1e9; const V=plan.routeV; let m=1e9;
+  for(let i=0;i<V.length;i++){const d=distKm(lat,lon,V[i][0],V[i][1])*0.621371;if(d<m)m=d;}
+  for(let i=0;i+1<V.length;i++){const d=segDistMi(lat,lon,V[i],V[i+1]);if(d<m)m=d;}
+  return m; }
 function drawSafety(){
   safetyLayer.clearLayers();
   // Drowning hazards: always shown (from Can I Swim Here?) so the map is useful to inspect.
@@ -499,11 +545,12 @@ map.on('click',e=>{ if(plan) return; if(ACCESS.length) selectAccess(nearestAcces
 function fitAll(){const pts=ACCESS.map(a=>[a.lat,a.lon]);if(pts.length)map.fitBounds(L.latLngBounds(pts).pad(0.15));}
 Promise.all([
   fetch('access_points.json').then(r=>r.json()).catch(()=>null),
-  fetch('river_line.json').then(r=>r.json()).catch(()=>({line:[]})),
+  fetch('river_line.json').then(r=>r.json()).catch(()=>({reaches:{}})),
 ]).then(([acc,rl])=>{
   if(!acc){document.getElementById('hint').textContent='⚠️ Could not load access points.';return;}
-  ACCESS=(acc.access||[]).slice().sort((a,b)=>(a.river_mi==null?1e9:a.river_mi)-(b.river_mi==null?1e9:b.river_mi));
-  if(acc.speed_mph)SPEED=acc.speed_mph; if(acc.river)RIVER=acc.river; LINE=rl.line||[];
+  REACHES=rl.reaches||{};
+  ACCESS=(acc.access||[]).slice().sort((a,b)=>(a.flow_mi==null?1e9:a.flow_mi)-(b.flow_mi==null?1e9:b.flow_mi));
+  if(acc.speed_mph)SPEED=acc.speed_mph;
   drawMarkers();
   // load Can I Swim Here? data for the safety layer (non-blocking)
   loadFlow();

@@ -21,9 +21,10 @@ Mobile-first swim-safety map for the Lower American River (Sacramento), built on
   6-week window; representative name/coords), keeps ongoing river/lake swim sites
   (`STATION_MIN_LATEST` 2024-01-01 + name contains "american river"/"lake natoma"/"folsom lake"),
   uses the dataset's official `6WeekGeoMean` (fallback computes). Writes `docs/stations.json`.
-  Covers the Lower American River, Lake Natoma, and **Folsom Lake** (~19 stations). The
-  Fair Oaks flow modifier applies only to American River stations (`_risk.onAR`) — never
-  to Folsom Lake / Lake Natoma, which sit above dams (guards `riskFlowNote`, `flowOnRiver`).
+  Covers the American River, Lake Natoma, Folsom Lake, the **Sacramento River** (to Knights
+  Landing) and **Feather River** (to Yuba City) — `STATION_NAME_KEYS` filter, ~24 stations.
+  The Fair Oaks flow modifier applies only to American River stations (`_risk.onAR`) — never
+  to the lakes or the Sacramento/Feather (guards `riskFlowNote`, `flowOnRiver`).
 - The app loads `stations.json` first; if missing it falls back to a live CKAN
   SQL fetch and aggregates client-side (`aggregate()` in index.html, mirrors the pipeline).
 - `stations.json` shape: `{thresholds, source, stations:[{code,name,lat,lon,
@@ -52,25 +53,33 @@ EPA 2012 recreational criteria. Defined in `THRESH` (JS) and top of `build_data.
 ## Float & Shuttle Planner (`docs/float.html`)
 - Separate self-contained page (linked from index.html header). CanISwimHere stays
   focused on swim safety; this answers float/shuttle planning.
-- `docs/access_points.json` `{note,river,speed_mph,access:[{name,segment,lat,lon,river_mi,snap_off_m,note}]}`.
-  `segment` = `river` (free-flowing Lower American River — float + shuttle) or
-  `lake-natoma`/`folsom-lake` (flatwater above a dam — paddle, **no shuttle**).
-  `river_mi` = miles along the OSM river centerline from the confluence (mile 0) for
-  **river** points only (null on lakes), precomputed by snapping each point (fetch OSM
-  American River via Overpass, order downstream→upstream by nearest-neighbor from the
-  westernmost vertex, cumulative arc length, project each access point).
+- `docs/access_points.json` `{note,speed_mph,access:[{name,segment,lat,lon,river_mi,flow_mi,...}]}`.
+  `segment` = a flowing reach `river` (American), `sacramento-river`, `feather-river`
+  (float + shuttle) or a lake `lake-natoma`/`folsom-lake` (flatwater above a dam — paddle,
+  **no shuttle**). `river_mi` = miles along that reach's OSM centerline from its downstream
+  end; `flow_mi` = miles to the system mouth (crosses confluences); both null on lakes.
+- **River NETWORK (downstream tree)** — `build_access.py` `REACHES`: the American & Feather
+  flow into the **Sacramento** (no dams). Each reach fetches its OSM centerline (Overpass,
+  **clipped to a corridor bbox** — `out geom` otherwise returns the whole way to Oroville/
+  Red Bluff), orders it from a `mouth` anchor with a gap-bridging `order_path` (big rivers
+  are fragmented → `gap` 12 km), and gets a `flow_offset` = the Sacramento mile at its
+  confluence (Feather ≈ 22.2, American = 0). `flow_mi = river_mi + flow_offset`.
+  `river_line.json` = `{reaches:{seg:{downstream,flow_offset,junction_mi,line:[[lat,lon,
+  reach_mi]]}}}`. Overpass is flaky → `overpass()` rotates mirrors (kumi/private.coffee/…).
 - **Three planning modes on every location** (`selectAccess` → 3 buttons → `showConnections(mode)`):
   `from` (this = put-in; river lists downstream, lake lists all connected), `to` (this = take-out;
   river lists upstream), `oab` (out-and-back / "no shuttle"). `oab` also offers "📍 Just meet &
   paddle here" (a `samePoint` plan — a shareable meeting spot, no route). Lakes default-open `oab`.
-- **Connectivity = same segment (dam-bounded).** Only same-`segment` spots are listed
-  (`isLake()`/`segLabel()`/`tripMiles()` helpers); a dam removes boating connectivity so it can't
-  be a shuttle/paddle partner. `buildTrip(putIdx,takeIdx,kind,timeMode,timeISO)` (`kind`:
-  `oneway`|`oab`) rejects cross-segment pairs. `plan` = `{putIn,takeOut,kind,lake,samePoint,
-  oneWayMi,miles,...}`; `miles` = round-trip for `oab`. One-way trips show a shuttle drive (river:
-  classic; lake: "self-run"); `oab` shows "🚫 None · out & back". Route: river follows the
-  centerline (`routeVerts`), lake/oab a dashed straight line. Share URL adds `&trip=oab`. Lake
-  markers indigo; river markers teal; `.conn.oab`/`.conn.lake` teal-bordered.
+- **Connectivity = the flow network.** float.html loads `REACHES` from river_line.json.
+  `isDownstream(B,A)` (walk A's `downstreamChain` to B's reach, compare `flow_mi` vs the
+  branch's junction), `onFlowPath` (either direction), `connType` → `flow`|`lake`|`branch`|`dam`.
+  `showConnections`: `from`=downstream take-outs, `to`=upstream put-ins, `oab`=on the same flow
+  line (cross-reach entries get a reach label). `buildTrip(aIdx,bIdx,kind,…)` rejects `dam`
+  ("separated by a dam") and `branch` ("different branches — plan each leg"); put-in = the
+  upstream point; `flowRoute(hi,lo)` slices each reach's centerline across confluences into
+  `plan.routeV` (used to draw + for `distToRoute`). `tripMiles` = |flow_mi diff| (rivers) or
+  straight-line (lakes). `plan` = `{putIn,takeOut,kind,lake,samePoint,oneWayMi,miles,routeV,…}`;
+  `oab` = round-trip, "🚫 None". Share URL adds `&trip=oab`. Lake markers indigo, river teal.
 - Source of truth = **`access_points_source.csv`** (repo root; the user edits this — I round-trip
   it to/from an xlsx). Columns: id,name,**segment**,access_lat/lon (water's edge),parking_lat/lon,
   parking_fee,parking_info,walk_to_water,amenities,cautions,note. `build_access.py` reads it (`read_seeds`),

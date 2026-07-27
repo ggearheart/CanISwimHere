@@ -1,25 +1,64 @@
 #!/usr/bin/env python3
 """Build access_points.json + river_line.json for the Float & Shuttle Planner.
 
-Fetches the Lower American River centerline from OpenStreetMap (best visual fit to
-the mapped river), orders it confluence->upstream, computes a cumulative river mile
-for every vertex, and snaps a curated set of river-access points onto it (giving
-each a `river_mi` station used to compute float distances between put-ins/take-outs).
+Models a connected river NETWORK (a downstream tree) so floats can cross confluences:
+  Feather River  ─┐
+                  ├─► Sacramento River ─► (system mouth, near Sacramento)
+  American River ─┘
+
+For each reach we fetch the OpenStreetMap centerline (best visual fit), order it
+downstream(mile 0)->upstream, and compute a cumulative reach mile per vertex. Each
+tributary also gets a `flow_offset` = the Sacramento mile at its confluence, so every
+point has a unified `flow_mi` = reach_mi + flow_offset (miles to the system mouth).
+Access points snap to their own reach's centerline.
+
+Lakes (lake-natoma, folsom-lake) are flatwater above a dam — no reach mile.
 
 Outputs:
-  docs/river_line.json   — ordered centerline: {unit, source, line:[[lat,lon,mi],...]}
-  docs/access_points.json — {note, river, speed_mph, access:[{id,name,lat,lon,river_mi,...}]}
+  docs/river_line.json    — {unit, reaches:{seg:{name,source,downstream,flow_offset,
+                             junction_mi,line:[[lat,lon,reach_mi],...]}}}
+  docs/access_points.json — {note, speed_mph, access:[{id,name,segment,lat,lon,
+                             river_mi(reach mile),flow_mi(network mile),...}]}
 """
 import csv, json, math, os, re, urllib.request, urllib.parse
 
 M2MI = 1/1609.344
 DOCS = os.path.join(os.path.dirname(__file__), "docs")
 SOURCE_CSV = os.path.join(os.path.dirname(__file__), "access_points_source.csv")
-# OpenStreetMap Lower American River centerline via Overpass (best fit to the map).
-OVERPASS = "https://overpass-api.de/api/interpreter"
+# Multiple Overpass mirrors — the main endpoint is often rate-limited (504).
+OVERPASS_ENDPOINTS = [
+    "https://overpass.kumi.systems/api/interpreter",
+    "https://overpass.private.coffee/api/interpreter",
+    "https://maps.mail.ru/osm/tools/overpass/api/interpreter",
+    "https://overpass-api.de/api/interpreter",
+]
 
-# String fields carried through from the source CSV into access_points.json.
 STR_FIELDS = ["parking_fee", "parking_info", "walk_to_water", "amenities", "cautions", "note"]
+
+# Flowing-river reaches (each a centerline with its own mile system). Lakes are handled
+# separately (flatwater, no centerline). Process the trunk (Sacramento) FIRST so tributary
+# flow_offsets can snap their confluence onto it. Overpass bbox is (S, W, N, E).
+REACHES = {
+    "sacramento-river": {               # trunk — modeled from the American confluence north
+        "name": "Sacramento River", "osm": "Sacramento River",
+        "bbox": (38.59, -121.76, 38.83, -121.48),
+        "mouth": (38.600, -121.506),    # American–Sacramento confluence = mile 0
+        "downstream": None, "junction": None, "gap": 12000,  # big-river centerline is fragmented
+    },
+    "river": {                          # Lower American River
+        "name": "American River", "osm": "American River",
+        "bbox": (38.55, -121.52, 38.67, -121.21),
+        "mouth": (38.600, -121.510),    # American–Sacramento confluence = mile 0
+        "downstream": "sacramento-river", "junction": (38.600, -121.506), "gap": 1500,
+    },
+    "feather-river": {
+        "name": "Feather River", "osm": "Feather River",
+        "bbox": (38.78, -121.72, 39.18, -121.50),
+        "mouth": (38.792, -121.627),    # Feather–Sacramento confluence at Verona = mile 0
+        "downstream": "sacramento-river", "junction": (38.790, -121.622), "gap": 12000,
+    },
+}
+LAKE_SEGS = {"lake-natoma", "folsom-lake"}
 
 
 def slug(s):
@@ -45,8 +84,8 @@ def read_seeds():
             seeds.append({
                 "id": slug(row.get("id") or name),
                 "name": name,
-                # segment: "river" = free-flowing Lower American River (float + shuttle);
-                # "lake-natoma"/"folsom-lake" = flatwater above a dam (paddle, no shuttle).
+                # segment: a flowing reach in REACHES (float + shuttle across the network)
+                # or a lake in LAKE_SEGS (flatwater above a dam — paddle, no shuttle).
                 "segment": (row.get("segment") or "river").strip().lower() or "river",
                 "lat": alat, "lon": alon,
                 "parking_lat": num(row.get("parking_lat")),
@@ -64,29 +103,43 @@ def hav(a, b, c, d):
     return R*2*math.atan2(math.sqrt(x), math.sqrt(1-x))
 
 
-def fetch_centerline():
-    q = ('[out:json][timeout:120];'
-         'way["waterway"="river"]["name"="American River"]'
-         '(38.55,-121.52,38.67,-121.21);out geom;')
-    req = urllib.request.Request(OVERPASS, data=urllib.parse.urlencode({"data": q}).encode(),
-                                 headers={"User-Agent": "CanISwimHere-build/1.0"})
-    with urllib.request.urlopen(req, timeout=150) as r:
-        d = json.load(r)
-    pts = []
-    for e in d.get("elements", []):
-        for g in e.get("geometry", []) or []:
-            pts.append((g["lat"], g["lon"]))
-    seen, P = set(), []
-    for la, lo in pts:
-        k = (round(la, 6), round(lo, 6))
-        if k not in seen:
-            seen.add(k); P.append((la, lo))
-    return P
+def overpass(query):
+    import time
+    last = None
+    for ep in OVERPASS_ENDPOINTS:
+        for _ in range(2):
+            try:
+                req = urllib.request.Request(ep, data=urllib.parse.urlencode({"data": query}).encode(),
+                                             headers={"User-Agent": "CanISwimHere-build/1.0"})
+                with urllib.request.urlopen(req, timeout=180) as r:
+                    return json.load(r)
+            except Exception as e:            # 504/timeout/rate-limit — try next mirror
+                last = e; time.sleep(3)
+    raise RuntimeError(f"all Overpass endpoints failed: {last}")
 
 
-def order_path(P):
-    # nearest-neighbor from the confluence (westernmost vertex), upstream
-    start = min(range(len(P)), key=lambda i: P[i][1])
+def fetch_centerline(osm_name, bbox, pad=0.01):
+    # Overpass `out geom` returns each matching way's FULL geometry (a big river way can
+    # run far outside the bbox, e.g. to Oroville/Red Bluff). Clip vertices to the bbox.
+    s, w, n, e = bbox
+    d = overpass('[out:json][timeout:180];'
+                 f'way["waterway"="river"]["name"="{osm_name}"]({s},{w},{n},{e});out geom;')
+    pts, seen = [], set()
+    for el in d.get("elements", []):
+        for g in el.get("geometry", []) or []:
+            la, lo = g["lat"], g["lon"]
+            if not (s-pad <= la <= n+pad and w-pad <= lo <= e+pad):
+                continue                                     # clip to corridor
+            k = (round(la, 6), round(lo, 6))
+            if k not in seen:
+                seen.add(k); pts.append((la, lo))
+    return pts
+
+
+def order_path(P, mouth, gap=1500):
+    """Nearest-neighbor order from the vertex closest to `mouth` (the downstream end).
+    `gap` bridges breaks between fragmented OSM ways (big rivers are coarsely mapped)."""
+    start = min(range(len(P)), key=lambda i: hav(P[i][0], P[i][1], mouth[0], mouth[1]))
     path, used, cur = [P[start]], {start}, start
     while len(used) < len(P):
         best, bd = None, 1e18
@@ -96,7 +149,7 @@ def order_path(P):
             dd = hav(P[cur][0], P[cur][1], la, lo)
             if dd < bd:
                 bd, best = dd, j
-        if best is None or bd > 1500:
+        if best is None or bd > gap:
             break
         used.add(best); path.append(P[best]); cur = best
     cum = [0.0]
@@ -106,7 +159,8 @@ def order_path(P):
 
 
 def station_mi(plat, plon, path, cum):
-    best, bestd, beststat = None, 1e18, 0.0
+    """Snap (plat,plon) to `path`; return (reach mile, offset metres)."""
+    bestd, beststat = 1e18, 0.0
     latref = math.radians(plat); m = 111320.0
     def xy(la, lo): return (lo*m*math.cos(latref), la*m)
     px, py = xy(plat, plon)
@@ -125,59 +179,92 @@ def station_mi(plat, plon, path, cum):
 
 
 def main():
-    P = fetch_centerline()
-    path, cum = order_path(P)
-    print(f"centerline: {len(path)} ordered vertices, {cum[-1]*M2MI:.1f} river miles")
+    # 1) Build each reach centerline (trunk first — dict preserves insertion order).
+    built = {}
+    for seg, cfg in REACHES.items():
+        pts = fetch_centerline(cfg["osm"], cfg["bbox"])
+        path, cum = order_path(pts, cfg["mouth"], cfg.get("gap", 1500))
+        built[seg] = {"path": path, "cum": cum}
+        print(f"{cfg['name']:<18} {len(path):>4}/{len(pts)} vertices used, {cum[-1]*M2MI:5.1f} mi")
 
-    line = [[round(la, 6), round(lo, 6), round(c*M2MI, 3)] for (la, lo), c in zip(path, cum)]
+    # 2) flow_offset: Sacramento is the trunk (0); each tributary enters the Sacramento
+    #    at its junction -> flow_offset = Sacramento mile there. junction_mi = same.
+    sac = built["sacramento-river"]
+    for seg, cfg in REACHES.items():
+        if cfg["downstream"] is None:
+            built[seg]["flow_offset"] = 0.0
+            built[seg]["junction_mi"] = None
+        else:
+            assert cfg["downstream"] == "sacramento-river"
+            jmi, joff = station_mi(cfg["junction"][0], cfg["junction"][1], sac["path"], sac["cum"])
+            built[seg]["flow_offset"] = round(jmi, 3)
+            built[seg]["junction_mi"] = round(jmi, 3)
+            print(f"  {cfg['name']} joins Sacramento at mile {jmi:.2f} (snap {joff:.0f} m)")
+
+    # 3) write river_line.json (all reaches)
+    reaches_out = {}
+    for seg, cfg in REACHES.items():
+        b = built[seg]
+        line = [[round(la, 6), round(lo, 6), round(c*M2MI, 3)]
+                for (la, lo), c in zip(b["path"], b["cum"])]
+        reaches_out[seg] = {
+            "name": cfg["name"], "source": "OpenStreetMap",
+            "downstream": cfg["downstream"], "flow_offset": b["flow_offset"],
+            "junction_mi": b["junction_mi"], "line": line,
+        }
     with open(os.path.join(DOCS, "river_line.json"), "w") as f:
-        json.dump({"unit": "mi", "source": "OpenStreetMap",
-                   "note": "Lower American River centerline (OSM), ordered "
-                   "confluence(mi 0)->upstream, with cumulative river mile per vertex.",
-                   "line": line}, f, separators=(",", ":"))
+        json.dump({"unit": "mi",
+                   "note": "River-network centerlines (OSM). reach_mi = miles from each "
+                   "reach's downstream end (mile 0). flow_offset = the Sacramento mile "
+                   "where a tributary joins; flow_mi = reach_mi + flow_offset (miles to "
+                   "the system mouth). Feather & American join the Sacramento (no dams).",
+                   "reaches": reaches_out}, f, separators=(",", ":"))
 
+    # 4) snap access points -> reach_mi + flow_mi
     access = []
     for s in read_seeds():
+        seg = s["segment"]
         walk_ft = None
         if s["parking_lat"] is not None and s["parking_lon"] is not None:
             walk_ft = round(hav(s["lat"], s["lon"], s["parking_lat"], s["parking_lon"]) * 3.28084)
-        entry = {"id": s["id"], "name": s["name"], "segment": s["segment"],
+        entry = {"id": s["id"], "name": s["name"], "segment": seg,
                  "lat": s["lat"], "lon": s["lon"],
                  "parking_lat": s["parking_lat"], "parking_lon": s["parking_lon"], "walk_ft": walk_ft}
-        # Only the free-flowing river gets a river_mi (measured along the American River
-        # centerline). Lake access points are flatwater above a dam — no river mile.
-        if s["segment"] == "river":
-            mi, off = station_mi(s["lat"], s["lon"], path, cum)
+        if seg in REACHES:
+            b = built[seg]
+            mi, off = station_mi(s["lat"], s["lon"], b["path"], b["cum"])
             entry["river_mi"] = round(mi, 2)
+            entry["flow_mi"] = round(mi + b["flow_offset"], 2)
             entry["snap_off_m"] = round(off)
-        else:
+        else:                                   # lake — flatwater, no reach mile
             entry["river_mi"] = None
+            entry["flow_mi"] = None
         for k in STR_FIELDS:
             if s.get(k):
                 entry[k] = s[k]
         access.append(entry)
-    # river points ordered by river mile; lake points grouped after, by segment then name
-    access.sort(key=lambda a: (a["river_mi"] is None, a.get("segment"),
-                               a["river_mi"] if a["river_mi"] is not None else 0, a["name"]))
+    # order: flowing reaches by flow_mi (downstream->upstream), lakes after
+    access.sort(key=lambda a: (a["flow_mi"] is None, a.get("segment"),
+                               a["flow_mi"] if a["flow_mi"] is not None else 0, a["name"]))
     with open(os.path.join(DOCS, "access_points.json"), "w") as f:
         json.dump({
             "note": "Access points for the float/shuttle planner. Source of truth: "
                     "access_points_source.csv (edit that, then re-run build_access.py). "
-                    "segment = 'river' (free-flowing Lower American River — float + shuttle), "
-                    "'lake-natoma' or 'folsom-lake' (flatwater above a dam — paddle, no shuttle). "
-                    "river_mi = miles along the OSM river centerline from the American-Sacramento "
-                    "confluence (mile 0), for river points only (null on lakes). "
-                    "lat/lon = water's edge (put-in/take-out); parking_lat/lon = the lot.",
-            "river": "Lower American River",
-            "speed_mph": {"min": 2, "max": 4, "note": "typical float/paddle speed at regular LAR flows"},
+                    "segment = a flowing reach (river=American, sacramento-river, "
+                    "feather-river — float + shuttle, connected as a downstream network) or "
+                    "a lake (lake-natoma/folsom-lake — flatwater above a dam, paddle). "
+                    "river_mi = miles along the reach centerline from its downstream end; "
+                    "flow_mi = miles to the system mouth (crosses confluences). "
+                    "lat/lon = water's edge; parking_lat/lon = the lot.",
+            "speed_mph": {"min": 2, "max": 4, "note": "typical float/paddle speed at regular flows"},
             "access": access,
         }, f, indent=2)
-    print(f"wrote {len(access)} access points + river_line.json")
+    print(f"wrote {len(access)} access points + river_line.json ({len(REACHES)} reaches)")
     for a in access:
-        if a["river_mi"] is not None:
-            print(f"  {a['river_mi']:6.2f} mi  {a['snap_off_m']:>4}m  {a['id']:<18} {a['name']}")
+        if a["flow_mi"] is not None:
+            print(f"  flow {a['flow_mi']:6.2f}  reach {a['river_mi']:6.2f}  {a['segment']:<16} {a['name']}")
         else:
-            print(f"   (lake) {a['segment']:<12} {a['id']:<18} {a['name']}")
+            print(f"   (lake) {a['segment']:<16} {a['name']}")
 
 
 if __name__ == "__main__":

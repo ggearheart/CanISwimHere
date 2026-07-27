@@ -37,8 +37,12 @@ RESOURCE_ID = "15a63495-8d9f-4a49-b43a-3092ef3106b9"
 PACKAGE_ID = "surface-water-fecal-indicator-bacteria-results"
 BASE = "https://data.ca.gov/api/3/action"
 
-# American River corridor + Lake Natoma + Folsom Lake bounding box (for E. coli stations).
-STATION_BBOX = {"lat_min": 38.55, "lat_max": 38.78, "lon_min": -121.53, "lon_max": -121.05}
+# American R + Lake Natoma + Folsom Lake + Sacramento R (to Knights Landing) +
+# Feather R (to Yuba City) bounding box (for E. coli stations).
+STATION_BBOX = {"lat_min": 38.55, "lat_max": 39.20, "lon_min": -121.95, "lon_max": -121.05}
+# River/lake swim sites we keep (name substrings). Drains/bypasses/sloughs are excluded.
+STATION_NAME_KEYS = ("american river", "lake natoma", "folsom lake",
+                     "sacramento river", "feather r", "yuba river")
 # Only keep river/lake swim sites with monitoring since this date (drops one-off
 # study points, stormwater sumps, and discontinued sites).
 STATION_MIN_LATEST = "2024-01-01"
@@ -47,8 +51,9 @@ STATION_MIN_LATEST = "2024-01-01"
 # We fetch statewide and filter to the Sacramento / American & Sacramento River area.
 BLOOM_RES = "c6a36b91-ad38-4611-8750-87ee99e497dd"   # FHAB bloom reports
 LAB_RES = "9d4e1df4-0cd6-4165-9e63-effcafd9dccc"      # FHAB lab results (toxins)
-# Sacramento-area bounding box (Lower American River, Sacramento River, local lakes)
-BBOX = {"lat_min": 38.3, "lat_max": 38.85, "lon_min": -121.9, "lon_max": -121.0}
+# Sacramento-area bounding box (American, Sacramento & Feather rivers, local lakes;
+# north to Knights Landing / Yuba City)
+BBOX = {"lat_min": 38.3, "lat_max": 39.25, "lon_min": -121.95, "lon_max": -121.0}
 
 HABS_OUT = os.path.join(os.path.dirname(__file__), "docs", "blooms.json")
 
@@ -267,8 +272,7 @@ def main():
         latest = srows[0]
         nm = name.lower()
         # keep only ongoing river/lake swim sites
-        if not (latest["_d"] >= STATION_MIN_LATEST and
-                ("american river" in nm or "lake natoma" in nm or "folsom lake" in nm)):
+        if not (latest["_d"] >= STATION_MIN_LATEST and any(k in nm for k in STATION_NAME_KEYS)):
             dropped += 1
             continue
         samples = [{"date": r["_d"], "result": round(r["_r"], 1), "status": status_for(r["_r"])}
