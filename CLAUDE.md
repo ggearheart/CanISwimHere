@@ -79,7 +79,7 @@ EPA 2012 recreational criteria. Defined in `THRESH` (JS) and top of `build_data.
   blooms, or ≥2 across ≥2 years) → "recurring bloom site", nudges verdict to caution.
 - Always lead with **"when in doubt, stay out"** + look for planktonic scum / benthic mats.
   Helpers `habWatchHTML()` + `habAgeNote()`; link `HAB_GUIDE_URL`
-  (mywaterquality.ca.gov field guide). Shown in `showHabTip` and the summary.
+  (mywaterquality.ca.gov "Identify HABs" visual-guide PDF). Shown in `showHabTip` and the summary.
 - Remote-sensing bloom prediction noted as a future direction (About panel).
 
 ## Life-vest loaner sites (Kids Don't Float)
