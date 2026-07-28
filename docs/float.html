@@ -10,7 +10,7 @@
   --good:#15803D; --caution:#A16207; --warning:#C2410C; --unsafe:#B91C1C; --unknown:#6B7280;
   --bg:#F0F4F8; --text:#1a2332; --sub:#4B5563; --border:#d0d8e4; --radius:8px; }
 *{box-sizing:border-box;margin:0;padding:0;}
-body{font-family:'Segoe UI',system-ui,Arial,sans-serif;background:var(--bg);color:var(--text);height:100vh;display:flex;flex-direction:column;overflow:hidden;}
+body{font-family:'Segoe UI',system-ui,Arial,sans-serif;background:var(--bg);color:var(--text);height:100vh;height:100dvh;display:flex;flex-direction:column;overflow:hidden;}
 a{color:var(--ca-blue);}
 header{background:var(--ca-blue);color:#fff;padding:0 14px;height:52px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;box-shadow:0 2px 8px rgba(0,0,0,.35);z-index:1000;}
 .hdr-title{font-size:1rem;font-weight:800;line-height:1.05;}
@@ -57,6 +57,18 @@ input[type=datetime-local]{width:100%;padding:7px 9px;border:1px solid var(--bor
 #plan-chip{display:none;position:absolute;left:50%;bottom:calc(72px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:620;background:rgba(15,23,42,.92);color:#fff;border-radius:12px;padding:9px 14px;font-size:.78rem;box-shadow:0 4px 18px rgba(0,0,0,.4);cursor:pointer;max-width:92vw;line-height:1.45;}
 #plan-chip .pc-open{display:inline-block;margin-left:8px;font-size:.66rem;background:rgba(255,255,255,.22);border-radius:10px;padding:1px 7px;}
 .leaflet-container{background:#e8edf2;}
+/* Floating "inspect map" toggle — phones only; keeps a way to peek at the map and,
+   with the full-view panel, keeps every panel button reachable. */
+#peek-btn{display:none;position:absolute;left:50%;transform:translateX(-50%);bottom:calc(14px + env(safe-area-inset-bottom,0px));z-index:720;background:rgba(15,23,42,.94);color:#fff;border:none;border-radius:22px;padding:12px 22px;font-size:.85rem;font-weight:700;cursor:pointer;box-shadow:0 5px 20px rgba(0,0,0,.45);}
+@media (max-width:768px){
+  /* Panel becomes a translucent full-view overlay so the map shows faintly behind
+     and all controls are on-screen (was a short bottom sheet clipped by browser chrome). */
+  #panel{top:0;max-height:none;border-radius:0;background:rgba(255,255,255,.93);-webkit-backdrop-filter:blur(2px);backdrop-filter:blur(2px);padding:calc(14px + env(safe-area-inset-top,0px)) 15px calc(80px + env(safe-area-inset-bottom,0px));}
+  .panel-handle{display:none;}
+  #plan-chip{display:none !important;}                 /* replaced by #peek-btn on phones */
+  body.has-context .fabs{display:none;}                /* hide Near Me while a panel is up */
+  body.has-context #peek-btn{display:block;}
+}
 </style>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -72,6 +84,7 @@ input[type=datetime-local]{width:100%;padding:7px 9px;border:1px solid var(--bor
   <div id="flow-chip"></div>
   <div id="plan-chip" onclick="expandTrip()"></div>
   <div class="fabs"><button id="locate" onclick="locateMe()">📍 Near Me</button></div>
+  <button id="peek-btn" onclick="peekMap()">⌄ Inspect map</button>
   <div id="panel"><div class="panel-handle"></div><div id="panel-body"></div></div>
 </div>
 <div class="toast" id="toast"></div>
@@ -181,10 +194,25 @@ function selectAccess(i){
     </div>
     <div id="shuttles"></div>`;
   document.getElementById('panel').classList.add('open');
+  syncPeek();
   // Lakes default to the typical mode (out-and-back paddle); rivers wait for the user's pick.
   if(lake) showConnections('oab');
 }
-function closePanel(){document.getElementById('panel').classList.remove('open');document.getElementById('plan-chip').style.display='none';selIdx=null;clearTrip();drawSafety();drawMarkers();}
+function closePanel(){document.getElementById('panel').classList.remove('open');document.getElementById('plan-chip').style.display='none';selIdx=null;clearTrip();drawSafety();drawMarkers();syncPeek();}
+// Floating "inspect map" toggle (phones): collapse the full-view panel to see the map, tap to reopen.
+function syncPeek(){
+  const active=(selIdx!=null)||!!plan;
+  document.body.classList.toggle('has-context',active);
+  const btn=document.getElementById('peek-btn'); if(!btn) return;
+  const open=document.getElementById('panel').classList.contains('open');
+  btn.textContent = open ? '⌄ Inspect map' : (plan ? '▲ Back to plan' : '▲ Back to options');
+}
+function peekMap(){
+  const p=document.getElementById('panel');
+  if(p.classList.contains('open')){ p.classList.remove('open'); }
+  else { document.getElementById('plan-chip').style.display='none'; p.classList.add('open'); }
+  syncPeek();
+}
 
 // Every location offers three modes. Only HYDROLOGICALLY CONNECTED spots are listed:
 // on a lake, the same lake; on a river, spots reachable along one up/down flow line
@@ -299,6 +327,7 @@ function buildTrip(aIdx,bIdx,kind,timeMode,timeISO){
   drawSafety();
   renderTripPanel();
   document.getElementById('panel').classList.add('open');
+  syncPeek();
   dismissHint();
 }
 function gmaps(lat,lon){ return `https://www.google.com/maps/search/?api=1&query=${lat},${lon}`; }
@@ -408,8 +437,8 @@ function renderFlowChip(){
 }
 
 // ── minimize (inspect map) + shaded plan box ───────────────────────────────────
-function minimizeTrip(){ document.getElementById('panel').classList.remove('open'); renderPlanChip(); }
-function expandTrip(){ document.getElementById('plan-chip').style.display='none'; if(plan){ renderTripPanel(); document.getElementById('panel').classList.add('open'); } }
+function minimizeTrip(){ document.getElementById('panel').classList.remove('open'); renderPlanChip(); syncPeek(); }
+function expandTrip(){ document.getElementById('plan-chip').style.display='none'; if(plan){ renderTripPanel(); document.getElementById('panel').classList.add('open'); } syncPeek(); }
 function renderPlanChip(){
   const chip=document.getElementById('plan-chip'); if(!plan){chip.style.display='none';return;}
   const mi=plan.miles, T=computeTimes(), oab=plan.kind==='oab';
