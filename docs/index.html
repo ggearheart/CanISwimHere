@@ -202,7 +202,7 @@ header{background:var(--ca-blue);color:#fff;padding:0 16px;height:52px;
           <p style="margin:0 0 8px;">Where a sample is recent (within ~2 weeks) the <strong>measured</strong> status is shown instead. Today's <strong>flow</strong> is a decent predictor and is folded in as a note: higher flow (faster, colder, more dilution) generally <em>lowers</em> bacteria risk; lower flow generally <em>raises</em> it. Thresholds: ≤126 good · 127–235 caution · 236–410 warning · &gt;410 (STV) unsafe MPN/100 mL.</p>
           <p style="margin:0 0 8px;padding:7px 9px;background:#f0fdf4;border-left:3px solid #166534;border-radius:0 4px 4px 0;"><strong style="color:#166534;">🦠 Algal blooms</strong> shown as cyanobacteria-cluster markers are harmful algal bloom (HAB) reports from the CA State Water Board <strong>FHAB program</strong>. Each splotch is colored by advisory level and fades with age. A reported bloom is usually <strong>over after ~2 weeks</strong> — but blooms recur, and a site's history hints at the chance a new one is present. So <strong>"when in doubt, stay out"</strong>: always look before you get in for floating scum/streaks (planktonic) or brown-black bottom mats (benthic), and remember not every green algae or plant is harmful. The state's <a href="https://mywaterquality.ca.gov/habs/docs/identify-habs-visual-guide.pdf" target="_blank" rel="noopener" style="color:var(--ca-blue);font-weight:700;">bloom ID visual guide (PDF)</a> is the best visual reference; for advisories about <strong>toxic algal mats</strong> specifically, see the <a href="https://mywaterquality.ca.gov/cyanohab/docs/toxic-algal-mats-guidance-appendix-f.pdf" target="_blank" rel="noopener" style="color:var(--ca-blue);font-weight:700;">benthic algal-mat guide (PDF)</a>. (Fine-scale remote-sensing bloom prediction is a hoped-for future improvement.)</p>
           <p style="margin:0 0 8px;padding:7px 9px;background:#fef2f2;border-left:3px solid #b91c1c;border-radius:0 4px 4px 0;"><strong style="color:#991b1b;">⚠️ Drowning hazards</strong> shown as red diamonds (e.g. Clay Banks, the Tiscornia/Discovery Park confluence) are a <strong>curated safety reference</strong> — not from the monitoring data and approximate. Water can be bacteriologically "Good" and still be deadly to swim due to cold water and current.</p>
-          <p style="margin:0 0 8px;padding:7px 9px;background:#ecfeff;border-left:3px solid #0e7490;border-radius:0 4px 4px 0;"><strong style="color:#0e7490;">🌊 River flow</strong> is the live discharge at USGS gage <strong>11446500</strong> (American River at Fair Oaks), in cubic feet per second. Water flows downstream from Folsom/Lake Natoma (east) to the Sacramento River (west). Higher flow means colder, faster, more dangerous water; releases from Nimbus Dam can change it quickly.</p>
+          <p style="margin:0 0 8px;padding:7px 9px;background:#ecfeff;border-left:3px solid #0e7490;border-radius:0 4px 4px 0;"><strong style="color:#0e7490;">🌊 River flow</strong> on the map chip is the live discharge at USGS gage <strong>11446500</strong> (American River at Fair Oaks / the Lower American River), in cubic feet per second — higher flow means colder, faster, more dangerous water, and releases from Nimbus Dam can change it quickly. When you check a spot on the <strong>Sacramento</strong> or <strong>Feather</strong> River, the summary instead reads that river's own NOAA gage (Sacramento: I St below the confluence, Verona, or Fremont Weir; Feather: Nicolaus). Those are large rivers — flow is shown for reference, without the small-river calm/swift/high categories.</p>
           <a href="https://arcg.is/0ea0zq" target="_blank" rel="noopener"
              style="display:block;text-align:center;padding:7px;background:var(--ca-blue);color:#fff;border-radius:var(--radius);font-size:.74rem;font-weight:700;text-decoration:none;margin-bottom:8px;">
             Central Valley Water Board River Map ↗
@@ -865,7 +865,7 @@ function renderFlowChip(){
   el.style.display='block';
   el.innerHTML=`
     <div style="display:flex;align-items:center;gap:6px;margin-bottom:2px;">
-      <span style="font-size:.6rem;font-weight:800;letter-spacing:.06em;color:#0e7490;text-transform:uppercase;">🌊 ${lang==='en'?'River Flow':'Caudal del Río'}</span>
+      <span style="font-size:.6rem;font-weight:800;letter-spacing:.06em;color:#0e7490;text-transform:uppercase;">🌊 ${lang==='en'?'Lower American River':'Río American Bajo'}</span>
       <span style="margin-left:auto;font-size:.58rem;color:#94a3b8;">${lang==='en'?'downstream':'aguas abajo'} →W</span>
     </div>
     <div style="display:flex;align-items:baseline;gap:5px;">
@@ -876,6 +876,40 @@ function renderFlowChip(){
     <div style="font-size:.62rem;color:#64748b;margin-top:2px;">${FLOW.gageFt!=null?`${lang==='en'?'gage':'nivel'} ${FLOW.gageFt.toFixed(1)} ft · `:''}${tI} ${tT}</div>
     <div style="margin-top:3px;">${flowSpark(FLOW.series,150,24)}</div>
     <div style="font-size:.55rem;color:#94a3b8;margin-top:1px;">USGS Fair Oaks · ${t}</div>`;
+}
+
+// ── Reach-specific flow for the Sacramento & Feather (NOAA NWPS) — so the swim
+//    summary reads the RIGHT river. The on-map chip stays the Lower American River. ──
+const REACH_GAGES={
+  sac_below:{id:'SACC1',river:'Sacramento River',site:'NWPS · I St (below confluence)'},
+  sac_mid:  {id:'VONC1',river:'Sacramento River',site:'NWPS · Verona'},
+  sac_above:{id:'FMWC1',river:'Sacramento River',site:'NWPS · Fremont Weir'},
+  feather:  {id:'NCOC1',river:'Feather River',   site:'NWPS · Nicolaus'},
+};
+let REACH_FLOW={};   // zone -> {cfs, gageFt}
+function loadReachFlow(){
+  Object.entries(REACH_GAGES).forEach(([z,g])=>{
+    fetch('https://api.water.noaa.gov/nwps/v1/gauges/'+g.id).then(r=>r.json()).then(d=>{
+      const o=d&&d.status&&d.status.observed; if(!o||o.secondary==null)return;
+      REACH_FLOW[z]={cfs:(o.secondaryUnit==='kcfs'?o.secondary*1000:o.secondary),gageFt:o.primaryUnit==='ft'?o.primary:null};
+      if(summaryAt) updateSwimHero();
+    }).catch(()=>{});
+  });
+}
+loadReachFlow();
+// Which flow gage represents the reach a station sits on (Fair Oaks = 'lar'; Sacramento
+// split at the American confluence (~38.60) and Verona (~38.785); Feather/Yuba = Nicolaus).
+function flowZoneForStation(st){
+  if(!st) return null;
+  const n=(st.name||'').toLowerCase();
+  if(n.includes('american river')) return 'lar';
+  if(n.includes('feather')||n.includes('yuba river')) return 'feather';
+  if(n.includes('sacramento river')){
+    if(st.lat<38.60) return 'sac_below';
+    if(st.lat<38.785) return 'sac_mid';
+    return 'sac_above';
+  }
+  return null;   // lakes / other → no river-flow row
 }
 fetch(USGS_URL).then(r=>r.json()).then(j=>{ FLOW=parseUSGS(j); renderFlowChip(); if(RAW.length){ if(typeof applyFilters==='function') applyFilters(); } if(summaryAt) updateSwimHero(); })
   .catch(()=>{ FLOW=null; renderFlowChip(); });
@@ -1358,10 +1392,15 @@ function showSwimSummary(qLat, qLon, opts){
   const hazColor=hz?'#7f1d1d':'#15803D';
   const hazStatus=hz?(lang==='en'?'Known hazard nearby':'Peligro conocido cerca'):(lang==='en'?'None within 2 mi':'Ninguno en 2 mi');
 
-  // River flow (one gage for the whole Lower American River corridor).
-  const fc = FLOW ? flowCat(FLOW.cfs) : null;
-  // Fair Oaks flow only describes the free-flowing American River — not Folsom Lake / Lake Natoma (above dams).
-  const flowOnRiver = FLOW && fSt && !fFar && fD<=milesToKm(2) && fSt._risk && fSt._risk.onAR;
+  // River flow — reach-aware. LAR = USGS Fair Oaks (calm/swift/high categories); the
+  // Sacramento & Feather use their own NWPS gages (flow shown, no LAR hazard categories).
+  const fZone = (!fFar && fSt && fD<=milesToKm(3)) ? flowZoneForStation(fSt) : null;
+  const zFlow = fZone==='lar' ? (FLOW?{cfs:FLOW.cfs,gageFt:FLOW.gageFt}:null) : (fZone?REACH_FLOW[fZone]:null);
+  const zGage = fZone==='lar' ? {river:(lang==='en'?'Lower American River':'Río American Bajo'),site:'USGS Fair Oaks'} : (fZone?REACH_GAGES[fZone]:null);
+  const fc = (fZone==='lar' && zFlow) ? flowCat(zFlow.cfs) : null;
+  // Only Fair Oaks categories are calibrated for a swimmable channel; a big river's 15–20 kcfs
+  // isn't "high — hazardous" in that sense, so it doesn't escalate the verdict.
+  const flowOnRiver = fZone==='lar' && zFlow && fD<=milesToKm(2);
 
   // ── Overall verdict (0 safe · 1 caution · 2 avoid) ──
   let level=0;
@@ -1394,7 +1433,7 @@ function showSwimSummary(qLat, qLon, opts){
       ${catRow('💧', lang==='en'?'Bacteria':'Bacterias', fM.color, fLabel, fFar?'':(fSt.name+' · '+fmtDist(fD)), null, false)}
       ${catRow('🦠', lang==='en'?'Algal blooms':'Floraciones', habColor, habStatus, habName||'', habDate, false)}
       ${catRow('⚠️', lang==='en'?'Hazards':'Peligros', hazColor, hazStatus, hz?hz.name:'', null, false)}
-      ${flowOnRiver?catRow('🌊', lang==='en'?'River flow':'Caudal', fc.color, (lang==='en'?fc.en:fc.es), `${Math.round(FLOW.cfs).toLocaleString()} cfs`, null, false):''}
+      ${zFlow?catRow('🌊', fc?(lang==='en'?'River flow':'Caudal'):zGage.river, fc?fc.color:'#0e7490', fc?(lang==='en'?fc.en:fc.es):`${Math.round(zFlow.cfs).toLocaleString()} cfs`, fc?`${Math.round(zFlow.cfs).toLocaleString()} cfs`:zGage.site, null, false):''}
     </div>
     ${fDetail?`<div style="margin-top:7px;font-size:.63rem;color:#64748b;line-height:1.45;border-top:1px solid #f1f5f9;padding-top:5px;"><strong style="color:#334155;">💧 ${lang==='en'?'Bacteria basis':'Base'}:</strong> ${fDetail}${fFlowNote?`<br><span style="color:#0e7490;font-weight:600;">${fFlowNote}</span>`:''}</div>`:''}
     ${fFar?`<div style="margin-top:6px;font-size:.62rem;color:#94a3b8;line-height:1.4;">${lang==='en'?'No monitoring station within 3 miles — bacteria risk here is unknown.':'Sin estación de monitoreo en 3 millas — riesgo desconocido.'}</div>`:''}

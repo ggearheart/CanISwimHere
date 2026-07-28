@@ -194,11 +194,11 @@ function selectAccess(i){
     </div>
     <div id="shuttles"></div>`;
   document.getElementById('panel').classList.add('open');
-  syncPeek();
+  syncPeek(); renderFlowChip();
   // Lakes default to the typical mode (out-and-back paddle); rivers wait for the user's pick.
   if(lake) showConnections('oab');
 }
-function closePanel(){document.getElementById('panel').classList.remove('open');document.getElementById('plan-chip').style.display='none';selIdx=null;clearTrip();drawSafety();drawMarkers();syncPeek();}
+function closePanel(){document.getElementById('panel').classList.remove('open');document.getElementById('plan-chip').style.display='none';selIdx=null;clearTrip();drawSafety();drawMarkers();syncPeek();renderFlowChip();}
 // Floating "inspect map" toggle (phones): collapse the full-view panel to see the map, tap to reopen.
 function syncPeek(){
   const active=(selIdx!=null)||!!plan;
@@ -327,7 +327,7 @@ function buildTrip(aIdx,bIdx,kind,timeMode,timeISO){
   drawSafety();
   renderTripPanel();
   document.getElementById('panel').classList.add('open');
-  syncPeek();
+  syncPeek(); renderFlowChip();
   dismissHint();
 }
 function gmaps(lat,lon){ return `https://www.google.com/maps/search/?api=1&query=${lat},${lon}`; }
@@ -409,8 +409,18 @@ function drawSafety(){
       .bindTooltip(`🦠 Algal bloom: ${b.name||''} (${(b.obs||'').slice(0,10)})`,{direction:'top'});});
 }
 
-// ── live river flow chip (from Can I Swim Here?) ───────────────────────────────
-let FLOW=null;
+// ── live river flow — reach-aware. LAR = USGS Fair Oaks (has calm/swift/high
+//    categories); Sacramento & Feather = NOAA NWPS gages (big rivers, flow shown
+//    without the LAR hazard categories). The chip shows the gage for the selected
+//    access point / trip put-in; default (splash) = Lower American River. ──
+const GAGES = {
+  lar:       {src:'usgs', id:'11446500', river:'Lower American River', site:'USGS Fair Oaks', cat:true},
+  sac_below: {src:'nwps', id:'SACC1',    river:'Sacramento River',     site:'NWPS · I St (below confluence)'},
+  sac_mid:   {src:'nwps', id:'VONC1',    river:'Sacramento River',     site:'NWPS · Verona'},
+  sac_above: {src:'nwps', id:'FMWC1',    river:'Sacramento River',     site:'NWPS · Fremont Weir'},
+  feather:   {src:'nwps', id:'NCOC1',    river:'Feather River',        site:'NWPS · Nicolaus'},
+};
+let FLOWS={};   // zone -> {cfs, gageFt, time}
 function flowCat(cfs){
   if(cfs==null) return {label:'—',color:'#374151'};
   if(cfs<1500) return {label:'Low / calm',color:'#15803D'};
@@ -419,21 +429,54 @@ function flowCat(cfs){
   return {label:'High',color:'#B91C1C'};
 }
 function loadFlow(){
+  // LAR — USGS instantaneous values (discharge + gage height)
   fetch('https://waterservices.usgs.gov/nwis/iv/?sites=11446500&parameterCd=00060,00065&period=P2D&format=json&siteStatus=all')
    .then(r=>r.json()).then(j=>{
      const ts=(j&&j.value&&j.value.timeSeries)||[];
      const ser=code=>{const s=ts.find(x=>x.variable.variableCode[0].value===code);if(!s||!s.values[0])return[];return s.values[0].value.map(v=>({v:parseFloat(v.value),t:v.dateTime})).filter(p=>!isNaN(p.v)&&p.v>-999998);};
      const q=ser('00060'),g=ser('00065'); if(!q.length)return;
-     FLOW={cfs:q[q.length-1].v,gageFt:g.length?g[g.length-1].v:null};
+     FLOWS.lar={cfs:q[q.length-1].v,gageFt:g.length?g[g.length-1].v:null,time:q[q.length-1].t};
      renderFlowChip();
    }).catch(()=>{});
+  // Sacramento & Feather — NOAA NWPS observed (secondary = flow, kcfs)
+  ['sac_below','sac_mid','sac_above','feather'].forEach(z=>{
+    fetch('https://api.water.noaa.gov/nwps/v1/gauges/'+GAGES[z].id).then(r=>r.json()).then(d=>{
+      const o=d&&d.status&&d.status.observed; if(!o||o.secondary==null)return;
+      FLOWS[z]={cfs:(o.secondaryUnit==='kcfs'?o.secondary*1000:o.secondary),
+                gageFt:o.primaryUnit==='ft'?o.primary:null, time:o.validTime};
+      renderFlowChip();
+    }).catch(()=>{});
+  });
+}
+// Which flow gage applies to an access point (by reach + position).
+function flowZone(a){
+  if(!a||isLake(a)) return null;                          // lakes = reservoirs, no river flow
+  if(a.segment==='river') return 'lar';
+  if(a.segment==='feather-river') return 'feather';       // Feather above Verona
+  if(a.segment==='sacramento-river'){
+    const cm=(REACHES['river']&&REACHES['river'].junction_mi)||4.2;         // Sac mile at the American confluence
+    const vm=(REACHES['feather-river']&&REACHES['feather-river'].junction_mi)||23.9;  // Sac mile at Verona
+    if(a.river_mi<cm) return 'sac_below';                 // downstream of Discovery
+    if(a.river_mi<vm) return 'sac_mid';                   // Discovery → Verona
+    return 'sac_above';                                   // above Verona
+  }
+  return null;
+}
+function activeZone(){
+  if(plan) return plan.lake?null:(flowZone(plan.putIn)||flowZone(plan.takeOut));
+  if(selIdx!=null) return flowZone(ACCESS[selIdx]);
+  return 'lar';                                           // splash / default
 }
 function renderFlowChip(){
-  const el=document.getElementById('flow-chip'); if(!el||!FLOW)return;
-  const c=flowCat(FLOW.cfs); el.style.display='block';
-  el.innerHTML=`<div style="font-weight:800;color:var(--teal);font-size:.58rem;letter-spacing:.05em;text-transform:uppercase;">🌊 River flow</div>
-    <div style="display:flex;align-items:baseline;gap:4px;"><span style="font-size:1.05rem;font-weight:800;color:#0f172a;">${Math.round(FLOW.cfs).toLocaleString()}</span><span style="font-size:.6rem;color:#64748b;">cfs</span><span style="margin-left:auto;font-size:.58rem;font-weight:700;color:#fff;background:${c.color};padding:1px 6px;border-radius:9px;">${c.label}</span></div>
-    <div style="font-size:.56rem;color:#94a3b8;">${FLOW.gageFt!=null?'gage '+FLOW.gageFt.toFixed(1)+' ft · ':''}USGS Fair Oaks</div>`;
+  const el=document.getElementById('flow-chip'); if(!el)return;
+  const z=activeZone();
+  if(!z){ el.style.display='none'; return; }              // lake selected → no river flow
+  const g=GAGES[z], f=FLOWS[z]; el.style.display='block';
+  const head=`<div style="font-weight:800;color:var(--teal);font-size:.58rem;letter-spacing:.05em;text-transform:uppercase;">🌊 ${g.river}</div>`;
+  if(!f){ el.innerHTML=head+`<div style="font-size:.58rem;color:#94a3b8;">loading ${g.site}…</div>`; return; }
+  const c=g.cat?flowCat(f.cfs):null;
+  el.innerHTML=head+`<div style="display:flex;align-items:baseline;gap:4px;"><span style="font-size:1.05rem;font-weight:800;color:#0f172a;">${Math.round(f.cfs).toLocaleString()}</span><span style="font-size:.6rem;color:#64748b;">cfs</span>${c?`<span style="margin-left:auto;font-size:.58rem;font-weight:700;color:#fff;background:${c.color};padding:1px 6px;border-radius:9px;">${c.label}</span>`:''}</div>
+    <div style="font-size:.56rem;color:#94a3b8;">${f.gageFt!=null?'gage '+f.gageFt.toFixed(1)+' ft · ':''}${g.site}</div>`;
 }
 
 // ── minimize (inspect map) + shaded plan box ───────────────────────────────────
