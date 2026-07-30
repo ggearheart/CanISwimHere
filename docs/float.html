@@ -92,7 +92,7 @@ input[type=datetime-local]{width:100%;padding:7px 9px;border:1px solid var(--bor
 const M2MI=1/1609.344;
 let ACCESS=[], SPEED={min:2,max:4}, RIVER='Lower American River', LINE=[];
 let STATIONS=[], BLOOMS=[], HAZARDS=[], PFD=[];
-let markers=[], selIdx=null, userMarker=null, driveCache={};
+let markers=[], selIdx=null, userMarker=null, driveCache={}, _mode=null;
 let routeLayer=L.layerGroup(), safetyLayer=L.layerGroup();
 let plan=null; // {putIn, takeOut, timeMode, timeISO}
 
@@ -122,8 +122,50 @@ routeLayer.addTo(map); safetyLayer.addTo(map);
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 function distKm(a,b,c,d){const R=6371,dLa=(c-a)*Math.PI/180,dLo=(d-b)*Math.PI/180;const x=Math.sin(dLa/2)**2+Math.cos(a*Math.PI/180)*Math.cos(c*Math.PI/180)*Math.sin(dLo/2)**2;return R*2*Math.atan2(Math.sqrt(x),Math.sqrt(1-x));}
-function fmtHrs(mi){const lo=mi/SPEED.max,hi=mi/SPEED.min;const f=h=>h<1?Math.round(h*60)+' min':(Math.round(h*10)/10)+' hr';return f(lo)+'–'+f(hi);}
-function floatHours(mi){return mi/3;} // midpoint ~3 mph
+function fmtDur(h){return h<1?Math.round(h*60)+' min':(Math.round(h*10)/10)+' hr';}
+function fmtHrs(mi){return fmtDur(mi/SPEED.max)+'–'+fmtDur(mi/SPEED.min);}   // lakes / fallback (2–4 mph paddle)
+function floatHours(mi){return mi/3;}                                        // fallback midpoint ~3 mph
+
+// ── Discharge-based float velocity (continuity: V = Q ÷ A) ─────────────────────
+// A river's mean velocity = discharge ÷ cross-sectional area. Area = channel width ×
+// mean depth, and mean depth grows with flow via at-a-station hydraulic geometry
+// (D ∝ Q^0.4). The THALWEG (deep center) runs faster than the cross-sectional mean;
+// the banks run slower. Width/reference-depth are ESTIMATES — tune per reach.
+const REACH_HYDRO = {
+  'river':            {w:170, dRef:4.0, qRef:3000},    // Lower American River
+  'sacramento-river': {w:450, dRef:18,  qRef:18000},   // Sacramento (wide, leveed)
+  'feather-river':    {w:230, dRef:8.0, qRef:3500},    // Feather
+};
+const THALWEG_K = 1.4;          // thalweg (deep center) surface velocity ÷ cross-sectional mean
+const EDGE_K = 0.55;            // near-bank velocity ÷ mean
+const FPS_MPH = 0.681818;       // 1 ft/s = 0.6818 mph
+function reachHydroFor(zone){
+  if(zone==='lar') return REACH_HYDRO['river'];
+  if(zone==='feather') return REACH_HYDRO['feather-river'];
+  if(zone&&zone.indexOf('sac')===0) return REACH_HYDRO['sacramento-river'];
+  return null;
+}
+function zoneVelocity(zone){    // {mean, thalweg, edge} mph + depth/area, from live discharge
+  const h=reachHydroFor(zone), f=FLOWS[zone];
+  if(!h||!f||f.cfs==null) return null;
+  const Q=f.cfs, D=h.dRef*Math.pow(Q/h.qRef,0.4), A=h.w*D;
+  const mean=(Q/A)*FPS_MPH;
+  return {mean, thalweg:mean*THALWEG_K, edge:mean*EDGE_K, cfs:Q, depth:D, area:A, width:h.w};
+}
+// Trip velocity = average of the endpoints' reach velocities (a cross-reach float
+// blends the two). Lakes/no-data → null (fall back to the 2–4 mph paddle estimate).
+function tripVelocity(a,b){
+  if(!a||!b||isLake(a)||isLake(b)) return null;
+  const vs=[zoneVelocity(flowZone(a)),zoneVelocity(flowZone(b))].filter(Boolean);
+  if(!vs.length) return null;
+  const avg=k=>vs.reduce((s,v)=>s+v[k],0)/vs.length;
+  return {mean:avg('mean'), thalweg:avg('thalweg'), edge:avg('edge')};
+}
+// Float-time range for a leg. Downstream float rides the current (thalweg = fast,
+// mean = typical). Out-and-back / lake / unknown flow → paddle-effort estimate.
+function legHrs(mi, vel){ return vel ? fmtDur(mi/vel.thalweg)+'–'+fmtDur(mi/vel.mean) : fmtHrs(mi); }
+function legMidHrs(mi, vel){ return vel ? mi/vel.mean : floatHours(mi); }
+function planVel(){ return plan && plan.kind==='oneway' ? tripVelocity(plan.putIn, plan.takeOut) : null; }
 function fmtClock(d){return d.toLocaleString(undefined,{weekday:'short',hour:'numeric',minute:'2-digit'});}
 function dismissHint(){const h=document.getElementById('hint');if(h)h.style.display='none';}
 function byId(id){return ACCESS.find(a=>a.id===id);}
@@ -174,7 +216,7 @@ function drawMarkers(){markers.forEach(m=>m.remove());markers=[];ACCESS.forEach(
 function nearestAccess(lat,lon){let bi=0,bd=1e9;ACCESS.forEach((a,i)=>{const d=distKm(lat,lon,a.lat,a.lon);if(d<bd){bd=d;bi=i;}});return bi;}
 
 function selectAccess(i){
-  clearTrip(); selIdx=i; drawMarkers(); dismissHint();
+  clearTrip(); selIdx=i; _mode=null; drawMarkers(); dismissHint();
   const a=ACCESS[i]; map.setView([a.lat,a.lon],Math.max(map.getZoom(),12));
   const lake=isLake(a);
   const chip = lake
@@ -198,7 +240,7 @@ function selectAccess(i){
   // Lakes default to the typical mode (out-and-back paddle); rivers wait for the user's pick.
   if(lake) showConnections('oab');
 }
-function closePanel(){document.getElementById('panel').classList.remove('open');document.getElementById('plan-chip').style.display='none';selIdx=null;clearTrip();drawSafety();drawMarkers();syncPeek();renderFlowChip();}
+function closePanel(){document.getElementById('panel').classList.remove('open');document.getElementById('plan-chip').style.display='none';selIdx=null;_mode=null;clearTrip();drawSafety();drawMarkers();syncPeek();renderFlowChip();}
 // Floating "inspect map" toggle (phones): collapse the full-view panel to see the map, tap to reopen.
 function syncPeek(){
   const active=(selIdx!=null)||!!plan;
@@ -219,6 +261,7 @@ function peekMap(){
 // (crossing confluences within the American↔Sacramento↔Feather network). A dam removes
 // connectivity. 'from'/'to' = one-way; 'oab' = out-and-back (no shuttle).
 function showConnections(mode){
+  _mode=mode;
   const a=ACCESS[selIdx], lake=isLake(a);
   ['from','to','oab'].forEach(k=>{const b=document.getElementById('btn-'+k); if(b) b.style.opacity=(k===mode?'1':'.5');});
   let list;
@@ -243,9 +286,10 @@ function showConnections(mode){
   if(list.length){
     html+=list.map(o=>{
       const put = mode==='to'?o.i:selIdx, take = mode==='to'?selIdx:o.i, kind = mode==='oab'?'oab':'oneway';
+      const vel = kind==='oneway' ? tripVelocity(a,o.x) : null;   // downstream float rides the current
       const stat = kind==='oab'
         ? `<span>🛶 <b>${(o.mi*2).toFixed(1)} mi</b> round trip · ${fmtHrs(o.mi*2)}</span><span class="drive">🚫 no shuttle</span>`
-        : `<span>🛶 <b>${o.mi.toFixed(1)} mi</b> ${lake?'paddle':'float'} · ${fmtHrs(o.mi)}</span><span class="drive" id="drv_${o.i}">🚗 shuttle…</span>`;
+        : `<span>🛶 <b>${o.mi.toFixed(1)} mi</b> ${lake?'paddle':'float'} · ${legHrs(o.mi,vel)}</span><span class="drive" id="drv_${o.i}">🚗 shuttle…</span>`;
       if(kind==='oneway') drives.push(o);
       const cls=mode==='from'?'down':mode==='to'?'up':'oab', arr=mode==='from'?'⬇':mode==='to'?'⬆':'🔁';
       const xreach = o.x.segment!==a.segment ? ` <span style="color:#94a3b8;font-weight:400;">· ${segLabel(o.x)}</span>` : '';
@@ -259,7 +303,7 @@ function showConnections(mode){
   }
   html+=`<div class="note">${mode==='oab'
     ? `Out-and-back = paddle out and return to the same spot, <b>no shuttle needed</b>. Round-trip distance shown${!lake?'; on a flowing river head upstream first, then float back':''}.`
-    : `One-way. ${lake?'No current — arrange a pickup or your own shuttle.':'Shuttle drive (take-out → put-in) shown — or arrange your own.'} Assumes ${SPEED.min}–${SPEED.max} mph.`} ${lake?`Only spots on <b>${segLabel(a)}</b> are shown`:'Connected spots (across confluences) are shown'} — dams block connections.</div>`;
+    : `One-way. ${lake?'No current — arrange a pickup or your own shuttle. Paddle ~'+SPEED.min+'–'+SPEED.max+' mph.':'Shuttle drive (take-out → put-in) shown — or arrange your own. Float time is discharge-based (thalweg→mean).'}`} ${lake?`Only spots on <b>${segLabel(a)}</b> are shown`:'Connected spots (across confluences) are shown'} — dams block connections.</div>`;
   document.getElementById('shuttles').innerHTML=html;
   drives.forEach(o=>fetchDrive(a,o.x,'drv_'+o.i));
 }
@@ -446,7 +490,7 @@ function loadFlow(){
      const q=ser('00060'),g=ser('00065'),tp=ser('00010'); if(!q.length)return;
      FLOWS.lar={cfs:q[q.length-1].v,gageFt:g.length?g[g.length-1].v:null,time:q[q.length-1].t};
      if(tp.length) TEMPS.lar={c:tp[tp.length-1].v,src:'Fair Oaks'};
-     renderFlowChip();
+     refreshFlowUI();
    }).catch(()=>{});
   usgsTemp('11447650','sac','Freeport');   // Sacramento River water temp (Feather has no live temp gage)
   // Sacramento & Feather flow — NOAA NWPS observed (secondary = flow, kcfs)
@@ -455,7 +499,7 @@ function loadFlow(){
       const o=d&&d.status&&d.status.observed; if(!o||o.secondary==null)return;
       FLOWS[z]={cfs:(o.secondaryUnit==='kcfs'?o.secondary*1000:o.secondary),
                 gageFt:o.primaryUnit==='ft'?o.primary:null, time:o.validTime};
-      renderFlowChip();
+      refreshFlowUI();
     }).catch(()=>{});
   });
 }
@@ -493,6 +537,15 @@ function renderFlowChip(){
     ${tempLine}
     <div style="font-size:.56rem;color:#94a3b8;">${f.gageFt!=null?'gage '+f.gageFt.toFixed(1)+' ft · ':''}${g.site}${t?' · temp '+t.src:''}</div>`;
 }
+// When live flow arrives, refresh the chip and re-render open times (unless the user is
+// typing in the panel). Flow drives the discharge-based float velocities.
+function refreshFlowUI(){
+  renderFlowChip();
+  const panel=document.getElementById('panel');
+  if(document.activeElement && panel.contains(document.activeElement)) return;
+  if(plan && panel.classList.contains('open')) renderTripPanel();
+  else if(selIdx!=null && _mode) showConnections(_mode);
+}
 
 // ── minimize (inspect map) + shaded plan box ───────────────────────────────────
 function minimizeTrip(){ document.getElementById('panel').classList.remove('open'); renderPlanChip(); syncPeek(); }
@@ -503,7 +556,7 @@ function renderPlanChip(){
   const title=plan.samePoint?`🛶 <b>${plan.putIn.name}</b> (meet & paddle)`
     :`🛶 <b>${plan.putIn.name}</b> ${oab?'⟳':'→'} <b>${plan.takeOut.name}</b>`;
   const stats=plan.samePoint?'out-and-back · 🚫 no shuttle'
-    :`${mi.toFixed(1)} mi · ${fmtHrs(mi)} ${oab?'round-trip · 🚫 no shuttle':(plan.lake?'paddle':'float')}`;
+    :`${mi.toFixed(1)} mi · ${legHrs(mi,planVel())} ${oab?'round-trip · 🚫 no shuttle':(plan.lake?'paddle':'float')}`;
   chip.innerHTML=`${title}<br>
     <span style="font-size:.7rem;opacity:.9;">${stats}${T?` · ${plan.samePoint?'meet':'put in'} ${fmtClock(T.start)}`:''}</span>
     <span class="pc-open">tap to open ▲</span>`;
@@ -521,7 +574,7 @@ function computeTimes(){
   if(!plan||!plan.timeMode||!plan.timeISO) return null;
   const t=new Date(plan.timeISO); if(isNaN(t)) return null;
   if(plan.samePoint) return {start:t,end:t,hrs:0,meet:true};   // a meet spot has no fixed duration
-  const hrs=floatHours(plan.miles);
+  const hrs=legMidHrs(plan.miles, planVel());
   let start,end;
   if(plan.timeMode==='start'){start=t;end=new Date(t.getTime()+hrs*3600000);}
   else{end=t;start=new Date(t.getTime()-hrs*3600000);}
@@ -531,6 +584,8 @@ function renderTripPanel(){
   const {putIn,takeOut,lake,samePoint}=plan, oab=plan.kind==='oab', mi=plan.miles;
   const body=document.getElementById('panel-body');
   const T=computeTimes();
+  const vel=planVel();                                   // discharge-based float velocity (rivers, one-way)
+  const zv=vel?zoneVelocity(flowZone(putIn)):null;       // put-in reach detail for the "basis" line
   const milc=a=>a.river_mi!=null?` <span style="color:#94a3b8;font-size:.72rem;">· mi ${a.river_mi.toFixed(1)}</span>`:'';
   const title = samePoint?'Your meet-up paddle':oab?'Your out-and-back':(lake?'Your paddle':'Your float');
   const label1 = oab?'Meet / launch:':'Put in:';
@@ -541,7 +596,7 @@ function renderTripPanel(){
   const distStat = samePoint
     ? `<div class="stat"><div class="n">—</div><div class="l">your choice</div></div><div class="stat"><div class="n">🔁</div><div class="l">out &amp; back</div></div>`
     : `<div class="stat"><div class="n">${mi.toFixed(1)} mi</div><div class="l">${oab?'round trip':(lake?'paddle':'river dist')}</div></div>
-       <div class="stat"><div class="n">${fmtHrs(mi)}</div><div class="l">${lake?'paddle':'float'} @ ${SPEED.min}–${SPEED.max} mph</div></div>`;
+       <div class="stat"><div class="n">${legHrs(mi,vel)}</div><div class="l">${lake?'paddle':(oab?'paddle':'float')} ${vel?'· thalweg ~'+vel.thalweg.toFixed(1)+' mph':'@ '+SPEED.min+'–'+SPEED.max+' mph'}</div></div>`;
   body.innerHTML=`
     <button class="close-x" onclick="closePanel()" aria-label="Close">✕</button>
     <div class="sel-name">🛶 ${title}</div>
@@ -553,6 +608,10 @@ function renderTripPanel(){
       ${distStat}
       ${shuttleStat}
     </div>
+    ${vel?`<div style="font-size:.66rem;color:#334155;margin-top:7px;background:#f0f9ff;border-left:3px solid #0891b2;border-radius:0 5px 5px 0;padding:6px 9px;line-height:1.5;">
+      🌊 <b>Speed from discharge</b> (V = Q ÷ A): <b>thalweg ~${vel.thalweg.toFixed(1)} mph</b> (fast center) · mid-channel ~${vel.mean.toFixed(1)} mph · near banks ~${vel.edge.toFixed(1)} mph. Float time = thalweg→mean.
+      ${zv?`<span style="color:#64748b;">Basis: Q ${Math.round(zv.cfs).toLocaleString()} cfs ÷ est. ${Math.round(zv.width)} ft × ${zv.depth.toFixed(1)} ft ≈ ${Math.round(zv.area).toLocaleString()} ft².</span>`:''}
+    </div>`:''}
     <div class="wq"><b>💧 Water quality ${samePoint?'here':'along your route'}</b> (Can I Swim Here?)<br>
       ${oab?(samePoint?'Spot':'Launch'):'Put-in'} ${wqSummary(putIn)}${samePoint?'':`<br>${oab?'Turnaround':'Take-out'} ${wqSummary(takeOut)}`}<br>
       <span style="font-size:.66rem;color:#94a3b8;">Dots = station risk (from history); 🦠 = bloom report; ◆ = drowning hazard. Tap markers for detail. Full detail in <a href="index.html">Can I Swim Here?</a></span>
@@ -571,7 +630,7 @@ function renderTripPanel(){
         ${plan.timeMode?`<button class="time-btn" onclick="setTimeMode(null)">clear</button>`:''}
       </div>
       ${plan.timeMode?`<input type="datetime-local" id="time-in" value="${plan.timeISO||''}" onchange="onTime(this.value)">`:''}
-      ${T?`<div style="margin-top:7px;font-size:.8rem;color:#334155;background:#ecfeff;border-radius:6px;padding:8px 10px;">🟢 ${oab?'Launch':'Put in'} <b>${fmtClock(T.start)}</b> → 🔴 ${oab?'back by':'take out'} <b>${fmtClock(T.end)}</b><br><span style="font-size:.68rem;color:#64748b;">≈ ${(T.hrs).toFixed(1)} hr at ~3 mph (range ${fmtHrs(mi)})</span></div>`:''}`}
+      ${T?`<div style="margin-top:7px;font-size:.8rem;color:#334155;background:#ecfeff;border-radius:6px;padding:8px 10px;">🟢 ${oab?'Launch':'Put in'} <b>${fmtClock(T.start)}</b> → 🔴 ${oab?'back by':'take out'} <b>${fmtClock(T.end)}</b><br><span style="font-size:.68rem;color:#64748b;">≈ ${(T.hrs).toFixed(1)} hr ${vel?'at ~'+vel.mean.toFixed(1)+' mph (mid-channel)':'at ~3 mph'} (range ${legHrs(mi,vel)})</span></div>`:''}`}
     <button class="plan-btn" style="width:100%;margin-top:12px;background:var(--ca-blue);" onclick="sharePlan()">🔗 Share this plan</button>
     <div style="display:flex;gap:7px;margin-top:7px;">
       <button class="time-btn" style="flex:1;text-align:center;" onclick="minimizeTrip()">⌄ Inspect map</button>

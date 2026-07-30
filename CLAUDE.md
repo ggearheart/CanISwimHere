@@ -70,6 +70,13 @@ EPA 2012 recreational criteria. Defined in `THRESH` (JS) and top of `build_data.
   `from` (this = put-in; river lists downstream, lake lists all connected), `to` (this = take-out;
   river lists upstream), `oab` (out-and-back / "no shuttle"). `oab` also offers "📍 Just meet &
   paddle here" (a `samePoint` plan — a shareable meeting spot, no route). Lakes default-open `oab`.
+- **Float velocity = discharge-based** (`zoneVelocity`/`tripVelocity`/`legHrs`/`planVel`): mean
+  velocity = live discharge ÷ cross-section (continuity V=Q÷A); area = `REACH_HYDRO` width ×
+  mean depth, depth ∝ Q^0.4 (at-a-station hydraulic geometry). `THALWEG_K=1.4` (deep-center
+  surface velocity ÷ mean), `EDGE_K=0.55` (banks). Float-time range = thalweg(fast)→mean;
+  the trip panel shows thalweg/mean/bank mph + the basis (Q ÷ est. width×depth). Lakes &
+  out-and-backs fall back to the `SPEED` 2–4 mph paddle estimate. `refreshFlowUI()` re-renders
+  the open panel when live flow arrives. `REACH_HYDRO` widths/depths are tunable estimates.
 - **Connectivity = the flow network.** float.html loads `REACHES` from river_line.json.
   `isDownstream(B,A)` (walk A's `downstreamChain` to B's reach, compare `flow_mi` vs the
   branch's junction), `onFlowPath` (either direction), `connType` → `flow`|`lake`|`branch`|`dam`.
