@@ -177,6 +177,19 @@ EPA 2012 recreational criteria. Defined in `THRESH` (JS) and top of `build_data.
 - `.github/workflows/update-data.yml` runs `build_data.py` daily + on dispatch,
   commits `docs/stations.json` if changed. No pip deps (stdlib only).
 
+## Bilingual (EN/ES)
+- `lang` global; `setLang(l,btn)` swaps the `LABELS` id→text map, runs `applyI18n()`, and
+  re-derives state-driven bits (toggle buttons, map FABs, base-layer toggle, data bar, list/hero).
+- **`applyI18n()`** is the static-content localizer: elements with `[data-en]`/`[data-es]` swap
+  `textContent` (or `placeholder` if they also have `[data-ph]`); `.i18n-en`/`.i18n-es` blocks
+  toggle visibility (for rich prose — the About panel and Report-form intro/footer are duplicated
+  EN/ES blocks). Also sets `document.documentElement.lang` and the page `<title>`.
+- Dynamic JS strings (swim summary, tooltips, station/bloom popups, print signs, geolocation,
+  subscription, data-load, hazard-report) use inline `lang==='en'?…:…` ternaries.
+- Report-form `<option>`s carry an explicit English `value` so the submitted hazard_type stays
+  English regardless of display language. When adding UI text, wire it one of these ways — don't
+  leave a bare English literal.
+
 ## Development
 - Rebuild data: `python3 build_data.py`
 - Serve locally: `python3 -m http.server 8001 --directory docs`

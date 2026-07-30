@@ -164,10 +164,10 @@ header{background:var(--ca-blue);color:#fff;padding:0 16px;height:52px;
         <img src="brand-logo.png" alt="Can I Swim Here?" style="height:100%;width:100%;object-fit:contain;display:block;">
       </span>
     </a>
-    <div class="hdr-title">Can I Swim Here?<small id="hdr-sub">Lower American River · Sacramento</small></div>
+    <div class="hdr-title"><span data-en="Can I Swim Here?" data-es="¿Puedo Nadar Aquí?">Can I Swim Here?</span><small id="hdr-sub">Lower American River · Sacramento</small></div>
   </div>
   <div class="hdr-right">
-    <a href="float.html" style="color:var(--ca-gold);font-size:.72rem;font-weight:700;text-decoration:none;white-space:nowrap;margin-right:4px;">🛶 Float planner ↗</a>
+    <a href="float.html" data-en="🛶 Float planner ↗" data-es="🛶 Planificador ↗" style="color:var(--ca-gold);font-size:.72rem;font-weight:700;text-decoration:none;white-space:nowrap;margin-right:4px;">🛶 Float planner ↗</a>
     <button class="lang-btn active" onclick="setLang('en',this)">EN</button>
     <button class="lang-btn" onclick="setLang('es',this)">ES</button>
   </div>
@@ -180,19 +180,20 @@ header{background:var(--ca-blue);color:#fff;padding:0 16px;height:52px;
     <div class="sb-scroll">
       <div class="sb-label" id="lbl-search">Search station</div>
       <input class="search-box" id="search" type="search" placeholder="Station name or area…" oninput="applyFilters()"/>
-      <div class="sb-label" id="lbl-status">Swim Risk <span style="font-weight:400;text-transform:none;letter-spacing:0;">(from history &amp; flow)</span></div>
+      <div class="sb-label"><span data-en="Swim Risk" data-es="Riesgo para Nadar">Swim Risk</span> <span style="font-weight:400;text-transform:none;letter-spacing:0;" data-en="(from history &amp; flow)" data-es="(según historial y caudal)">(from history &amp; flow)</span></div>
       <div class="legend" id="legend"></div>
       <button id="hazardBtn" onclick="toggleHazards(this)" style="width:100%;margin-bottom:7px;padding:7px 0;border:1px solid #b91c1c;border-radius:var(--radius);background:#fef2f2;cursor:pointer;font-size:.75rem;font-weight:700;color:#991b1b;touch-action:manipulation;">⚠️ <span id="hazardBtnLbl">Hide drowning hazards</span></button>
       <button id="habBtn" onclick="toggleHabs(this)" style="width:100%;margin-bottom:7px;padding:7px 0;border:1px solid #166534;border-radius:var(--radius);background:#f0fdf4;cursor:pointer;font-size:.75rem;font-weight:700;color:#166534;touch-action:manipulation;">🦠 <span id="habBtnLbl">Hide algal blooms</span></button>
       <button id="pfdBtn" onclick="togglePfd(this)" style="width:100%;margin-bottom:7px;padding:7px 0;border:1px solid #EA580C;border-radius:var(--radius);background:#fff7ed;cursor:pointer;font-size:.75rem;font-weight:700;color:#c2410c;touch-action:manipulation;opacity:.6;">🦺 <span id="pfdBtnLbl">Show life-vest sites</span></button>
       <div class="stats-bar" id="statsBar"></div>
-      <button id="downloadBtn" onclick="downloadFiltered()" style="width:100%;margin-bottom:7px;padding:6px 0;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg);cursor:pointer;font-size:.75rem;font-weight:600;color:var(--sub);">⬇ Download Stations CSV</button>
+      <button id="downloadBtn" onclick="downloadFiltered()" data-en="⬇ Download Stations CSV" data-es="⬇ Descargar estaciones (CSV)" style="width:100%;margin-bottom:7px;padding:6px 0;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg);cursor:pointer;font-size:.75rem;font-weight:600;color:var(--sub);">⬇ Download Stations CSV</button>
 
       <details id="about-details" style="margin-bottom:10px;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg);overflow:hidden;">
         <summary style="padding:8px 12px;cursor:pointer;font-size:.75rem;font-weight:700;color:var(--ca-blue);list-style:none;display:flex;align-items:center;gap:6px;user-select:none;">
           <span>ℹ️</span><span id="about-title">About this data</span><span style="margin-left:auto;font-size:.85em;opacity:.6;">▾</span>
         </summary>
         <div style="padding:10px 12px 12px;border-top:1px solid var(--border);font-size:.72rem;color:var(--sub);line-height:1.5;">
+          <div class="i18n-en">
           <p style="margin:0 0 8px;">This map shows <strong>E. coli</strong> bacteria results for the Lower American River. E. coli indicates fecal pollution and the possible presence of disease-causing organisms.</p>
           <p style="margin:0 0 8px;">A single sample older than a week or two — especially at a different flow — no longer predicts today's risk. So each station is shown as a <strong>risk estimate from its whole history</strong>, not its last reading:</p>
           <ul style="margin:0 0 8px 16px;padding:0;">
@@ -205,17 +206,32 @@ header{background:var(--ca-blue);color:#fff;padding:0 16px;height:52px;
           <p style="margin:0 0 8px;padding:7px 9px;background:#f0fdf4;border-left:3px solid #166534;border-radius:0 4px 4px 0;"><strong style="color:#166534;">🦠 Algal blooms</strong> shown as cyanobacteria-cluster markers are harmful algal bloom (HAB) reports from the CA State Water Board <strong>FHAB program</strong>. Each splotch is colored by advisory level and fades with age. A reported bloom is usually <strong>over after ~2 weeks</strong> — but blooms recur, and a site's history hints at the chance a new one is present. So <strong>"when in doubt, stay out"</strong>: always look before you get in for floating scum/streaks (planktonic) or brown-black bottom mats (benthic), and remember not every green algae or plant is harmful. The state's <a href="https://mywaterquality.ca.gov/habs/docs/identify-habs-visual-guide.pdf" target="_blank" rel="noopener" style="color:var(--ca-blue);font-weight:700;">bloom ID visual guide (PDF)</a> is the best visual reference; for advisories about <strong>toxic algal mats</strong> specifically, see the <a href="https://mywaterquality.ca.gov/cyanohab/docs/toxic-algal-mats-guidance-appendix-f.pdf" target="_blank" rel="noopener" style="color:var(--ca-blue);font-weight:700;">benthic algal-mat guide (PDF)</a>. (Fine-scale remote-sensing bloom prediction is a hoped-for future improvement.)</p>
           <p style="margin:0 0 8px;padding:7px 9px;background:#fef2f2;border-left:3px solid #b91c1c;border-radius:0 4px 4px 0;"><strong style="color:#991b1b;">⚠️ Drowning hazards</strong> shown as red diamonds (e.g. Clay Banks, the Tiscornia/Discovery Park confluence) are a <strong>curated safety reference</strong> — not from the monitoring data and approximate. Water can be bacteriologically "Good" and still be deadly to swim due to cold water and current.</p>
           <p style="margin:0 0 8px;padding:7px 9px;background:#ecfeff;border-left:3px solid #0e7490;border-radius:0 4px 4px 0;"><strong style="color:#0e7490;">🌊 River flow</strong> on the map chip is the live discharge at USGS gage <strong>11446500</strong> (American River at Fair Oaks / the Lower American River), in cubic feet per second — higher flow means colder, faster, more dangerous water, and releases from Nimbus Dam can change it quickly. When you check a spot on the <strong>Sacramento</strong> or <strong>Feather</strong> River, the summary instead reads that river's own NOAA gage (Sacramento: I St below the confluence, Verona, or Fremont Weir; Feather: Nicolaus). Those are large rivers — flow is shown for reference, without the small-river calm/swift/high categories. <strong>Water temperature</strong> is shown below the flow where a gage reports it live — USGS Fair Oaks for the American, USGS Freeport for the Sacramento; the Feather has no live temperature gage, so it shows flow only.</p>
-          <a href="https://arcg.is/0ea0zq" target="_blank" rel="noopener"
+          </div><!-- /i18n-en -->
+          <div class="i18n-es" style="display:none">
+          <p style="margin:0 0 8px;">Este mapa muestra resultados de la bacteria <strong>E. coli</strong> para el Río American Bajo. La E. coli indica contaminación fecal y la posible presencia de organismos que causan enfermedades.</p>
+          <p style="margin:0 0 8px;">Una sola muestra de más de una o dos semanas — sobre todo con un caudal distinto — ya no predice el riesgo de hoy. Por eso cada estación se muestra como una <strong>estimación de riesgo basada en todo su historial</strong>, no en su última lectura:</p>
+          <ul style="margin:0 0 8px 16px;padding:0;">
+            <li><strong style="color:var(--good)">Probablemente seguro</strong> — el historial suele estar en o por debajo del criterio de salud</li>
+            <li><strong style="color:var(--caution)">Incierto</strong> — a veces elevado en el registro</li>
+            <li><strong style="color:var(--unsafe)">Probablemente no seguro</strong> — la mayoría de las muestras y la media geométrica histórica superan los umbrales</li>
+            <li><strong style="color:#6B7280">Desconocido</strong> — muy pocas muestras, o ninguna estación cercana</li>
+          </ul>
+          <p style="margin:0 0 8px;">Cuando una muestra es reciente (dentro de ~2 semanas) se muestra el estado <strong>medido</strong>. El <strong>caudal</strong> de hoy es un buen predictor y se incluye como nota: un caudal más alto (más rápido, más frío, más dilución) generalmente <em>reduce</em> el riesgo de bacterias; un caudal más bajo lo <em>aumenta</em>. Umbrales: ≤126 bueno · 127–235 precaución · 236–410 advertencia · &gt;410 (STV) no seguro MPN/100 mL.</p>
+          <p style="margin:0 0 8px;padding:7px 9px;background:#f0fdf4;border-left:3px solid #166534;border-radius:0 4px 4px 0;"><strong style="color:#166534;">🦠 Floraciones de algas</strong> mostradas como cúmulos de cianobacterias son reportes de floraciones algales nocivas (HAB) del <strong>programa FHAB</strong> de la Junta Estatal de Aguas de CA. Cada mancha se colorea según el nivel de aviso y se desvanece con el tiempo. Una floración reportada suele haber <strong>terminado tras ~2 semanas</strong>, pero las floraciones se repiten y el historial de un sitio indica la probabilidad de una nueva. Por eso <strong>«cuando tenga dudas, manténgase fuera»</strong>: observe siempre antes de entrar si hay espuma o vetas flotantes (planctónicas) o tapetes cafés-negros en el fondo (bentónicos), y recuerde que no toda alga o planta verde es dañina. La <a href="https://mywaterquality.ca.gov/habs/docs/identify-habs-visual-guide.pdf" target="_blank" rel="noopener" style="color:var(--ca-blue);font-weight:700;">guía visual de identificación de floraciones (PDF)</a> del estado es la mejor referencia; para avisos sobre <strong>tapetes algales tóxicos</strong> en específico, vea la <a href="https://mywaterquality.ca.gov/cyanohab/docs/toxic-algal-mats-guidance-appendix-f.pdf" target="_blank" rel="noopener" style="color:var(--ca-blue);font-weight:700;">guía de tapetes algales bentónicos (PDF)</a>. (La predicción de floraciones por teledetección a escala fina es una mejora futura que se espera.)</p>
+          <p style="margin:0 0 8px;padding:7px 9px;background:#fef2f2;border-left:3px solid #b91c1c;border-radius:0 4px 4px 0;"><strong style="color:#991b1b;">⚠️ Peligros de ahogamiento</strong> mostrados como diamantes rojos (p. ej. Clay Banks, la confluencia de Tiscornia/Discovery Park) son una <strong>referencia de seguridad curada</strong> — no provienen de los datos de monitoreo y son aproximados. El agua puede ser bacteriológicamente «Buena» y aun así ser mortal para nadar por el agua fría y la corriente.</p>
+          <p style="margin:0 0 8px;padding:7px 9px;background:#ecfeff;border-left:3px solid #0e7490;border-radius:0 4px 4px 0;"><strong style="color:#0e7490;">🌊 Caudal del río</strong> en la ficha del mapa es la descarga en vivo del medidor USGS <strong>11446500</strong> (Río American en Fair Oaks / el Río American Bajo), en pies cúbicos por segundo — más caudal significa agua más fría, rápida y peligrosa, y las descargas de la presa Nimbus pueden cambiarlo rápido. Cuando revisa un lugar en el río <strong>Sacramento</strong> o <strong>Feather</strong>, el resumen usa el medidor propio de ese río (Sacramento: I St bajo la confluencia, Verona o Fremont Weir; Feather: Nicolaus). Son ríos grandes — el caudal se muestra como referencia, sin las categorías de tranquilo/rápido/alto de ríos pequeños. La <strong>temperatura del agua</strong> se muestra bajo el caudal donde un medidor la reporta en vivo — USGS Fair Oaks para el American, USGS Freeport para el Sacramento; el Feather no tiene medidor de temperatura en vivo, así que solo muestra caudal.</p>
+          </div><!-- /i18n-es -->
+          <a href="https://arcg.is/0ea0zq" target="_blank" rel="noopener" data-en="Central Valley Water Board River Map ↗" data-es="Mapa del Río · Junta de Aguas del Valle Central ↗"
              style="display:block;text-align:center;padding:7px;background:var(--ca-blue);color:#fff;border-radius:var(--radius);font-size:.74rem;font-weight:700;text-decoration:none;margin-bottom:8px;">
             Central Valley Water Board River Map ↗
           </a>
-          <a href="https://data.ca.gov/dataset/surface-water-fecal-indicator-bacteria-results" target="_blank" rel="noopener"
+          <a href="https://data.ca.gov/dataset/surface-water-fecal-indicator-bacteria-results" target="_blank" rel="noopener" data-en="View Source Dataset ↗" data-es="Ver conjunto de datos fuente ↗"
              style="display:block;text-align:center;padding:7px;background:#fff;color:var(--ca-blue);border:1px solid var(--ca-blue);border-radius:var(--radius);font-size:.74rem;font-weight:700;text-decoration:none;margin-bottom:10px;">
             View Source Dataset ↗
           </a>
           <div style="text-align:center;">
             <div id="about-qr" style="display:inline-block;"></div>
-            <div style="font-size:.65rem;color:var(--sub);margin-top:4px;">Scan to open the river map</div>
+            <div data-en="Scan to open the river map" data-es="Escanee para abrir el mapa del río" style="font-size:.65rem;color:var(--sub);margin-top:4px;">Scan to open the river map</div>
           </div>
         </div>
       </details>
@@ -225,45 +241,50 @@ header{background:var(--ca-blue);color:#fff;padding:0 16px;height:52px;
           <span>🚩</span><span id="report-title">Report a hazard</span><span style="margin-left:auto;font-size:.85em;opacity:.6;">▾</span>
         </summary>
         <div style="padding:10px 12px 12px;border-top:1px solid #fecaca;">
-          <p style="margin:0 0 8px;font-size:.72rem;color:var(--sub);line-height:1.5;" id="report-intro">
+          <p class="i18n-en" style="margin:0 0 8px;font-size:.72rem;color:var(--sub);line-height:1.5;">
             Saw an algal bloom, scum, pollution, or other water hazard? Send it to the <strong>CA State Water Board FHAB Program</strong> for review — reports help protect public health. Required field marked *.
           </p>
+          <p class="i18n-es" style="margin:0 0 8px;font-size:.72rem;color:var(--sub);line-height:1.5;display:none;">
+            ¿Vio una floración de algas, espuma, contaminación u otro peligro en el agua? Envíelo al <strong>Programa FHAB de la Junta Estatal de Aguas de CA</strong> para su revisión — los reportes ayudan a proteger la salud pública. Campo obligatorio marcado con *.
+          </p>
           <form id="hazardForm" onsubmit="return submitHazardReport(event)" style="display:flex;flex-direction:column;gap:6px;">
-            <input id="hr_wb" required placeholder="Water body / location *" class="hr-field">
+            <input id="hr_wb" required data-ph data-en="Water body / location *" data-es="Cuerpo de agua / lugar *" placeholder="Water body / location *" class="hr-field">
             <select id="hr_type" class="hr-field">
-              <option value="">Hazard type…</option>
-              <option>Algal bloom / green scum</option>
-              <option>Discolored or foamy water</option>
-              <option>Sewage or pollution smell</option>
-              <option>Dead fish or wildlife</option>
-              <option>Trash or debris</option>
-              <option>Other water hazard</option>
+              <option value="" data-en="Hazard type…" data-es="Tipo de peligro…">Hazard type…</option>
+              <option value="Algal bloom / green scum" data-en="Algal bloom / green scum" data-es="Floración de algas / espuma verde">Algal bloom / green scum</option>
+              <option value="Discolored or foamy water" data-en="Discolored or foamy water" data-es="Agua descolorida o con espuma">Discolored or foamy water</option>
+              <option value="Sewage or pollution smell" data-en="Sewage or pollution smell" data-es="Olor a aguas negras o contaminación">Sewage or pollution smell</option>
+              <option value="Dead fish or wildlife" data-en="Dead fish or wildlife" data-es="Peces o fauna muertos">Dead fish or wildlife</option>
+              <option value="Trash or debris" data-en="Trash or debris" data-es="Basura o desechos">Trash or debris</option>
+              <option value="Other water hazard" data-en="Other water hazard" data-es="Otro peligro en el agua">Other water hazard</option>
             </select>
-            <input id="hr_county" list="hr_counties" placeholder="County" class="hr-field" value="Sacramento">
+            <input id="hr_county" list="hr_counties" data-ph data-en="County" data-es="Condado" placeholder="County" class="hr-field" value="Sacramento">
             <datalist id="hr_counties"></datalist>
-            <input id="hr_landmark" placeholder="Landmark / nearest access" class="hr-field">
+            <input id="hr_landmark" data-ph data-en="Landmark / nearest access" data-es="Punto de referencia / acceso más cercano" placeholder="Landmark / nearest access" class="hr-field">
             <div style="display:flex;gap:5px;align-items:center;">
-              <button type="button" onclick="hrLocate()" style="flex:1;padding:7px;border:1px solid var(--border);border-radius:var(--radius);background:#fff;cursor:pointer;font-size:.72rem;font-weight:600;color:var(--ca-blue);">📍 Use my location</button>
-              <span id="hr_loc" style="font-size:.66rem;color:var(--sub);flex:1;">no location</span>
+              <button type="button" onclick="hrLocate()" data-en="📍 Use my location" data-es="📍 Usar mi ubicación" style="flex:1;padding:7px;border:1px solid var(--border);border-radius:var(--radius);background:#fff;cursor:pointer;font-size:.72rem;font-weight:600;color:var(--ca-blue);">📍 Use my location</button>
+              <span id="hr_loc" data-en="no location" data-es="sin ubicación" style="font-size:.66rem;color:var(--sub);flex:1;">no location</span>
             </div>
             <input type="hidden" id="hr_lat"><input type="hidden" id="hr_lon">
             <input id="hr_date" type="date" class="hr-field">
-            <textarea id="hr_desc" placeholder="What did you see? (color, scum, smell, conditions…)" rows="2" class="hr-field" style="resize:vertical;"></textarea>
-            <input id="hr_name" placeholder="Your name (optional)" class="hr-field">
-            <input id="hr_email" type="email" placeholder="Your email (optional)" class="hr-field">
-            <label style="font-size:.68rem;color:var(--sub);">Photo (optional)
+            <textarea id="hr_desc" data-ph data-en="What did you see? (color, scum, smell, conditions…)" data-es="¿Qué observó? (color, espuma, olor, condiciones…)" placeholder="What did you see? (color, scum, smell, conditions…)" rows="2" class="hr-field" style="resize:vertical;"></textarea>
+            <input id="hr_name" data-ph data-en="Your name (optional)" data-es="Su nombre (opcional)" placeholder="Your name (optional)" class="hr-field">
+            <input id="hr_email" type="email" data-ph data-en="Your email (optional)" data-es="Su correo (opcional)" placeholder="Your email (optional)" class="hr-field">
+            <label style="font-size:.68rem;color:var(--sub);"><span data-en="Photo (optional)" data-es="Foto (opcional)">Photo (optional)</span>
               <input id="hr_photo" type="file" accept="image/*" capture="environment" style="font-size:.68rem;margin-top:3px;width:100%;">
             </label>
             <input id="hr_website" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0;">
-            <button type="submit" style="padding:9px;background:#b91c1c;color:#fff;border:0;border-radius:var(--radius);font-size:.78rem;font-weight:700;cursor:pointer;touch-action:manipulation;">Submit report</button>
+            <button type="submit" data-en="Submit report" data-es="Enviar reporte" style="padding:9px;background:#b91c1c;color:#fff;border:0;border-radius:var(--radius);font-size:.78rem;font-weight:700;cursor:pointer;touch-action:manipulation;">Submit report</button>
             <div id="hr_status" style="font-size:.7rem;line-height:1.4;"></div>
           </form>
-          <p style="margin:8px 0 0;font-size:.66rem;color:var(--sub);">Or use the official
+          <p class="i18n-en" style="margin:8px 0 0;font-size:.66rem;color:var(--sub);">Or use the official
             <a href="https://mywaterquality.ca.gov/habs/bloom-report/" target="_blank" rel="noopener" style="color:var(--ca-blue);">Report a HAB</a> form.</p>
+          <p class="i18n-es" style="margin:8px 0 0;font-size:.66rem;color:var(--sub);display:none;">O use el formulario oficial
+            <a href="https://mywaterquality.ca.gov/habs/bloom-report/" target="_blank" rel="noopener" style="color:var(--ca-blue);">Reportar una HAB</a>.</p>
         </div>
       </details>
 
-      <div class="sb-label">Monitoring Stations <span id="listCount" style="font-weight:400;color:var(--sub)"></span></div>
+      <div class="sb-label"><span data-en="Monitoring Stations" data-es="Estaciones de Monitoreo">Monitoring Stations</span> <span id="listCount" style="font-weight:400;color:var(--sub)"></span></div>
       <div class="st-list" id="stationList"></div>
     </div>
   </div>
@@ -428,8 +449,9 @@ const BaseToggle = L.Control.extend({
     const a = L.DomUtil.create('a','',c);
     a.href='#'; a.role='button';
     a.style.cssText='width:auto;padding:0 9px;font:700 12px/30px system-ui,-apple-system,sans-serif;text-decoration:none;white-space:nowrap;color:#0f172a;';
-    const setLabel=()=>{ a.innerHTML = curBase==='topo'?'🛰️ Satellite':'🗺️ Topo';
-      a.title = curBase==='topo'?'Switch to satellite imagery':'Switch to topographic map'; };
+    const setLabel=()=>{ a.innerHTML = curBase==='topo'?(lang==='en'?'🛰️ Satellite':'🛰️ Satélite'):(lang==='en'?'🗺️ Topo':'🗺️ Topo');
+      a.title = curBase==='topo'?(lang==='en'?'Switch to satellite imagery':'Cambiar a imágenes satelitales'):(lang==='en'?'Switch to topographic map':'Cambiar a mapa topográfico'); };
+    window._syncBaseToggleLabel = setLabel;
     setLabel();
     L.DomEvent.disableClickPropagation(c);
     L.DomEvent.on(a,'click',L.DomEvent.stop).on(a,'click',()=>{
@@ -1170,8 +1192,8 @@ function printSign(r){
     <div id="sign-backdrop" onclick="closeSign()" style="position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9999;display:flex;align-items:flex-start;justify-content:center;overflow-y:auto;padding:20px;">
       <div onclick="event.stopPropagation()" style="width:100%;max-width:720px;">
         <div class="no-print" style="display:flex;gap:8px;justify-content:flex-end;margin-bottom:10px;">
-          <button onclick="window.print()" style="padding:8px 20px;background:#005566;color:#fff;border:none;border-radius:6px;font-size:.85rem;cursor:pointer;font-weight:700;">🖨️ Print</button>
-          <button onclick="closeSign()" style="padding:8px 16px;background:#fff;color:#333;border:1px solid #ccc;border-radius:6px;font-size:.85rem;cursor:pointer;">✕ Close</button>
+          <button onclick="window.print()" style="padding:8px 20px;background:#005566;color:#fff;border:none;border-radius:6px;font-size:.85rem;cursor:pointer;font-weight:700;">${lang==='en'?'🖨️ Print':'🖨️ Imprimir'}</button>
+          <button onclick="closeSign()" style="padding:8px 16px;background:#fff;color:#333;border:1px solid #ccc;border-radius:6px;font-size:.85rem;cursor:pointer;">${lang==='en'?'✕ Close':'✕ Cerrar'}</button>
         </div>
         <div id="sign-content">${signHTML('en')}<div style="margin:16px 0;border-top:2px dashed #ccc;"></div>${signHTML('es')}</div>
       </div>
@@ -1284,12 +1306,12 @@ function toggleStatus(key, el){
 function toggleSidebar(){
   const sb=document.getElementById('sidebar'), fab=document.getElementById('sidebar-fab'), bd=document.getElementById('map-backdrop');
   const open = sb.classList.toggle('mobile-open');
-  fab.textContent = open ? '✕ Close' : '☰ Stations';
+  fab.textContent = open ? (lang==='en'?'✕ Close':'✕ Cerrar') : (lang==='en'?'☰ Stations':'☰ Estaciones');
   bd.classList.toggle('visible', open);
 }
 function closeSidebar(){
   const sb=document.getElementById('sidebar'), fab=document.getElementById('sidebar-fab'), bd=document.getElementById('map-backdrop');
-  sb.classList.remove('mobile-open'); bd.classList.remove('visible'); fab.textContent='☰ Stations';
+  sb.classList.remove('mobile-open'); bd.classList.remove('visible'); fab.textContent=lang==='en'?'☰ Stations':'☰ Estaciones';
 }
 
 // ── GEOLOCATION ──────────────────────────────────────────────────────────────────
@@ -1301,21 +1323,21 @@ function distKm(la1,lo1,la2,lo2){
 }
 function fmtDist(km){ const mi=km*0.621371; return mi<10?mi.toFixed(1)+' mi':Math.round(mi)+' mi'; }
 function locateMe(){
-  if(!navigator.geolocation){ alert('Geolocation not supported.'); return; }
+  if(!navigator.geolocation){ alert(lang==='en'?'Geolocation not supported.':'Geolocalización no disponible.'); return; }
   const btn=document.getElementById('locate-btn');
-  btn.textContent='⏳ Locating…'; btn.disabled=true; btn.className='locating';
+  btn.textContent=lang==='en'?'⏳ Locating…':'⏳ Ubicando…'; btn.disabled=true; btn.className='locating';
   navigator.geolocation.getCurrentPosition(pos=>{
     userLat=pos.coords.latitude; userLon=pos.coords.longitude;
     if(userMarker) userMarker.remove();
     const icon=L.divIcon({className:'',html:'<div style="width:16px;height:16px;background:#2563EB;border:3px solid #fff;border-radius:50%;box-shadow:0 0 0 3px rgba(37,99,235,.35);"></div>',iconSize:[16,16],iconAnchor:[8,8]});
-    userMarker=L.marker([userLat,userLon],{icon,zIndexOffset:1000}).bindTooltip('You are here',{direction:'top',offset:[0,-10]}).addTo(map);
+    userMarker=L.marker([userLat,userLon],{icon,zIndexOffset:1000}).bindTooltip(lang==='en'?'You are here':'Usted está aquí',{direction:'top',offset:[0,-10]}).addTo(map);
     map.setView([userLat,userLon],12);
-    btn.textContent='📍 Near Me'; btn.disabled=false; btn.className='located';
+    btn.textContent=lang==='en'?'📍 Near Me':'📍 Cerca de mí'; btn.disabled=false; btn.className='located';
     renderList(filtered); showSwimSummary(userLat,userLon,{fromUser:true}); dismissTapHint();
-    if(window.innerWidth<=768){ document.getElementById('sidebar').classList.add('mobile-open'); document.getElementById('sidebar-fab').textContent='✕ Close'; }
+    if(window.innerWidth<=768){ document.getElementById('sidebar').classList.add('mobile-open'); document.getElementById('sidebar-fab').textContent=lang==='en'?'✕ Close':'✕ Cerrar'; }
   }, err=>{
-    btn.textContent='📍 Near Me'; btn.disabled=false; btn.className='';
-    alert(err.code===1?'Location permission denied.':'Could not get your location.');
+    btn.textContent=lang==='en'?'📍 Near Me':'📍 Cerca de mí'; btn.disabled=false; btn.className='';
+    alert(err.code===1?(lang==='en'?'Location permission denied.':'Permiso de ubicación denegado.'):(lang==='en'?'Could not get your location.':'No se pudo obtener su ubicación.'));
   }, {enableHighAccuracy:true, timeout:12000});
 }
 
@@ -1469,14 +1491,29 @@ function dismissTapHint(){ const h=document.getElementById('tap-hint'); if(h) h.
 
 // ── LANGUAGE ─────────────────────────────────────────────────────────────────────
 const LABELS = {
-  en:{'lbl-search':'Search station','lbl-status':'Swim Status','about-title':'About this data','hdr-sub':'Lower American River · Sacramento','report-title':'Report a hazard'},
-  es:{'lbl-search':'Buscar estación','lbl-status':'Estado para Nadar','about-title':'Sobre estos datos','hdr-sub':'Río American Bajo · Sacramento','report-title':'Reportar un peligro'},
+  en:{'lbl-search':'Search station','about-title':'About this data','hdr-sub':'Lower American River · Sacramento','report-title':'Report a hazard'},
+  es:{'lbl-search':'Buscar estación','about-title':'Sobre estos datos','hdr-sub':'Río American Bajo · Sacramento','report-title':'Reportar un peligro'},
 };
+// Generic static-content localizer: [data-en]/[data-es] swap textContent (or the
+// placeholder when the element also has [data-ph]); .i18n-en/.i18n-es blocks toggle
+// visibility (for rich prose like the About panel and Report intro).
+function applyI18n(){
+  const es = lang==='es';
+  document.querySelectorAll('[data-en]').forEach(el=>{
+    const t = (es && el.dataset.es!=null) ? el.dataset.es : el.dataset.en;
+    if('ph' in el.dataset) el.setAttribute('placeholder', t); else el.textContent = t;
+  });
+  document.querySelectorAll('.i18n-en').forEach(el=>{ el.style.display = es?'none':''; });
+  document.querySelectorAll('.i18n-es').forEach(el=>{ el.style.display = es?'':'none'; });
+  document.documentElement.lang = lang;
+  document.title = es ? '¿Puedo Nadar Aquí? — Río American Bajo' : 'Can I Swim Here? — Lower American River';
+}
 function setLang(l, btn){
   lang=l;
   document.querySelectorAll('.lang-btn').forEach(b=>b.classList.remove('active'));
-  btn.classList.add('active');
+  if(btn) btn.classList.add('active');
   Object.entries(LABELS[l]).forEach(([id,txt])=>{ const el=document.getElementById(id); if(el) el.textContent=txt; });
+  applyI18n();
   document.getElementById('search').placeholder = l==='en'?'Station name or area…':'Nombre de estación o área…';
   const hbl=document.getElementById('hazardBtnLbl');
   if(hbl) hbl.textContent = showHazards ? (l==='en'?'Hide drowning hazards':'Ocultar peligros') : (l==='en'?'Show drowning hazards':'Mostrar peligros');
@@ -1487,6 +1524,13 @@ function setLang(l, btn){
   renderFlowChip();
   const th=document.getElementById('tap-hint-lbl');
   if(th) th.textContent = l==='en'?'Tap any spot — or 📍 Near Me — for a swim summary':'Toque cualquier lugar — o 📍 — para un resumen';
+  // state-driven map FABs (not covered by [data-en] because their text also toggles by state)
+  const fab=document.getElementById('sidebar-fab');
+  if(fab) fab.textContent = document.getElementById('sidebar').classList.contains('mobile-open') ? (l==='en'?'✕ Close':'✕ Cerrar') : (l==='en'?'☰ Stations':'☰ Estaciones');
+  const lb=document.getElementById('locate-btn');
+  if(lb && !lb.classList.contains('locating')) lb.textContent = l==='en'?'📍 Near Me':'📍 Cerca de mí';
+  if(window._syncBaseToggleLabel) window._syncBaseToggleLabel();
+  renderDataBar();
   buildLegend();
   document.querySelectorAll('.leg-row').forEach(r=>r.classList.toggle('dimmed', statusFilter.size>0 && !statusFilter.has(r.dataset.key)));
   renderList(filtered); renderStats(filtered); updateSwimHero();
@@ -1498,20 +1542,21 @@ async function submitSubscription(){
   const email=(document.getElementById('st-sub-email')?.value||'').trim();
   const phone=(document.getElementById('st-sub-phone')?.value||'').trim();
   const btn=document.getElementById('st-sub-btn');
-  if(!email && !phone){ showSubMsg('Please enter an email address or phone number.','error'); return; }
-  if(email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){ showSubMsg('Please enter a valid email address.','error'); return; }
+  const EN=lang==='en';
+  if(!email && !phone){ showSubMsg(EN?'Please enter an email address or phone number.':'Ingrese un correo electrónico o número de teléfono.','error'); return; }
+  if(email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){ showSubMsg(EN?'Please enter a valid email address.':'Ingrese un correo electrónico válido.','error'); return; }
   const configured = SUPABASE_URL !== 'YOUR_SUPABASE_URL';
-  btn.disabled=true; btn.textContent='Subscribing…';
+  btn.disabled=true; btn.textContent=EN?'Subscribing…':'Suscribiendo…';
   if(configured){
     try{
       const res=await fetch(`${SUPABASE_URL}/rest/v1/subscriptions`,{method:'POST',headers:{'Content-Type':'application/json','apikey':SUPABASE_ANON_KEY,'Authorization':'Bearer '+SUPABASE_ANON_KEY,'Prefer':'return=minimal'},body:JSON.stringify({type:_subCtx.scope,waterbody_name:_subCtx.name,lat:_subCtx.lat,lon:_subCtx.lon,email:email||null,phone:phone||null})});
       if(!res.ok) throw new Error('HTTP '+res.status);
-      showSubMsg('✅ Subscribed! You\'ll be notified when the swim status changes for '+_subCtx.name+'.','success');
-      btn.textContent='Subscribed ✓';
-    }catch(e){ btn.disabled=false; btn.textContent='Subscribe to Alerts'; showSubMsg('⚠️ Could not save subscription. Please try again.','error'); }
+      showSubMsg(EN?('✅ Subscribed! You\'ll be notified when the swim status changes for '+_subCtx.name+'.'):('✅ ¡Suscrito! Le avisaremos cuando cambie el estado para nadar en '+_subCtx.name+'.'),'success');
+      btn.textContent=EN?'Subscribed ✓':'Suscrito ✓';
+    }catch(e){ btn.disabled=false; btn.textContent=EN?'Subscribe to Alerts':'Suscribirse'; showSubMsg(EN?'⚠️ Could not save subscription. Please try again.':'⚠️ No se pudo guardar la suscripción. Intente de nuevo.','error'); }
   } else {
-    btn.disabled=false; btn.textContent='Subscribe to Alerts';
-    showSubMsg('ℹ️ This is a demo — alert delivery is not configured. Connect a backend to enable notifications.','info');
+    btn.disabled=false; btn.textContent=EN?'Subscribe to Alerts':'Suscribirse';
+    showSubMsg(EN?'ℹ️ This is a demo — alert delivery is not configured. Connect a backend to enable notifications.':'ℹ️ Esto es una demostración — el envío de alertas no está configurado. Conecte un servidor para habilitar notificaciones.','info');
   }
 }
 function showSubMsg(text, type){
@@ -1530,11 +1575,13 @@ const CKAN_SQL = `SELECT "StationCode" c,"StationName" n,"TargetLatitude" lat,"T
 const CKAN_API  = `https://data.ca.gov/api/3/action/datastore_search_sql?sql=${encodeURIComponent(CKAN_SQL)}`;
 const CKAN_META = `https://data.ca.gov/api/3/action/resource_show?id=${CKAN_RESOURCE}`;
 
-function setUpdatedBar(ts, fromCache){
-  const bar=document.getElementById('dataUpdatedBar'); if(!bar||!ts) return;
-  const label=new Date(ts).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
-  if(fromCache){ bar.style.background='#b45309'; bar.textContent=`📴 Offline — cached data (${label})`; }
-  else bar.textContent=`Data updated ${label} · CA Open Data`;
+let _dataTs=null, _dataFromCache=false;
+function setUpdatedBar(ts, fromCache){ if(ts!=null){_dataTs=ts;_dataFromCache=!!fromCache;} renderDataBar(); }
+function renderDataBar(){
+  const bar=document.getElementById('dataUpdatedBar'); if(!bar||!_dataTs) return;
+  const label=new Date(_dataTs).toLocaleDateString(lang==='es'?'es-ES':'en-US',{month:'short',day:'numeric',year:'numeric'});
+  if(_dataFromCache){ bar.style.background='#b45309'; bar.textContent = lang==='en'?`📴 Offline — cached data (${label})`:`📴 Sin conexión — datos guardados (${label})`; }
+  else bar.textContent = lang==='en'?`Data updated ${label} · CA Open Data`:`Datos actualizados ${label} · CA Open Data`;
 }
 
 function geomean(vals){ const v=vals.filter(x=>x&&x>0); if(!v.length) return null; return Math.exp(v.reduce((a,b)=>a+Math.log(b),0)/v.length); }
@@ -1573,7 +1620,7 @@ function aggregate(records){
 }
 
 async function loadData(){
-  document.getElementById('stationList').innerHTML='<div class="no-results">Loading data…</div>';
+  document.getElementById('stationList').innerHTML=`<div class="no-results">${lang==='en'?'Loading data…':'Cargando datos…'}</div>`;
   const pre=await fetch('stations.json').catch(()=>null);
   if(pre){
     const fromCache=pre.headers.get('X-From-Cache')==='true';
@@ -1608,9 +1655,9 @@ loadData().then(data=>{
   document.getElementById('stationList').innerHTML=`
     <div class="no-results" style="padding:20px 12px;">
       <div style="font-size:1.6rem;margin-bottom:8px;">⚠️</div>
-      <div style="font-weight:700;color:#b91c1c;margin-bottom:4px;">Could not load data</div>
+      <div style="font-weight:700;color:#b91c1c;margin-bottom:4px;">${lang==='en'?'Could not load data':'No se pudieron cargar los datos'}</div>
       <div style="font-size:.75rem;color:#64748b;margin-bottom:14px;">${err.message}</div>
-      <button onclick="location.reload()" style="padding:8px 20px;background:var(--ca-blue);color:#fff;border:none;border-radius:6px;font-weight:700;cursor:pointer;font-size:.8rem;">↺ Retry</button>
+      <button onclick="location.reload()" style="padding:8px 20px;background:var(--ca-blue);color:#fff;border:none;border-radius:6px;font-weight:700;cursor:pointer;font-size:.8rem;">${lang==='en'?'↺ Retry':'↺ Reintentar'}</button>
     </div>`;
 });
 new ResizeObserver(resize).observe(document.getElementById('map-wrap'));
@@ -1653,13 +1700,13 @@ const HR_COUNTIES = ["Sacramento","Placer","El Dorado","Yolo","Sutter","Amador",
 function hrVal(id){ const el=document.getElementById(id); return el?el.value.trim():''; }
 function hrLocate(){
   const out=document.getElementById('hr_loc');
-  if(!navigator.geolocation){ out.textContent='geolocation unavailable'; return; }
-  out.textContent='locating…';
+  if(!navigator.geolocation){ out.textContent=lang==='en'?'geolocation unavailable':'geolocalización no disponible'; return; }
+  out.textContent=lang==='en'?'locating…':'ubicando…';
   navigator.geolocation.getCurrentPosition(
     p=>{ document.getElementById('hr_lat').value=p.coords.latitude.toFixed(5);
          document.getElementById('hr_lon').value=p.coords.longitude.toFixed(5);
          out.textContent='📍 '+p.coords.latitude.toFixed(4)+', '+p.coords.longitude.toFixed(4); },
-    ()=>{ out.textContent='location denied'; }, {enableHighAccuracy:true, timeout:8000});
+    ()=>{ out.textContent=lang==='en'?'location denied':'ubicación denegada'; }, {enableHighAccuracy:true, timeout:8000});
 }
 function hrReadFile(file){
   return new Promise(res=>{ if(!file) return res(null);
@@ -1692,7 +1739,7 @@ async function submitHazardReport(e){
       st.style.color='#166534';
       st.textContent=j.message||(lang==='en'?'Thank you — your report was received for review.':'Gracias — su reporte fue recibido.');
       document.getElementById('hazardForm').reset();
-      document.getElementById('hr_loc').textContent='no location';
+      document.getElementById('hr_loc').textContent=lang==='en'?'no location':'sin ubicación';
       document.getElementById('hr_county').value='Sacramento';
       const dd=document.getElementById('hr_date'); const t=new Date();
       dd.value=`${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,'0')}-${String(t.getDate()).padStart(2,'0')}`;
