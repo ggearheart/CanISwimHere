@@ -421,6 +421,7 @@ const GAGES = {
   feather:   {src:'nwps', id:'NCOC1',    river:'Feather River',        site:'NWPS · Nicolaus'},
 };
 let FLOWS={};   // zone -> {cfs, gageFt, time}
+let TEMPS={};   // 'lar' | 'sac' -> {c, src}  (live water temperature, where a gage reports it)
 function flowCat(cfs){
   if(cfs==null) return {label:'—',color:'#374151'};
   if(cfs<1500) return {label:'Low / calm',color:'#15803D'};
@@ -428,17 +429,27 @@ function flowCat(cfs){
   if(cfs<6000) return {label:'Swift',color:'#C2410C'};
   return {label:'High',color:'#B91C1C'};
 }
+function usgsTemp(site, key, src){   // fetch live water temperature (00010, °C) from a USGS gage
+  fetch(`https://waterservices.usgs.gov/nwis/iv/?sites=${site}&parameterCd=00010&period=P1D&format=json&siteStatus=all`)
+   .then(r=>r.json()).then(j=>{
+     const ts=(j&&j.value&&j.value.timeSeries)||[]; if(!ts[0]||!ts[0].values[0])return;
+     const v=ts[0].values[0].value.map(x=>parseFloat(x.value)).filter(x=>!isNaN(x)&&x>-999);
+     if(v.length){ TEMPS[key]={c:v[v.length-1],src}; renderFlowChip(); }
+   }).catch(()=>{});
+}
 function loadFlow(){
-  // LAR — USGS instantaneous values (discharge + gage height)
-  fetch('https://waterservices.usgs.gov/nwis/iv/?sites=11446500&parameterCd=00060,00065&period=P2D&format=json&siteStatus=all')
+  // LAR — USGS instantaneous values (discharge + gage height + water temp)
+  fetch('https://waterservices.usgs.gov/nwis/iv/?sites=11446500&parameterCd=00060,00065,00010&period=P2D&format=json&siteStatus=all')
    .then(r=>r.json()).then(j=>{
      const ts=(j&&j.value&&j.value.timeSeries)||[];
      const ser=code=>{const s=ts.find(x=>x.variable.variableCode[0].value===code);if(!s||!s.values[0])return[];return s.values[0].value.map(v=>({v:parseFloat(v.value),t:v.dateTime})).filter(p=>!isNaN(p.v)&&p.v>-999998);};
-     const q=ser('00060'),g=ser('00065'); if(!q.length)return;
+     const q=ser('00060'),g=ser('00065'),tp=ser('00010'); if(!q.length)return;
      FLOWS.lar={cfs:q[q.length-1].v,gageFt:g.length?g[g.length-1].v:null,time:q[q.length-1].t};
+     if(tp.length) TEMPS.lar={c:tp[tp.length-1].v,src:'Fair Oaks'};
      renderFlowChip();
    }).catch(()=>{});
-  // Sacramento & Feather — NOAA NWPS observed (secondary = flow, kcfs)
+  usgsTemp('11447650','sac','Freeport');   // Sacramento River water temp (Feather has no live temp gage)
+  // Sacramento & Feather flow — NOAA NWPS observed (secondary = flow, kcfs)
   ['sac_below','sac_mid','sac_above','feather'].forEach(z=>{
     fetch('https://api.water.noaa.gov/nwps/v1/gauges/'+GAGES[z].id).then(r=>r.json()).then(d=>{
       const o=d&&d.status&&d.status.observed; if(!o||o.secondary==null)return;
@@ -448,6 +459,7 @@ function loadFlow(){
     }).catch(()=>{});
   });
 }
+function zoneTemp(z){ return z==='lar'?TEMPS.lar : (z&&z.indexOf('sac')===0)?TEMPS.sac : null; }
 // Which flow gage applies to an access point (by reach + position).
 function flowZone(a){
   if(!a||isLake(a)) return null;                          // lakes = reservoirs, no river flow
@@ -475,8 +487,11 @@ function renderFlowChip(){
   const head=`<div style="font-weight:800;color:var(--teal);font-size:.58rem;letter-spacing:.05em;text-transform:uppercase;">🌊 ${g.river}</div>`;
   if(!f){ el.innerHTML=head+`<div style="font-size:.58rem;color:#94a3b8;">loading ${g.site}…</div>`; return; }
   const c=g.cat?flowCat(f.cfs):null;
+  const t=zoneTemp(z);
+  const tempLine = t ? `<div style="font-size:.62rem;font-weight:700;color:#0e7490;margin-top:1px;">🌡 ${t.c.toFixed(1)} °C · ${Math.round(t.c*9/5+32)} °F</div>` : '';
   el.innerHTML=head+`<div style="display:flex;align-items:baseline;gap:4px;"><span style="font-size:1.05rem;font-weight:800;color:#0f172a;">${Math.round(f.cfs).toLocaleString()}</span><span style="font-size:.6rem;color:#64748b;">cfs</span>${c?`<span style="margin-left:auto;font-size:.58rem;font-weight:700;color:#fff;background:${c.color};padding:1px 6px;border-radius:9px;">${c.label}</span>`:''}</div>
-    <div style="font-size:.56rem;color:#94a3b8;">${f.gageFt!=null?'gage '+f.gageFt.toFixed(1)+' ft · ':''}${g.site}</div>`;
+    ${tempLine}
+    <div style="font-size:.56rem;color:#94a3b8;">${f.gageFt!=null?'gage '+f.gageFt.toFixed(1)+' ft · ':''}${g.site}${t?' · temp '+t.src:''}</div>`;
 }
 
 // ── minimize (inspect map) + shaded plan box ───────────────────────────────────

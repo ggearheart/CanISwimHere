@@ -202,7 +202,7 @@ header{background:var(--ca-blue);color:#fff;padding:0 16px;height:52px;
           <p style="margin:0 0 8px;">Where a sample is recent (within ~2 weeks) the <strong>measured</strong> status is shown instead. Today's <strong>flow</strong> is a decent predictor and is folded in as a note: higher flow (faster, colder, more dilution) generally <em>lowers</em> bacteria risk; lower flow generally <em>raises</em> it. Thresholds: ≤126 good · 127–235 caution · 236–410 warning · &gt;410 (STV) unsafe MPN/100 mL.</p>
           <p style="margin:0 0 8px;padding:7px 9px;background:#f0fdf4;border-left:3px solid #166534;border-radius:0 4px 4px 0;"><strong style="color:#166534;">🦠 Algal blooms</strong> shown as cyanobacteria-cluster markers are harmful algal bloom (HAB) reports from the CA State Water Board <strong>FHAB program</strong>. Each splotch is colored by advisory level and fades with age. A reported bloom is usually <strong>over after ~2 weeks</strong> — but blooms recur, and a site's history hints at the chance a new one is present. So <strong>"when in doubt, stay out"</strong>: always look before you get in for floating scum/streaks (planktonic) or brown-black bottom mats (benthic), and remember not every green algae or plant is harmful. The state's <a href="https://mywaterquality.ca.gov/habs/docs/identify-habs-visual-guide.pdf" target="_blank" rel="noopener" style="color:var(--ca-blue);font-weight:700;">bloom ID visual guide (PDF)</a> is the best visual reference; for advisories about <strong>toxic algal mats</strong> specifically, see the <a href="https://mywaterquality.ca.gov/cyanohab/docs/toxic-algal-mats-guidance-appendix-f.pdf" target="_blank" rel="noopener" style="color:var(--ca-blue);font-weight:700;">benthic algal-mat guide (PDF)</a>. (Fine-scale remote-sensing bloom prediction is a hoped-for future improvement.)</p>
           <p style="margin:0 0 8px;padding:7px 9px;background:#fef2f2;border-left:3px solid #b91c1c;border-radius:0 4px 4px 0;"><strong style="color:#991b1b;">⚠️ Drowning hazards</strong> shown as red diamonds (e.g. Clay Banks, the Tiscornia/Discovery Park confluence) are a <strong>curated safety reference</strong> — not from the monitoring data and approximate. Water can be bacteriologically "Good" and still be deadly to swim due to cold water and current.</p>
-          <p style="margin:0 0 8px;padding:7px 9px;background:#ecfeff;border-left:3px solid #0e7490;border-radius:0 4px 4px 0;"><strong style="color:#0e7490;">🌊 River flow</strong> on the map chip is the live discharge at USGS gage <strong>11446500</strong> (American River at Fair Oaks / the Lower American River), in cubic feet per second — higher flow means colder, faster, more dangerous water, and releases from Nimbus Dam can change it quickly. When you check a spot on the <strong>Sacramento</strong> or <strong>Feather</strong> River, the summary instead reads that river's own NOAA gage (Sacramento: I St below the confluence, Verona, or Fremont Weir; Feather: Nicolaus). Those are large rivers — flow is shown for reference, without the small-river calm/swift/high categories.</p>
+          <p style="margin:0 0 8px;padding:7px 9px;background:#ecfeff;border-left:3px solid #0e7490;border-radius:0 4px 4px 0;"><strong style="color:#0e7490;">🌊 River flow</strong> on the map chip is the live discharge at USGS gage <strong>11446500</strong> (American River at Fair Oaks / the Lower American River), in cubic feet per second — higher flow means colder, faster, more dangerous water, and releases from Nimbus Dam can change it quickly. When you check a spot on the <strong>Sacramento</strong> or <strong>Feather</strong> River, the summary instead reads that river's own NOAA gage (Sacramento: I St below the confluence, Verona, or Fremont Weir; Feather: Nicolaus). Those are large rivers — flow is shown for reference, without the small-river calm/swift/high categories. <strong>Water temperature</strong> is shown below the flow where a gage reports it live — USGS Fair Oaks for the American, USGS Freeport for the Sacramento; the Feather has no live temperature gage, so it shows flow only.</p>
           <a href="https://arcg.is/0ea0zq" target="_blank" rel="noopener"
              style="display:block;text-align:center;padding:7px;background:var(--ca-blue);color:#fff;border-radius:var(--radius);font-size:.74rem;font-weight:700;text-decoration:none;margin-bottom:8px;">
             Central Valley Water Board River Map ↗
@@ -821,9 +821,10 @@ function showBloomPopup(bloomId){
 
 // ── RIVER FLOW (live USGS gage 11446500 — American River at Fair Oaks) ────────────
 // Water flows downstream from Folsom/Lake Natoma (east) to the Sacramento River (west).
-let FLOW = null;       // {cfs, gageFt, time, trend, series:[{t,v}]}
+let FLOW = null;       // {cfs, gageFt, time, trend, series:[{t,v}], tempC}
+let TEMPS = {};        // 'lar' | 'sac' -> {c, src}  (live water temperature)
 const USGS_SITE = '11446500';
-const USGS_URL = `https://waterservices.usgs.gov/nwis/iv/?sites=${USGS_SITE}&parameterCd=00060,00065&period=P7D&format=json&siteStatus=all`;
+const USGS_URL = `https://waterservices.usgs.gov/nwis/iv/?sites=${USGS_SITE}&parameterCd=00060,00065,00010&period=P7D&format=json&siteStatus=all`;
 
 // General flow-category guidance for the Lower American River (cfs at Fair Oaks).
 function flowCat(cfs){
@@ -848,13 +849,25 @@ function parseUSGS(j){
     if(!s||!s.values[0]) return [];
     return s.values[0].value.map(v=>({t:v.dateTime, v:parseFloat(v.value)})).filter(p=>!isNaN(p.v)&&p.v>-999998);
   };
-  const q=series('00060'), g=series('00065');
+  const q=series('00060'), g=series('00065'), tp=series('00010');
   if(!q.length) return null;
   const cfs=q[q.length-1].v, time=q[q.length-1].t;
   const prev = q.length>12 ? q[q.length-13].v : q[0].v;   // ~3h earlier (15-min data)
   const diff=cfs-prev, trend = Math.abs(diff)<Math.max(50,cfs*0.03)?'steady':(diff>0?'rising':'falling');
-  return {cfs, gageFt:g.length?g[g.length-1].v:null, time, trend, series:q};
+  if(tp.length) TEMPS.lar={c:tp[tp.length-1].v, src:'Fair Oaks'};
+  return {cfs, gageFt:g.length?g[g.length-1].v:null, time, trend, series:q, tempC:tp.length?tp[tp.length-1].v:null};
 }
+// Live water temperature for the Sacramento (Freeport; the Feather has no live temp gage).
+function loadReachTemp(){
+  fetch('https://waterservices.usgs.gov/nwis/iv/?sites=11447650&parameterCd=00010&period=P1D&format=json&siteStatus=all')
+   .then(r=>r.json()).then(j=>{
+     const ts=(j&&j.value&&j.value.timeSeries)||[]; if(!ts[0]||!ts[0].values[0])return;
+     const v=ts[0].values[0].value.map(x=>parseFloat(x.value)).filter(x=>!isNaN(x)&&x>-999);
+     if(v.length){ TEMPS.sac={c:v[v.length-1],src:'Freeport'}; renderFlowChip(); if(summaryAt) updateSwimHero(); }
+   }).catch(()=>{});
+}
+loadReachTemp();
+function zoneTemp(z){ return z==='lar'?TEMPS.lar : (z&&z.indexOf('sac')===0)?TEMPS.sac : null; }
 function renderFlowChip(){
   const el=document.getElementById('flow-chip'); if(!el) return;
   if(FLOW===null){ el.style.display='block'; el.innerHTML=`<div style="font-size:.66rem;color:#94a3b8;">🌊 ${lang==='en'?'River flow unavailable':'Caudal no disponible'}</div>`; return; }
@@ -873,6 +886,7 @@ function renderFlowChip(){
       <span style="font-size:.64rem;color:#64748b;">cfs</span>
       <span style="margin-left:auto;font-size:.62rem;font-weight:700;color:#fff;background:${cat.color};padding:1px 7px;border-radius:10px;">${lang==='en'?cat.en:cat.es}</span>
     </div>
+    ${FLOW.tempC!=null?`<div style="font-size:.64rem;font-weight:700;color:#0e7490;margin-top:2px;">🌡 ${FLOW.tempC.toFixed(1)} °C · ${Math.round(FLOW.tempC*9/5+32)} °F <span style="font-weight:400;color:#94a3b8;">${lang==='en'?'water':'agua'}</span></div>`:''}
     <div style="font-size:.62rem;color:#64748b;margin-top:2px;">${FLOW.gageFt!=null?`${lang==='en'?'gage':'nivel'} ${FLOW.gageFt.toFixed(1)} ft · `:''}${tI} ${tT}</div>
     <div style="margin-top:3px;">${flowSpark(FLOW.series,150,24)}</div>
     <div style="font-size:.55rem;color:#94a3b8;margin-top:1px;">USGS Fair Oaks · ${t}</div>`;
@@ -1434,6 +1448,7 @@ function showSwimSummary(qLat, qLon, opts){
       ${catRow('🦠', lang==='en'?'Algal blooms':'Floraciones', habColor, habStatus, habName||'', habDate, false)}
       ${catRow('⚠️', lang==='en'?'Hazards':'Peligros', hazColor, hazStatus, hz?hz.name:'', null, false)}
       ${zFlow?catRow('🌊', fc?(lang==='en'?'River flow':'Caudal'):zGage.river, fc?fc.color:'#0e7490', fc?(lang==='en'?fc.en:fc.es):`${Math.round(zFlow.cfs).toLocaleString()} cfs`, fc?`${Math.round(zFlow.cfs).toLocaleString()} cfs`:zGage.site, null, false):''}
+      ${(()=>{const zt=zoneTemp(fZone); return zt?catRow('🌡', lang==='en'?'Water temp':'Temp. del agua', '#0e7490', `${zt.c.toFixed(1)} °C · ${Math.round(zt.c*9/5+32)} °F`, zt.src, null, false):'';})()}
     </div>
     ${fDetail?`<div style="margin-top:7px;font-size:.63rem;color:#64748b;line-height:1.45;border-top:1px solid #f1f5f9;padding-top:5px;"><strong style="color:#334155;">💧 ${lang==='en'?'Bacteria basis':'Base'}:</strong> ${fDetail}${fFlowNote?`<br><span style="color:#0e7490;font-weight:600;">${fFlowNote}</span>`:''}</div>`:''}
     ${fFar?`<div style="margin-top:6px;font-size:.62rem;color:#94a3b8;line-height:1.4;">${lang==='en'?'No monitoring station within 3 miles — bacteria risk here is unknown.':'Sin estación de monitoreo en 3 millas — riesgo desconocido.'}</div>`:''}
