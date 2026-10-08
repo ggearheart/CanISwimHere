@@ -28,7 +28,11 @@ Mobile-first swim-safety map for the Lower American River (Sacramento), built on
 - The app loads `stations.json` first; if missing it falls back to a live CKAN
   SQL fetch and aggregates client-side (`aggregate()` in index.html, mirrors the pipeline).
 - `stations.json` shape: `{thresholds, source, stations:[{code,name,lat,lon,
-  samples:[{date,result,status}],latest,geomean,geomean_n,n,status,geomean_status}]}`
+  samples:[{date,result,status}],latest,geomean,geomean_n,geomean_30d,geomean_30d_n,
+  geomean_30d_status,n,status,geomean_status}]}`. `geomean`/`geomean_n` = the dataset's
+  official **6-week** geomean (`GeoMean_6Week`/`Count_6Week`); `geomean_30d*` = the **30-day**
+  window (`GeoMean_30Day`/`Count_30Day`). Both shown in the station popup + CSV. (The CA Open
+  Data FIB dataset renamed these columns from `6WeekGeoMean`/`6WeekCount` on 2026-10-07.)
 
 ## Swim-safety thresholds (E. coli, MPN/100 mL)
 EPA 2012 recreational criteria. Defined in `THRESH` (JS) and top of `build_data.py`:

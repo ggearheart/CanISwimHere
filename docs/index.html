@@ -1049,7 +1049,8 @@ function showStationPopup(code){
           <span style="display:inline-block;background:${m.color};color:#fff;padding:4px 14px;border-radius:6px;font-size:.9rem;font-weight:800;">${m.flag} ${riskLabel(r)}</span>
         </div>
         <div style="text-align:center;"><div style="font-size:.66rem;color:#64748b;">${lang==='en'?'Latest':'Última'}</div><div style="font-size:1.05rem;font-weight:800;color:${m.color};">${fmtResult(r.latest&&r.latest.result)}</div><div style="font-size:.62rem;color:#94a3b8;">${THRESH.unit}</div></div>
-        <div style="text-align:center;"><div style="font-size:.66rem;color:#64748b;">${lang==='en'?'Geomean':'Media'}</div><div style="font-size:1.05rem;font-weight:800;color:${(STATUS[r._gmStatus]||STATUS.Unknown).color};">${fmtResult(r.geomean)}</div><div style="font-size:.62rem;color:#94a3b8;">n=${r.geomean_n||0}</div></div>
+        <div style="text-align:center;"><div style="font-size:.66rem;color:#64748b;">${lang==='en'?'6-wk geomean':'Media 6-sem'}</div><div style="font-size:1.05rem;font-weight:800;color:${(STATUS[r._gmStatus]||STATUS.Unknown).color};">${fmtResult(r.geomean)}</div><div style="font-size:.62rem;color:#94a3b8;">n=${r.geomean_n||0}</div></div>
+        ${r.geomean_30d!=null?`<div style="text-align:center;"><div style="font-size:.66rem;color:#64748b;">${lang==='en'?'30-day geomean':'Media 30-días'}</div><div style="font-size:1.05rem;font-weight:800;color:${(STATUS[r.geomean_30d_status]||STATUS.Unknown).color};">${fmtResult(r.geomean_30d)}</div><div style="font-size:.62rem;color:#94a3b8;">n=${r.geomean_30d_n||0}</div></div>`:''}
         <div style="text-align:center;"><div style="font-size:.66rem;color:#64748b;">${lang==='en'?'Sampled':'Fecha'}</div><div style="font-size:.86rem;font-weight:700;color:#334155;">${r.latest?r.latest.date:'—'}</div></div>
       </div>
       <div style="padding:12px 18px 4px;">
@@ -1204,11 +1205,12 @@ function closeSign(){ if(signOverlay){ signOverlay.remove(); signOverlay=null; }
 
 // ── FILTERS & LIST ───────────────────────────────────────────────────────────────
 function downloadFiltered(){
-  const header = ['station_code','station_name','lat','lon','latest_date','latest_e_coli','unit','recent_geomean','swim_status','total_samples'];
+  const header = ['station_code','station_name','lat','lon','latest_date','latest_e_coli','unit','geomean_6week','geomean_6week_n','geomean_30day','geomean_30day_n','swim_status','total_samples'];
   const rows = filtered.map(r=>[
     r.code, r.name||'', r.lat, r.lon,
     r.latest?r.latest.date:'', r.latest?r.latest.result:'', THRESH.unit,
-    r.geomean!=null?r.geomean:'', r._status, r.n||0
+    r.geomean!=null?r.geomean:'', r.geomean_n||0,
+    r.geomean_30d!=null?r.geomean_30d:'', r.geomean_30d_n||0, r._status, r.n||0
   ].map(v=>`"${String(v).replace(/"/g,'""')}"`).join(','));
   const csv = [header.join(','),...rows].join('\n');
   const a = document.createElement('a');
@@ -1571,7 +1573,7 @@ function showSubMsg(text, type){
 // American River bbox and consolidate the same way build_data.py does.
 const CKAN_RESOURCE = '15a63495-8d9f-4a49-b43a-3092ef3106b9';
 const STATION_BBOX = {lat_min:38.55, lat_max:38.78, lon_min:-121.53, lon_max:-121.05};
-const CKAN_SQL = `SELECT "StationCode" c,"StationName" n,"TargetLatitude" lat,"TargetLongitude" lon,"SampleDate" d,"Result" r,"GeoMean_6Week" gm,"Count_6Week" gmn FROM "${CKAN_RESOURCE}" WHERE "Analyte"='E. coli' AND CAST("TargetLatitude" AS FLOAT) BETWEEN ${STATION_BBOX.lat_min} AND ${STATION_BBOX.lat_max} AND CAST("TargetLongitude" AS FLOAT) BETWEEN ${STATION_BBOX.lon_min} AND ${STATION_BBOX.lon_max} LIMIT 40000`;
+const CKAN_SQL = `SELECT "StationCode" c,"StationName" n,"TargetLatitude" lat,"TargetLongitude" lon,"SampleDate" d,"Result" r,"GeoMean_6Week" gm,"Count_6Week" gmn,"GeoMean_30Day" gm30,"Count_30Day" gmn30 FROM "${CKAN_RESOURCE}" WHERE "Analyte"='E. coli' AND CAST("TargetLatitude" AS FLOAT) BETWEEN ${STATION_BBOX.lat_min} AND ${STATION_BBOX.lat_max} AND CAST("TargetLongitude" AS FLOAT) BETWEEN ${STATION_BBOX.lon_min} AND ${STATION_BBOX.lon_max} LIMIT 40000`;
 const CKAN_API  = `https://data.ca.gov/api/3/action/datastore_search_sql?sql=${encodeURIComponent(CKAN_SQL)}`;
 const CKAN_META = `https://data.ca.gov/api/3/action/resource_show?id=${CKAN_RESOURCE}`;
 
@@ -1597,24 +1599,28 @@ function aggregate(records){
     const g=byCode[code]||(byCode[code]={code,names:{},byDate:{}});
     g.names[name]=(g.names[name]||0)+1;
     const gmn=parseFloat(row.gmn)||0, ex=g.byDate[date];
-    if(!ex || gmn>(ex._gmn||0)) g.byDate[date]={date,result:Math.round(result*10)/10,status:statusFor(result),_gm:parseFloat(row.gm)||null,_gmn:gmn,lat,lon,name};
+    if(!ex || gmn>(ex._gmn||0)) g.byDate[date]={date,result:Math.round(result*10)/10,status:statusFor(result),_gm:parseFloat(row.gm)||null,_gmn:gmn,_gm30:parseFloat(row.gm30)||null,_gmn30:parseFloat(row.gmn30)||0,lat,lon,name};
   }
   const out=[];
   for(const g of Object.values(byCode)){
     const name=Object.entries(g.names).sort((a,b)=>b[1]-a[1])[0][0]||g.code;
     const samples=Object.values(g.byDate).sort((a,b)=>b.date.localeCompare(a.date));
     const latest=samples[0], nm=name.toLowerCase();
-    if(!(latest.date>=MIN_LATEST && (nm.includes('american river')||nm.includes('lake natoma')||nm.includes('folsom lake')))) continue;
+    if(!(latest.date>=MIN_LATEST && (nm.includes('american river')||nm.includes('lake natoma')||nm.includes('folsom lake')||nm.includes('sacramento river')||nm.includes('feather')||nm.includes('yuba river')))) continue;
     const base=samples.filter(s=>s.name===name); const cr=base.length?base:samples;
     const rlat=+(cr.reduce((a,s)=>a+s.lat,0)/cr.length).toFixed(5);
     const rlon=+(cr.reduce((a,s)=>a+s.lon,0)/cr.length).toFixed(5);
     let gm, gmn;
     if(latest._gm){ gm=latest._gm; gmn=latest._gmn; }
     else { const recent=samples.slice(0,6).map(s=>s.result); gm=geomean(recent); gmn=recent.length; }
+    const gm30=latest._gm30, gmn30=latest._gmn30||0;
     out.push({code:g.code, name, lat:rlat, lon:rlon,
       samples:samples.map(s=>({date:s.date,result:s.result,status:s.status})),
       latest:{date:latest.date,result:latest.result,status:latest.status},
-      geomean:gm!=null?Math.round(gm*10)/10:null, geomean_n:gmn, n:samples.length});
+      geomean:gm!=null?Math.round(gm*10)/10:null, geomean_n:gmn,
+      geomean_30d:gm30!=null?Math.round(gm30*10)/10:null, geomean_30d_n:gmn30,
+      geomean_30d_status:gm30!=null?(gm30<=THRESH.gm_criterion?'Good':statusFor(gm30)):'Unknown',
+      n:samples.length});
   }
   return out.sort((a,b)=>(a.name||'').localeCompare(b.name||''));
 }

@@ -121,7 +121,8 @@ def fetch_ecoli_stations():
     """Fetch E. coli records within the American River bounding box (paged)."""
     b = STATION_BBOX
     cols = ('"StationCode" c,"StationName" n,"TargetLatitude" lat,"TargetLongitude" lon,'
-            '"SampleDate" d,"Result" r,"Unit" u,"GeoMean_6Week" gm,"Count_6Week" gmn')
+            '"SampleDate" d,"Result" r,"Unit" u,"GeoMean_6Week" gm,"Count_6Week" gmn,'
+            '"GeoMean_30Day" gm30,"Count_30Day" gmn30')
     where = (f"\"Analyte\"='E. coli' "
              f"AND CAST(\"TargetLatitude\" AS FLOAT) BETWEEN {b['lat_min']} AND {b['lat_max']} "
              f"AND CAST(\"TargetLongitude\" AS FLOAT) BETWEEN {b['lon_min']} AND {b['lon_max']}")
@@ -284,6 +285,8 @@ def main():
         else:
             recent = [s["result"] for s in samples[:6]]
             gm, gmn = geomean(recent), len(recent)
+        # 30-day geomean: the dataset's shorter, more-recent window (official only; no fallback)
+        gm30, gmn30 = num(latest.get("gm30")), num(latest.get("gmn30"))
         out.append({
             "code": code,
             "name": name,
@@ -293,6 +296,9 @@ def main():
             "latest": samples[0],
             "geomean": round(gm, 1) if gm is not None else None,
             "geomean_n": gmn,
+            "geomean_30d": round(gm30, 1) if gm30 is not None else None,
+            "geomean_30d_n": int(gmn30) if gmn30 is not None else 0,
+            "geomean_30d_status": ("Good" if gm30 <= GM_CRITERION else status_for(gm30)) if gm30 is not None else "Unknown",
             "n": len(samples),
             "status": samples[0]["status"],
             "geomean_status": "Good" if (gm is not None and gm <= GM_CRITERION) else (
