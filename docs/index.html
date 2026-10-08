@@ -1571,7 +1571,7 @@ function showSubMsg(text, type){
 // American River bbox and consolidate the same way build_data.py does.
 const CKAN_RESOURCE = '15a63495-8d9f-4a49-b43a-3092ef3106b9';
 const STATION_BBOX = {lat_min:38.55, lat_max:38.78, lon_min:-121.53, lon_max:-121.05};
-const CKAN_SQL = `SELECT "StationCode" c,"StationName" n,"TargetLatitude" lat,"TargetLongitude" lon,"SampleDate" d,"Result" r,"6WeekGeoMean" gm,"6WeekCount" gmn FROM "${CKAN_RESOURCE}" WHERE "Analyte"='E. coli' AND CAST("TargetLatitude" AS FLOAT) BETWEEN ${STATION_BBOX.lat_min} AND ${STATION_BBOX.lat_max} AND CAST("TargetLongitude" AS FLOAT) BETWEEN ${STATION_BBOX.lon_min} AND ${STATION_BBOX.lon_max} LIMIT 40000`;
+const CKAN_SQL = `SELECT "StationCode" c,"StationName" n,"TargetLatitude" lat,"TargetLongitude" lon,"SampleDate" d,"Result" r,"GeoMean_6Week" gm,"Count_6Week" gmn FROM "${CKAN_RESOURCE}" WHERE "Analyte"='E. coli' AND CAST("TargetLatitude" AS FLOAT) BETWEEN ${STATION_BBOX.lat_min} AND ${STATION_BBOX.lat_max} AND CAST("TargetLongitude" AS FLOAT) BETWEEN ${STATION_BBOX.lon_min} AND ${STATION_BBOX.lon_max} LIMIT 40000`;
 const CKAN_API  = `https://data.ca.gov/api/3/action/datastore_search_sql?sql=${encodeURIComponent(CKAN_SQL)}`;
 const CKAN_META = `https://data.ca.gov/api/3/action/resource_show?id=${CKAN_RESOURCE}`;
 

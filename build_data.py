@@ -121,7 +121,7 @@ def fetch_ecoli_stations():
     """Fetch E. coli records within the American River bounding box (paged)."""
     b = STATION_BBOX
     cols = ('"StationCode" c,"StationName" n,"TargetLatitude" lat,"TargetLongitude" lon,'
-            '"SampleDate" d,"Result" r,"Unit" u,"6WeekGeoMean" gm,"6WeekCount" gmn')
+            '"SampleDate" d,"Result" r,"Unit" u,"GeoMean_6Week" gm,"Count_6Week" gmn')
     where = (f"\"Analyte\"='E. coli' "
              f"AND CAST(\"TargetLatitude\" AS FLOAT) BETWEEN {b['lat_min']} AND {b['lat_max']} "
              f"AND CAST(\"TargetLongitude\" AS FLOAT) BETWEEN {b['lon_min']} AND {b['lon_max']}")
